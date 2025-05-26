@@ -10,6 +10,8 @@ A modern web application for planning and scheduling social media content across
 - React Query for data management
 - PostgreSQL or SQLite for data storage
 - Express.js backend API
+- User authentication and account management
+- Notification preferences system
 
 ## Quick Start
 
@@ -35,9 +37,9 @@ A modern web application for planning and scheduling social media content across
    npm run dev
    ```
 
-   This will start both the frontend (http://localhost:3000) and backend (http://localhost:3001) servers.
+   This will start both the frontend (http://localhost:5173) and backend (http://localhost:3001) servers.
 
-5. Open your browser to http://localhost:3000
+5. Open your browser to http://localhost:5173
 
 ## Database Configuration
 
@@ -92,6 +94,8 @@ The application is already configured to use these credentials when available.
 - **Multi-Platform Support**: Schedule posts for Twitter, LinkedIn, Facebook, and Instagram
 - **Filtering & Search**: Filter posts by platform, status, and search by content
 - **Persistent Storage**: Store your data in PostgreSQL or SQLite database
+- **User Accounts**: Create and manage user accounts with secure authentication
+- **Notification Preferences**: Customize how and when you receive notifications
 
 ## Usage
 
@@ -101,6 +105,8 @@ The application is already configured to use these credentials when available.
 - **Change Views**: Toggle between Month, List, and Grid views using the view selector
 - **Filter Content**: Use the filter bar to find specific posts
 - **Connect Accounts**: Use the Connect page to link your social media accounts
+- **User Account**: Create an account in the Settings page under the Account tab
+- **Notification Settings**: Configure your notification preferences in the Settings page under the Notifications tab
 
 ## Development
 
@@ -113,3 +119,66 @@ The application includes mock data for initial testing. To modify the mock data,
 ```
 client/src/lib/mockApi.ts
 ```
+
+## User Account Management
+
+The application supports full user account management:
+
+1. **Creating an Account**:
+   - Go to the Settings page and select the Account tab
+   - Fill in your name, email, and password
+   - Click "Save Profile" to create your account
+
+2. **Logging In**:
+   - If you've created an account, you can log in using your email and password
+   - Your session will be maintained until you log out
+
+3. **Updating Your Profile**:
+   - Change your name or email in the Account tab
+   - Update your password by providing your current password and a new password
+
+4. **Notification Preferences**:
+   - Go to the Settings page and select the Notifications tab
+   - Configure email notifications for daily digests, post publishing, and failures
+   - Enable or disable browser notifications
+
+5. **Slack Integration**:
+   - Go to the Settings page and select the Slack Integration tab
+   - Enter your Slack Bot Token and Channel ID
+   - Click "Save Settings" to connect your calendar to Slack
+
+All user data is securely stored in your database with passwords properly hashed.
+
+## Settings Persistence
+
+The application uses a hybrid approach for settings persistence:
+
+1. **Local Storage**: All settings are immediately saved to the browser's localStorage for instant persistence between page navigations and browser sessions.
+
+2. **Server Storage**: When connected to the backend, settings are also saved to the database for long-term storage and cross-device access.
+
+This hybrid approach provides:
+- Immediate feedback and persistence for users
+- Offline capability when the server is unavailable
+- Proper server-side storage for production use
+- Synchronization between devices when users log in from different locations
+
+### Implementation Details
+
+The application automatically:
+1. Loads settings from the server when available
+2. Falls back to localStorage when offline
+3. Synchronizes localStorage with server data when reconnected
+4. Handles conflicts by prioritizing the most recent changes
+
+### For Developers
+
+To switch between development (localStorage only) and production (server + localStorage) modes:
+
+```
+# In .env file
+USE_SERVER_STORAGE=true  # For production
+USE_SERVER_STORAGE=false # For development (localStorage only)
+```
+
+When `USE_SERVER_STORAGE` is false, the application will only use localStorage, making it perfect for demonstrations and development without a backend.

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCalendarPosts } from "@/lib/api";
-import { Post } from "@/lib/types";
+import { fetchAnalyticsData } from "@/lib/api";
 import { Helmet } from "react-helmet";
 
 import Header from "@/components/layout/Header";
@@ -13,39 +12,28 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 const Reports = () => {
   const [reportType, setReportType] = useState<'platform' | 'status'>('platform');
   
-  const { data: posts, isLoading, isError } = useQuery({
-    queryKey: ['/api/calendar'],
-    queryFn: fetchCalendarPosts,
+  const { data: analytics, isLoading, isError } = useQuery({
+    queryKey: ['/api/analytics'],
+    queryFn: fetchAnalyticsData,
   });
-
-  // Transform data for platform report
-  const platformData = posts ? posts.reduce((acc: any[], post: Post) => {
-    const existingPlatform = acc.find(item => item.name === post.platform);
-    if (existingPlatform) {
-      existingPlatform.value += 1;
-    } else {
-      acc.push({ name: post.platform, value: 1 });
-    }
-    return acc;
-  }, []) : [];
-
-  // Transform data for status report
-  const statusData = posts ? posts.reduce((acc: any[], post: Post) => {
-    const status = post.status || 'draft';
-    const existingStatus = acc.find(item => item.name === status);
-    if (existingStatus) {
-      existingStatus.value += 1;
-    } else {
-      acc.push({ name: status, value: 1 });
-    }
-    return acc;
-  }, []) : [];
-
-  // Prepare bar chart data
-  const barChartData = reportType === 'platform' ? platformData : statusData;
 
   // Colors for pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#83a6ed'];
+
+  // Transform data for platform report
+  const platformData = analytics?.postsByPlatform?.map(item => ({
+    name: item.platform,
+    value: item.count
+  })) || [];
+
+  // Transform data for status report
+  const statusData = analytics?.postsByStatus?.map(item => ({
+    name: item.status,
+    value: item.count
+  })) || [];
+
+  // Calculate total posts
+  const totalPosts = analytics?.postsByPlatform?.reduce((sum, item) => sum + item.count, 0) || 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -204,7 +192,7 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <p><strong>Total Posts:</strong> {posts?.length || 0}</p>
+                  <p><strong>Total Posts:</strong> {totalPosts}</p>
                   <p><strong>Platforms:</strong> {platformData.map(p => p.name).join(', ')}</p>
                   <p><strong>Status Overview:</strong> {statusData.map(s => `${s.name} (${s.value})`).join(', ')}</p>
                 </div>

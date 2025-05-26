@@ -26,6 +26,25 @@ export interface Post {
   updatedAt: string;
 }
 
+export interface User {
+  id?: number | string;
+  email: string;
+  name: string;
+  password: string; // Hashed password
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationPreference {
+  id?: number | string;
+  userId: string;
+  emailDigest: boolean;
+  emailPostPublished: boolean;
+  emailPostFailed: boolean;
+  browserNotifications: boolean;
+  updatedAt: string;
+}
+
 export interface DatabaseAdapter {
   // Social accounts
   socialAccounts: {
@@ -44,6 +63,22 @@ export interface DatabaseAdapter {
     create: (post: Post) => Promise<Post>;
     update: (post: Partial<Post>) => Promise<Post>;
     delete: (id: number | string) => Promise<void>;
+  };
+  
+  // Users
+  users: {
+    findByEmail: (email: string) => Promise<User | null>;
+    findById: (id: number | string) => Promise<User | null>;
+    create: (user: User) => Promise<User>;
+    update: (user: Partial<User>) => Promise<User>;
+    delete: (id: number | string) => Promise<void>;
+  };
+  
+  // Notification preferences
+  notificationPreferences: {
+    findByUserId: (userId: string) => Promise<NotificationPreference | null>;
+    create: (preference: NotificationPreference) => Promise<NotificationPreference>;
+    update: (preference: Partial<NotificationPreference>) => Promise<NotificationPreference>;
   };
   
   // Database initialization

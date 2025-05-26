@@ -41,8 +41,166 @@ export class PostgresAdapter implements DatabaseAdapter {
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       );
+      
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        password TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      
+      CREATE TABLE IF NOT EXISTS notification_preferences (
+        id SERIAL PRIMARY KEY,
+        userId TEXT NOT NULL UNIQUE,
+        emailDigest BOOLEAN NOT NULL DEFAULT TRUE,
+        emailPostPublished BOOLEAN NOT NULL DEFAULT TRUE,
+        emailPostFailed BOOLEAN NOT NULL DEFAULT TRUE,
+        browserNotifications BOOLEAN NOT NULL DEFAULT FALSE,
+        updatedAt TEXT NOT NULL
+      );
     `);
   }
+  
+  users = {
+    findByEmail: async (email: string): Promise<User | null> => {
+      const result = await this.pool.query<User>(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+      );
+      return result.rows[0] || null;
+    },
+    
+    findById: async (id: number | string): Promise<User | null> => {
+      const result = await this.pool.query<User>(
+        'SELECT * FROM users WHERE id = $1',
+        [id]
+      );
+      return result.rows[0] || null;
+    },
+    
+    create: async (user: User): Promise<User> => {
+      const now = new Date().toISOString();
+      
+      const result = await this.pool.query(
+        `INSERT INTO users 
+         (email, name, password, createdAt, updatedAt)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          user.email,
+          user.name,
+          user.password,
+          user.createdAt || now,
+          user.updatedAt || now
+        ]
+      );
+      
+      return result.rows[0];
+    },
+    
+    update: async (user: Partial<User>): Promise<User> => {
+      if (!user.id) {
+        throw new Error('User ID is required for update');
+      }
+      
+      const fields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      Object.entries(user).forEach(([key, value]) => {
+        if (key !== 'id') {
+          fields.push(`${key} = ${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      });
+      
+      // Always update the updatedAt field
+      fields.push(`updatedAt = ${paramIndex}`);
+      values.push(new Date().toISOString());
+      paramIndex++;
+      
+      values.push(user.id);
+      
+      const result = await this.pool.query(
+        `UPDATE users SET ${fields.join(', ')} 
+         WHERE id = ${paramIndex}
+         RETURNING *`,
+        values
+      );
+      
+      return result.rows[0];
+    },
+    
+    delete: async (id: number | string): Promise<void> => {
+      await this.pool.query('DELETE FROM users WHERE id = $1', [id]);
+    }
+  };
+  
+  notificationPreferences = {
+    findByUserId: async (userId: string): Promise<NotificationPreference | null> => {
+      const result = await this.pool.query<NotificationPreference>(
+        'SELECT * FROM notification_preferences WHERE userId = $1',
+        [userId]
+      );
+      return result.rows[0] || null;
+    },
+    
+    create: async (preference: NotificationPreference): Promise<NotificationPreference> => {
+      const result = await this.pool.query(
+        `INSERT INTO notification_preferences 
+         (userId, emailDigest, emailPostPublished, emailPostFailed, browserNotifications, updatedAt)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [
+          preference.userId,
+          preference.emailDigest,
+          preference.emailPostPublished,
+          preference.emailPostFailed,
+          preference.browserNotifications,
+          preference.updatedAt || new Date().toISOString()
+        ]
+      );
+      
+      return result.rows[0];
+    },
+    
+    update: async (preference: Partial<NotificationPreference>): Promise<NotificationPreference> => {
+      if (!preference.userId) {
+        throw new Error('User ID is required for update');
+      }
+      
+      const fields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+      
+      Object.entries(preference).forEach(([key, value]) => {
+        if (key !== 'userId' && key !== 'id') {
+          fields.push(`${key} = ${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      });
+      
+      // Always update the updatedAt field
+      fields.push(`updatedAt = ${paramIndex}`);
+      values.push(new Date().toISOString());
+      paramIndex++;
+      
+      values.push(preference.userId);
+      
+      const result = await this.pool.query(
+        `UPDATE notification_preferences SET ${fields.join(', ')} 
+         WHERE userId = ${paramIndex}
+         RETURNING *`,
+        values
+      );
+      
+      return result.rows[0];
+    }
+  };
   
   socialAccounts = {
     findAll: async (userId: string): Promise<SocialAccount[]> => {

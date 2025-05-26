@@ -150,39 +150,49 @@ const AddPostDialog = ({ open, onOpenChange, onPostCreated, initialContent = '' 
           
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="date">Date</Label>
+              <div className="relative w-full" onClick={() => document.getElementById('date-input').showPicker()}>
+                <div className="w-full px-3 py-2 border rounded-md flex justify-between items-center cursor-pointer">
+                  <span>{date ? format(date, "MM/dd/yyyy") : "Pick a date"}</span>
+                  <CalendarIcon className="h-4 w-4" />
+                </div>
+                <input
+                  id="date-input"
+                  type="date"
+                  value={date ? format(date, "yyyy-MM-dd") : ''}
+                  onChange={(e) => {
+                    if (!e.target.value) {
+                      setDate(undefined);
+                      return;
+                    }
+                    // Fix timezone issue by parsing the date parts directly
+                    const [year, month, day] = e.target.value.split('-').map(Number);
+                    const newDate = new Date(year, month - 1, day, 12, 0, 0);
+                    setDate(newDate);
+                  }}
+                  className="sr-only"
+                />
+              </div>
             </div>
             
             <div className="grid gap-2">
               <Label htmlFor="time">Time</Label>
-              <Input
-                id="time"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
+              <div className="relative w-full" onClick={() => document.getElementById('time-input').showPicker()}>
+                <div className="w-full px-3 py-2 border rounded-md flex justify-between items-center cursor-pointer">
+                  <span>{time || "Select time"}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                </div>
+                <input
+                  id="time-input"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="sr-only"
+                />
+              </div>
             </div>
           </div>
         </div>

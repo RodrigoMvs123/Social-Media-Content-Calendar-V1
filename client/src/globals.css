@@ -74,3 +74,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Calendar alignment fix */
+.rdp-head_cell {
+  width: 40px !important;
+  text-align: center !important;
+}
+.rdp-cell {
+  width: 40px !important;
+  text-align: center !important;
+}
+.rdp-button {
+  width: 40px !important;
+}

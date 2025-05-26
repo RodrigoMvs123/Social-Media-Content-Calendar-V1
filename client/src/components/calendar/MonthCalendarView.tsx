@@ -7,7 +7,8 @@ import {
   isSameMonth, 
   isSameDay,
   addMonths,
-  subMonths
+  subMonths,
+  getDay
 } from 'date-fns';
 import { Post } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({ posts, onDateClic
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
+  const firstDayOfMonth = getDay(monthStart);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const nextMonth = () => {
@@ -74,13 +76,16 @@ const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({ posts, onDateClic
 
       <div className="grid grid-cols-7 gap-1 mb-2">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+          <div key={day} className="text-center text-sm font-semibold text-gray-600 py-2 border-b">
             {day}
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-7 gap-1">
+        {[...Array(firstDayOfMonth)].map((_, index) => (
+          <div key={`empty-${index}`} className="min-h-[80px] p-2" />
+        ))}
         {daysInMonth.map(day => {
           const dateKey = format(day, 'yyyy-MM-dd');
           const dayPosts = postsByDate[dateKey] || [];

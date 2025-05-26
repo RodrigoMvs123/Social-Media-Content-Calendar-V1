@@ -36,7 +36,7 @@ let posts: Post[] = [
     id: 4,
     userId: 'user1',
     platform: 'Facebook',
-    content: 'We're hiring! Join our team of passionate professionals. Apply now: example.com/careers',
+    content: 'We are hiring! Join our team of passionate professionals. Apply now: example.com/careers',
     scheduledTime: new Date(new Date().getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
     status: 'scheduled',
     createdAt: new Date().toISOString(),

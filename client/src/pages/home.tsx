@@ -9,6 +9,7 @@ import Footer from "@/components/layout/Footer";
 import CalendarView from "@/components/calendar/CalendarView";
 import FilterBar from "@/components/filters/FilterBar";
 import AddPostDialog from "@/components/dialogs/AddPostDialog";
+import AIContentDialog from "@/components/dialogs/AIContentDialog";
 import EmptyState from "@/components/calendar/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +17,8 @@ import { Sparkles, Plus, LayoutGrid, List } from "lucide-react";
 
 const Home = () => {
   const [isAddPostDialogOpen, setIsAddPostDialogOpen] = useState(false);
+  const [isAIDialogOpen, setIsAIDialogOpen] = useState(false);
+  const [aiGeneratedContent, setAiGeneratedContent] = useState('');
   const [activeView, setActiveView] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<FilterOptions>({
     platform: '',
@@ -30,8 +33,7 @@ const Home = () => {
   });
 
   const handleGenerateAIContent = () => {
-    // Implementation for AI generation will be added in a future update
-    alert("AI content generation will be added soon!");
+    setIsAIDialogOpen(true);
   };
 
   const handleFilterChange = (newFilters: Partial<FilterOptions>) => {
@@ -145,6 +147,16 @@ const Home = () => {
         open={isAddPostDialogOpen}
         onOpenChange={setIsAddPostDialogOpen}
         onPostCreated={() => refetch()}
+        initialContent={aiGeneratedContent}
+      />
+
+      <AIContentDialog
+        open={isAIDialogOpen}
+        onOpenChange={setIsAIDialogOpen}
+        onContentSelected={(content) => {
+          setAiGeneratedContent(content);
+          setIsAddPostDialogOpen(true);
+        }}
       />
     </div>
   );

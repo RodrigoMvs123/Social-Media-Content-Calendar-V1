@@ -1,8 +1,32 @@
 import express from 'express';
 import { db } from './db-wrapper';
 import bcrypt from 'bcryptjs';
+import { generateContent, generateIdeas } from './ai';
 
 const router = express.Router();
+
+// AI Routes
+router.post('/ai/generate', async (req, res) => {
+  try {
+    const { prompt, platform } = req.body;
+    const content = await generateContent(prompt, platform);
+    res.json({ content });
+  } catch (error) {
+    console.error('Error generating content:', error);
+    res.status(500).json({ error: 'Failed to generate content' });
+  }
+});
+
+router.post('/ai/ideas', async (req, res) => {
+  try {
+    const { topic } = req.body;
+    const ideas = await generateIdeas(topic);
+    res.json({ ideas });
+  } catch (error) {
+    console.error('Error generating ideas:', error);
+    res.status(500).json({ error: 'Failed to generate ideas' });
+  }
+});
 
 // Social Media Accounts Routes
 router.get('/social-accounts', async (req, res) => {

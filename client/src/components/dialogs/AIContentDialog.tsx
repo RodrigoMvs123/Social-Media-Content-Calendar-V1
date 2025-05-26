@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Copy, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react";
+import { Sparkles, Copy, RefreshCw } from "lucide-react";
 import { generateAIContent, generateContentIdeas } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -180,17 +180,7 @@ const AIContentDialog = ({ open, onOpenChange, onContentSelected }: AIContentDia
                   </Button>
                 </div>
 
-                <div className="flex justify-between">
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
-                      <ThumbsUp className="h-4 w-4 mr-1" />
-                      Like
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <ThumbsDown className="h-4 w-4 mr-1" />
-                      Dislike
-                    </Button>
-                  </div>
+                <div className="flex justify-end">
                   <Button onClick={handleUseContent}>Use This Content</Button>
                 </div>
               </div>

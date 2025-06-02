@@ -20,10 +20,12 @@ const EmptyState = ({ onCreatePost, onGenerateWithAI }: EmptyStateProps) => {
         <Button onClick={onCreatePost}>
           Create your first post
         </Button>
-        <Button variant="outline" onClick={onGenerateWithAI || (() => alert('AI content generation will be added soon!'))}>
-          <Sparkles className="h-4 w-4 mr-2" />
-          Generate with AI
-        </Button>
+        {onGenerateWithAI && (
+          <Button variant="outline" onClick={onGenerateWithAI}>
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate with AI
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -82,7 +82,6 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
                 <SelectItem value="this-week">This Week</SelectItem>
                 <SelectItem value="next-week">Next Week</SelectItem>
                 <SelectItem value="this-month">This Month</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
           </div>

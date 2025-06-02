@@ -35,6 +35,7 @@ const AddPostDialog = () => {
   const queryClient = useQueryClient();
   const [content, setContent] = useState('');
   const [platform, setPlatform] = useState('');
+  const [status, setStatus] = useState('scheduled');
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [time, setTime] = useState('12:00');
   const [connectedAccounts, setConnectedAccounts] = useState<SocialMediaAccount[]>([]);
@@ -65,6 +66,7 @@ const AddPostDialog = () => {
       // Always reset these
       setDate(new Date());
       setTime('12:00');
+      setStatus('scheduled');
     }
   }, [isAddPostDialogOpen, aiGeneratedContent, selectedPlatform, content, platform]);
   
@@ -104,12 +106,14 @@ const AddPostDialog = () => {
         content,
         platform,
         scheduledTime: scheduledTime.toISOString(),
-        status: 'scheduled',
+        status,
       });
       
       toast({
-        title: "Post scheduled",
-        description: "Your post has been scheduled successfully.",
+        title: status === 'scheduled' ? "Post scheduled" : "Post created",
+        description: status === 'scheduled' 
+          ? "Your post has been scheduled successfully." 
+          : `Your post has been created with status: ${status}.`,
       });
       
       // Reset form and context
@@ -117,6 +121,7 @@ const AddPostDialog = () => {
       setPlatform('');
       setDate(new Date());
       setTime('12:00');
+      setStatus('scheduled');
       
       // Close dialog and reset context
       closeAddPostDialog();
@@ -134,7 +139,7 @@ const AddPostDialog = () => {
       console.error('Failed to create post:', error);
       toast({
         title: "Error",
-        description: "Failed to schedule post. Please try again.",
+        description: "Failed to create post. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -144,6 +149,15 @@ const AddPostDialog = () => {
   
   // Simplified platform selection - avoid complex filtering that might cause issues
   const platforms = ['Twitter', 'LinkedIn', 'Instagram', 'Facebook'];
+  
+  // Status options
+  const statusOptions = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'scheduled', label: 'Scheduled' },
+    { value: 'published', label: 'Published' },
+    { value: 'needs_approval', label: 'Needs Approval' },
+    { value: 'ready', label: 'Ready to Publish' }
+  ];
 
   return (
     <Dialog open={isAddPostDialogOpen} onOpenChange={closeAddPostDialog}>
@@ -228,6 +242,20 @@ const AddPostDialog = () => {
               </div>
             </div>
           </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="status">Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         <DialogFooter>
@@ -236,7 +264,7 @@ const AddPostDialog = () => {
             onClick={handleSubmit} 
             disabled={!content || !platform || !date || isLoading}
           >
-            {isLoading ? 'Scheduling...' : 'Schedule Post'}
+            {isLoading ? 'Creating...' : status === 'scheduled' ? 'Schedule Post' : 'Create Post'}
           </Button>
         </DialogFooter>
       </DialogContent>

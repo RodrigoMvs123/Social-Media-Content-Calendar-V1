@@ -1,0 +1,246 @@
+# Database Setup Instructions for Social Media Content Calendar
+
+This document provides instructions on how to set up a database for the Social Media Content Calendar application without modifying the existing codebase.
+
+## Database Schema
+
+### 1. Social Media Accounts Table
+
+```sql
+CREATE TABLE social_media_accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  username TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT,
+  token_expiry TEXT,
+  connected BOOLEAN NOT NULL DEFAULT 1,
+  connected_at TEXT NOT NULL,
+  profile_data TEXT,
+  UNIQUE(user_id, platform)
+);
+```
+
+### 2. Posts Table
+
+```sql
+CREATE TABLE posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  content TEXT NOT NULL,
+  scheduled_time TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+```
+
+## Database Options
+
+### Option 1: SQLite (Simplest)
+
+1. Install SQLite:
+   ```
+   npm install sqlite sqlite3
+   ```
+
+2. Create a database connection:
+   ```javascript
+   import sqlite3 from 'sqlite3';
+   import { open } from 'sqlite';
+
+   async function setupDatabase() {
+     const db = await open({
+       filename: './data.sqlite',
+       driver: sqlite3.Database
+     });
+     
+     // Create tables
+     await db.exec(`
+       CREATE TABLE IF NOT EXISTS social_media_accounts (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         user_id TEXT NOT NULL,
+         platform TEXT NOT NULL,
+         username TEXT NOT NULL,
+         access_token TEXT NOT NULL,
+         refresh_token TEXT,
+         token_expiry TEXT,
+         connected BOOLEAN NOT NULL DEFAULT 1,
+         connected_at TEXT NOT NULL,
+         profile_data TEXT,
+         UNIQUE(user_id, platform)
+       );
+       
+       CREATE TABLE IF NOT EXISTS posts (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         user_id TEXT NOT NULL,
+         platform TEXT NOT NULL,
+         content TEXT NOT NULL,
+         scheduled_time TEXT NOT NULL,
+         status TEXT NOT NULL,
+         created_at TEXT NOT NULL,
+         updated_at TEXT NOT NULL
+       );
+     `);
+     
+     return db;
+   }
+   ```
+
+### Option 2: PostgreSQL
+
+1. Install PostgreSQL client:
+   ```
+   npm install pg
+   ```
+
+2. Create a database connection:
+   ```javascript
+   import { Pool } from 'pg';
+
+   const pool = new Pool({
+     user: 'your_username',
+     host: 'localhost',
+     database: 'social_media_calendar',
+     password: 'your_password',
+     port: 5432,
+   });
+
+   async function setupDatabase() {
+     // Create tables
+     await pool.query(`
+       CREATE TABLE IF NOT EXISTS social_media_accounts (
+         id SERIAL PRIMARY KEY,
+         user_id TEXT NOT NULL,
+         platform TEXT NOT NULL,
+         username TEXT NOT NULL,
+         access_token TEXT NOT NULL,
+         refresh_token TEXT,
+         token_expiry TEXT,
+         connected BOOLEAN NOT NULL DEFAULT TRUE,
+         connected_at TEXT NOT NULL,
+         profile_data TEXT,
+         UNIQUE(user_id, platform)
+       );
+       
+       CREATE TABLE IF NOT EXISTS posts (
+         id SERIAL PRIMARY KEY,
+         user_id TEXT NOT NULL,
+         platform TEXT NOT NULL,
+         content TEXT NOT NULL,
+         scheduled_time TEXT NOT NULL,
+         status TEXT NOT NULL,
+         created_at TEXT NOT NULL,
+         updated_at TEXT NOT NULL
+       );
+     `);
+     
+     return pool;
+   }
+   ```
+
+### Option 3: MongoDB
+
+1. Install MongoDB client:
+   ```
+   npm install mongodb
+   ```
+
+2. Create a database connection:
+   ```javascript
+   import { MongoClient } from 'mongodb';
+
+   const uri = 'mongodb://localhost:27017';
+   const client = new MongoClient(uri);
+
+   async function setupDatabase() {
+     await client.connect();
+     const db = client.db('social_media_calendar');
+     
+     // Create collections
+     const accounts = db.collection('social_media_accounts');
+     const posts = db.collection('posts');
+     
+     // Create indexes
+     await accounts.createIndex({ user_id: 1, platform: 1 }, { unique: true });
+     await posts.createIndex({ scheduled_time: 1 });
+     
+     return { db, accounts, posts };
+   }
+   ```
+
+## Integration with OAuth
+
+To integrate the database with OAuth authentication:
+
+1. Create a server endpoint to handle OAuth callbacks:
+   ```javascript
+   app.get('/oauth/callback/:platform', async (req, res) => {
+     const { platform } = req.params;
+     const { code, state } = req.query;
+     
+     // Exchange code for access token
+     const tokenResponse = await fetch(`https://api.${platform}.com/oauth/token`, {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+       body: new URLSearchParams({
+         grant_type: 'authorization_code',
+         code,
+         redirect_uri: `${process.env.APP_URL}/oauth/callback/${platform}`,
+         client_id: process.env[`${platform.toUpperCase()}_CLIENT_ID`],
+         client_secret: process.env[`${platform.toUpperCase()}_CLIENT_SECRET`]
+       })
+     });
+     
+     const tokenData = await tokenResponse.json();
+     
+     // Store in database
+     await db.social_media_accounts.upsert({
+       user_id: req.session.userId,
+       platform,
+       username: tokenData.username || 'user',
+       access_token: tokenData.access_token,
+       refresh_token: tokenData.refresh_token,
+       token_expiry: tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null,
+       connected: true,
+       connected_at: new Date().toISOString()
+     });
+     
+     res.redirect('/connect?success=true');
+   });
+   ```
+
+## Environment Variables
+
+Create a `.env` file with the following variables:
+
+```
+# Database Configuration
+DB_TYPE=sqlite
+DB_PATH=./data.sqlite
+
+# OAuth Configuration
+TWITTER_CLIENT_ID=your_twitter_client_id
+TWITTER_CLIENT_SECRET=your_twitter_client_secret
+
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+
+FACEBOOK_CLIENT_ID=your_facebook_client_id
+FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
+
+INSTAGRAM_CLIENT_ID=your_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+```
+
+## Implementation Steps
+
+1. Choose a database system (SQLite recommended for simplicity)
+2. Set up the database schema
+3. Create API endpoints for social media account management
+4. Implement OAuth flow for each platform
+5. Update the frontend to use the new API endpoints
+
+This approach allows you to add database functionality without disrupting the current application structure.

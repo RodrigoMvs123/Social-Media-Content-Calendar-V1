@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCalendarPosts } from "@/lib/api";
 import { Post, FilterOptions } from "@/lib/types";
 import { Helmet } from "react-helmet";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, isAfter, isBefore, parseISO } from "date-fns";
 
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -62,12 +63,12 @@ const Home = () => {
   // Apply filters to posts
   const filteredPosts = posts?.filter((post: Post) => {
     // Filter by platform
-    if (filters.platform && post.platform !== filters.platform) {
+    if (filters.platform && filters.platform !== 'all' && post.platform !== filters.platform) {
       return false;
     }
     
     // Filter by status
-    if (filters.status && post.status !== filters.status) {
+    if (filters.status && filters.status !== 'all' && post.status !== filters.status) {
       return false;
     }
     
@@ -76,10 +77,41 @@ const Home = () => {
       return false;
     }
     
-    // Filter by date range will be implemented in a more complete version
+    // Filter by date range
+    if (filters.dateRange) {
+      const postDate = parseISO(post.scheduledTime);
+      const now = new Date();
+      
+      switch (filters.dateRange) {
+        case 'upcoming':
+          // Show posts scheduled for today or in the future
+          return isAfter(postDate, new Date(now.setHours(0, 0, 0, 0)));
+          
+        case 'this-week':
+          // Show posts scheduled for this week
+          const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+          const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
+          return isAfter(postDate, thisWeekStart) && isBefore(postDate, thisWeekEnd);
+          
+        case 'next-week':
+          // Show posts scheduled for next week
+          const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
+          const nextWeekEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
+          return isAfter(postDate, nextWeekStart) && isBefore(postDate, nextWeekEnd);
+          
+        case 'this-month':
+          // Show posts scheduled for this month
+          const thisMonthStart = startOfMonth(now);
+          const thisMonthEnd = endOfMonth(now);
+          return isAfter(postDate, thisMonthStart) && isBefore(postDate, thisMonthEnd);
+      }
+    }
     
     return true;
   }) || [];
+
+  // Check if we have posts but they're all filtered out
+  const hasPostsButFiltered = posts && posts.length > 0 && filteredPosts.length === 0;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -155,11 +187,33 @@ const Home = () => {
                 Retry
               </Button>
             </div>
+          ) : hasPostsButFiltered ? (
+            <div className="text-center py-10">
+              <p className="text-gray-500">No posts match your current filters.</p>
+              <Button 
+                variant="outline" 
+                onClick={() => setFilters({
+                  platform: '',
+                  dateRange: 'upcoming',
+                  status: '',
+                  searchQuery: '',
+                })} 
+                className="mt-4"
+              >
+                Clear Filters
+              </Button>
+            </div>
           ) : filteredPosts.length === 0 ? (
-            <EmptyState onCreatePost={() => {
-              resetState(); // Reset any previous state
-              openAddPostDialog(); // Open empty dialog
-            }} />
+            <EmptyState 
+              onCreatePost={() => {
+                resetState();
+                openAddPostDialog();
+              }}
+              onGenerateWithAI={() => {
+                resetState();
+                openAIDialog();
+              }}
+            />
           ) : (
             <CalendarView posts={filteredPosts} viewType={activeView} />
           )}

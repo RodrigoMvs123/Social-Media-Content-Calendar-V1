@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { deletePost } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import EditPostDialog from '@/components/dialogs/EditPostDialog';
+import PostDetailsDialog from '@/components/dialogs/PostDetailsDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface PostItemProps {
@@ -75,12 +76,14 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const platformIconClass = getPlatformColor(post.platform);
   const formattedTime = format(new Date(post.scheduledTime), 'h:mm a');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const handleEdit = () => {
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsEditDialogOpen(true);
   };
   
@@ -102,14 +105,19 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
     setIsDeleteDialogOpen(false);
   };
   
+  const handleShowDetails = () => {
+    setIsDetailsDialogOpen(true);
+  };
+  
   // Grid view layout
   if (viewType === 'grid') {
     return (
       <>
         <Card 
-          className="overflow-hidden hover:shadow-md transition-shadow duration-200"
+          className="overflow-hidden hover:shadow-md transition-shadow duration-200 cursor-pointer"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          onClick={handleShowDetails}
         >
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -146,7 +154,10 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
                 
                 <button 
                   className="text-gray-400 hover:text-gray-500"
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeleteDialogOpen(true);
+                  }}
                   aria-label="Delete post"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -161,6 +172,12 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
           onOpenChange={setIsEditDialogOpen} 
           post={post}
           onPostUpdated={() => queryClient.invalidateQueries({ queryKey: ['/api/calendar'] })}
+        />
+        
+        <PostDetailsDialog
+          post={post}
+          open={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
         />
         
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -187,9 +204,10 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   return (
     <>
       <div 
-        className="p-6 hover:bg-gray-50 transition-colors duration-150"
+        className="p-6 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={handleShowDetails}
       >
         <div className="flex items-start space-x-4">
           <div className="flex-shrink-0">
@@ -216,7 +234,10 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
                 
                 <button 
                   className="text-gray-400 hover:text-gray-500"
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeleteDialogOpen(true);
+                  }}
                   aria-label="Delete post"
                 >
                   <Trash2 className="h-5 w-5" />
@@ -236,6 +257,12 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
         onOpenChange={setIsEditDialogOpen} 
         post={post}
         onPostUpdated={() => queryClient.invalidateQueries({ queryKey: ['/api/calendar'] })}
+      />
+      
+      <PostDetailsDialog
+        post={post}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
       />
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

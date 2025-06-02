@@ -12,6 +12,7 @@ A modern web application for planning and scheduling social media content across
 - Express.js backend API
 - User authentication and account management
 - Notification preferences system
+- OpenAI API for AI content generation
 
 ## Quick Start
 
@@ -28,18 +29,20 @@ A modern web application for planning and scheduling social media content across
 
 3. Configure environment variables:
    ```
+   # Copy the example files to both root and server directories
    cp .env.example .env
+   cp .env.example server/.env
    ```
-   Then edit the `.env` file with your credentials and preferred database option.
+   Then edit both `.env` files with your credentials and preferred database option.
 
 4. Start the application:
    ```
    npm run dev
    ```
 
-   This will start both the frontend (http://localhost:5173) and backend (http://localhost:3001) servers.
+   This will start both the frontend (http://localhost:3000) and backend (http://localhost:3001) servers.
 
-5. Open your browser to http://localhost:5173
+5. Open your browser to http://localhost:3000
 
 ## Database Configuration
 
@@ -56,6 +59,25 @@ This application supports two database options:
    - Data stored in a local file
 
 The application will automatically use the database specified in your environment variables.
+
+## AI Content Generation
+
+The application uses OpenAI's API to generate social media content:
+
+1. **Setup**:
+   - Get an API key from [OpenAI](https://platform.openai.com/)
+   - Add your API key to both `.env` files: `OPENAI_API_KEY=your_api_key_here`
+
+2. **Usage**:
+   - Click "Generate AI Content" on the dashboard
+   - Enter a prompt and select a platform
+   - Click "Generate Content"
+   - Use the generated content for your social media posts
+
+3. **Rate Limiting**:
+   - The application includes built-in rate limiting and caching
+   - This helps manage API usage and stay within free tier limits
+   - Generated content is cached to avoid duplicate API calls
 
 ## Social Media Integration
 
@@ -80,9 +102,36 @@ To use real social media integration:
 3. Configure the redirect URLs to point to your application:
    - Example: `http://localhost:3001/oauth/callback/twitter`
 
-4. Copy the client ID and secret to your `.env` file
+4. Copy the client ID and secret to **both** `.env` files (root and server directory):
+   ```
+   # Twitter OAuth credentials
+   TWITTER_CLIENT_ID=your_twitter_client_id
+   TWITTER_CLIENT_SECRET=your_twitter_client_secret
 
-5. Set `OAUTH_REDIRECT_URI` in your `.env` file
+   # LinkedIn OAuth credentials
+   LINKEDIN_CLIENT_ID=your_linkedin_client_id
+   LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+
+   # Facebook OAuth credentials
+   FACEBOOK_CLIENT_ID=your_facebook_client_id
+   FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
+
+   # Instagram OAuth credentials
+   INSTAGRAM_CLIENT_ID=your_instagram_client_id
+   INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+   ```
+
+   > **Important**: You must add these credentials to both the root `.env` file AND the `server/.env` file, as Node.js sometimes only checks for the nearest environment file.
+
+5. Set `OAUTH_REDIRECT_URI` in both `.env` files:
+   ```
+   OAUTH_REDIRECT_URI=http://localhost:3001/oauth/callback
+   ```
+
+6. Set `CLIENT_URL` in both `.env` files:
+   ```
+   CLIENT_URL=http://localhost:3000
+   ```
 
 The application is already configured to use these credentials when available.
 

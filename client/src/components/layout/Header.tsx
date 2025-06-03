@@ -1,61 +1,155 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
-import MobileMenu from './MobileMenu';
-import { Menu } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { 
+  Home, 
+  Calendar, 
+  BarChart3, 
+  Settings, 
+  Link as LinkIcon, 
+  Menu, 
+  X,
+  LogOut
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
+  const location = useLocation();
+  const { user, logout } = useAuth();
+  
+  const navigation = [
+    { name: 'Dashboard', href: '/', icon: Home },
+    { name: 'Connect', href: '/connect', icon: LinkIcon },
+    { name: 'Calendar', href: '/calendar', icon: Calendar },
+    { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'Settings', href: '/settings', icon: Settings },
+  ];
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+  
+  const handleLogout = () => {
+    logout();
+  };
+  
+  const userInitials = user?.name 
+    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase()
+    : user?.email?.charAt(0).toUpperCase() || 'U';
+  
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          {/* Logo and Title */}
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xl font-bold shadow-md">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                <path d="M12.75 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM7.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM8.25 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.75 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM10.5 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM12.75 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM14.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 13.5a.75.75 0 100-1.5.75.75 0 000 1.5z" />
-                <path fillRule="evenodd" d="M6.75 2.25A.75.75 0 017.5 3v1.5h9V3A.75.75 0 0118 3v1.5h.75a3 3 0 013 3v11.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V7.5a3 3 0 013-3H6V3a.75.75 0 01.75-.75zm13.5 9a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v7.5a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5v-7.5z" clipRule="evenodd" />
-              </svg>
+    <header className="bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          {/* Logo and Desktop Navigation */}
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <Link to="/" className="flex items-center">
+                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                </div>
+                <span className="ml-2 text-xl font-bold text-gray-900">Content Calendar</span>
+              </Link>
             </div>
-            <h1 className="text-xl font-bold text-gray-900">Social Media Calendar</h1>
+            
+            {/* Desktop Navigation */}
+            <nav className="hidden md:ml-6 md:flex md:space-x-4">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      isActive(item.href)
+                        ? 'text-blue-700 bg-blue-50'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 mr-1.5" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/" className="text-gray-600 hover:text-blue-700 font-medium transition-colors duration-200">
-              Dashboard
-            </Link>
-            <Link href="/calendar" className="text-gray-600 hover:text-blue-700 font-medium transition-colors duration-200">
-              Calendar
-            </Link>
-            <Link href="/connect" className="text-gray-600 hover:text-blue-700 font-medium transition-colors duration-200">
-              Connect
-            </Link>
-            <Link href="/reports" className="text-gray-600 hover:text-blue-700 font-medium transition-colors duration-200">
-              Reports
-            </Link>
-            <Link href="/settings" className="text-gray-600 hover:text-blue-700 font-medium transition-colors duration-200">
-              Settings
-            </Link>
-          </nav>
-
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMobileMenuOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
+          
+          {/* User Menu */}
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Avatar className="h-8 w-8 bg-blue-500 text-white cursor-pointer">
+                  <AvatarFallback className="bg-blue-500 text-white">{userInitials}</AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-white border border-gray-200 shadow-md">
+                <div className="flex items-center justify-start gap-2 p-2 bg-white">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    {user?.name && <p className="font-medium">{user.name}</p>}
+                    {user?.email && <p className="w-[200px] truncate text-sm text-gray-500">{user.email}</p>}
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer bg-white hover:bg-gray-100">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {/* Mobile menu button */}
+            <div className="flex items-center md:hidden ml-4">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
+                <span className="sr-only">Open main menu</span>
+                {isMobileMenuOpen ? (
+                  <X className="block h-6 w-6" />
+                ) : (
+                  <Menu className="block h-6 w-6" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-
+      
       {/* Mobile menu */}
-      <MobileMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      {isMobileMenuOpen && (
+        <div className="md:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center px-3 py-2 text-base font-medium ${
+                    isActive(item.href)
+                      ? 'text-blue-700 bg-blue-50 border-l-4 border-blue-500'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Icon className="h-5 w-5 mr-3" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </header>
   );
 };

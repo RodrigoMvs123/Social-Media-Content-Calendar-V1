@@ -175,9 +175,52 @@ export const generateContentIdeas = async (topic: string): Promise<string[]> => 
 };
 
 // Analytics API for reports
-export const fetchAnalyticsData = () => {
+export const fetchAnalyticsData = async () => {
   if (USE_MOCK_DATA) {
-    return mockApi.getAnalyticsData();
+    // Get the actual posts from the calendar
+    const posts = await fetchCalendarPosts();
+    
+    // Count posts by platform
+    const platformCounts: Record<string, number> = {};
+    posts.forEach(post => {
+      platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
+    });
+    
+    // Count posts by status
+    const statusCounts: Record<string, number> = {};
+    posts.forEach(post => {
+      statusCounts[post.status] = (statusCounts[post.status] || 0) + 1;
+    });
+    
+    // Format data for charts
+    const postsByPlatform = Object.entries(platformCounts).map(([platform, count]) => ({
+      platform,
+      count
+    }));
+    
+    const postsByStatus = Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count
+    }));
+    
+    return {
+      postsByPlatform,
+      postsByStatus,
+      engagementByPlatform: [
+        { platform: 'Twitter', likes: 145, shares: 78, comments: 32 },
+        { platform: 'LinkedIn', likes: 89, shares: 34, comments: 21 },
+        { platform: 'Facebook', likes: 67, shares: 12, comments: 45 },
+        { platform: 'Instagram', likes: 234, shares: 0, comments: 56 }
+      ],
+      postsOverTime: [
+        { date: '2023-01', count: 5 },
+        { date: '2023-02', count: 7 },
+        { date: '2023-03', count: 10 },
+        { date: '2023-04', count: 8 },
+        { date: '2023-05', count: 12 },
+        { date: '2023-06', count: 15 }
+      ]
+    };
   }
   return fetchWithErrorHandling('/analytics');
 };

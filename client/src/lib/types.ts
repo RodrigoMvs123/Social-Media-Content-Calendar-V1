@@ -1,5 +1,19 @@
+// User settings interface
+export interface UserSettings {
+  botToken: string;
+  channelId: string;
+  emailDigest: boolean;
+  emailPostPublished: boolean;
+  emailPostFailed: boolean;
+  browserNotifications: boolean;
+  name: string;
+  email: string;
+  notificationEmail?: string;
+}
+
+// Post interface
 export interface Post {
-  id?: number | string;
+  id: number;
   userId: string;
   platform: string;
   content: string;
@@ -7,21 +21,14 @@ export interface Post {
   status: string;
   createdAt: string;
   updatedAt: string;
+  media?: {
+    url: string;
+    type: string;
+    alt?: string;
+  }[];
 }
 
-export interface SocialMediaAccount {
-  id?: number | string;
-  userId: string;
-  platform: string;
-  username: string;
-  accessToken: string;
-  refreshToken?: string | null;
-  tokenExpiry?: string | null;
-  connected: boolean;
-  connectedAt: string;
-  profileData?: string;
-}
-
+// Filter options interface
 export interface FilterOptions {
   platform: string;
   dateRange: string;
@@ -29,18 +36,14 @@ export interface FilterOptions {
   searchQuery: string;
 }
 
-export interface UserSettings {
-  // Slack settings
-  botToken: string;
-  channelId: string;
-  
-  // Notification settings
-  emailDigest: boolean;
-  emailPostPublished: boolean;
-  emailPostFailed: boolean;
-  browserNotifications: boolean;
-  
-  // Account settings
-  name: string;
-  email: string;
+// Social media account interface
+export interface SocialMediaAccount {
+  id: number;
+  userId: string;
+  platform: string;
+  username: string;
+  connected: boolean;
+  connectedAt: string;
+  accessToken?: string;
+  tokenExpiry?: string;
 }

@@ -128,8 +128,7 @@ const Home = () => {
           <div className="mb-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between">
               <div className="mb-4 md:mb-0">
-                <h2 className="text-2xl font-bold text-gray-900">Content Calendar</h2>
-                <p className="text-gray-600 mt-1">Plan and schedule your social media content</p>
+                <p className="text-xl font-medium text-gray-900">Plan and schedule your social media content</p>
               </div>
               
               {/* Action Buttons */}

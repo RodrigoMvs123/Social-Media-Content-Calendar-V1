@@ -70,6 +70,33 @@ export const fetchCalendarPosts = () => {
   return fetchWithErrorHandling<Post[]>('/posts');
 };
 
+// Upload media files
+export const uploadMedia = async (files: File[]): Promise<{ url: string, type: string, alt?: string }[]> => {
+  if (USE_MOCK_DATA) {
+    // In a mock environment, we'll just create object URLs for the files
+    // In a real app, you would upload these to a server or cloud storage
+    return Promise.resolve(
+      files.map(file => ({
+        url: URL.createObjectURL(file),
+        type: file.type.startsWith('image/') ? 'image' : 'video',
+        alt: file.name
+      }))
+    );
+  }
+  
+  // In a real app, you would use FormData to upload files
+  const formData = new FormData();
+  files.forEach((file, index) => {
+    formData.append(`file${index}`, file);
+  });
+  
+  return fetchWithErrorHandling('/media/upload', {
+    method: 'POST',
+    body: formData,
+    headers: {} // Let the browser set the content type with boundary
+  });
+};
+
 export const createPost = (post: any) => {
   if (USE_MOCK_DATA) {
     return mockApi.createPost(post);

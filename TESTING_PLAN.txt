@@ -1,0 +1,49 @@
+# Social Media Content Calendar - Testing Plan
+
+## 1. Authentication System Testing
+- [ ] Set up PostgreSQL database connection using .env credentials
+- [ ] Implement real user registration that stores data in the database
+- [ ] Test user login with credentials from the database
+- [ ] Verify session persistence after login
+- [ ] Test logout functionality
+
+## 2. Slack Integration Testing
+- [ ] Register a Slack app at https://api.slack.com/apps
+- [ ] Create a bot user and get Bot Token
+- [ ] Configure OAuth permissions for chat:write and channels:read
+- [ ] Add the bot to a test channel and get Channel ID
+- [ ] Update Slack settings in the application with real credentials
+- [ ] Test sending a notification to Slack when a post is created/published
+
+## 3. Social Media OAuth Integration Testing
+- [ ] Twitter/X Developer Account:
+  - [ ] Register at https://developer.twitter.com
+  - [ ] Create an app and configure OAuth settings
+  - [ ] Set callback URL to http://localhost:3001/oauth/callback/twitter
+  - [ ] Get API key and secret
+
+- [ ] LinkedIn Developer Account:
+  - [ ] Register at https://www.linkedin.com/developers
+  - [ ] Create an app and configure OAuth settings
+  - [ ] Set redirect URL to http://localhost:3001/oauth/callback/linkedin
+  - [ ] Get client ID and secret
+
+- [ ] Facebook/Instagram Developer Account:
+  - [ ] Register at https://developers.facebook.com
+  - [ ] Create an app and configure OAuth settings
+  - [ ] Set redirect URL to http://localhost:3001/oauth/callback/facebook
+  - [ ] Get app ID and secret
+
+## 4. End-to-End Testing
+- [ ] Create a post with the "scheduled" status
+- [ ] Verify it appears in the calendar view
+- [ ] Verify it triggers a Slack notification
+- [ ] Verify it's stored in the database
+- [ ] Test publishing a post to a connected social media account
+- [ ] Verify the post appears on the social media platform
+
+## 5. Media Upload Feature (Completed)
+- [x] Implement image upload functionality
+- [x] Add video upload capability
+- [x] Test media preview in post creation dialog
+- [x] Verify media is properly attached to posts

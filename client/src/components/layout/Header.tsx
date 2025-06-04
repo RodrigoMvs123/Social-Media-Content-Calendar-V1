@@ -13,11 +13,11 @@ import {
   Home, 
   Calendar, 
   BarChart3, 
-  Settings, 
   Link as LinkIcon, 
   Menu, 
   X,
-  LogOut
+  LogOut,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -28,10 +28,10 @@ const Header = () => {
   
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Connect', href: '/connect', icon: LinkIcon },
+    { name: 'Social Media', href: '/connect', icon: LinkIcon },
+    { name: 'Slack', href: '/settings', icon: MessageSquare },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
-    { name: 'Settings', href: '/settings', icon: Settings },
   ];
   
   const isActive = (path: string) => {

@@ -109,6 +109,8 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
     setIsDetailsDialogOpen(true);
   };
   
+  const hasMedia = post.media && post.media.length > 0;
+  
   // Grid view layout
   if (viewType === 'grid') {
     return (
@@ -138,6 +140,8 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
             <div className="mb-3">
               <p className="text-sm text-gray-900 line-clamp-3">{post.content}</p>
             </div>
+            
+
             
             <div className="flex items-center justify-between">
               <div>
@@ -217,7 +221,7 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center">
                 <Badge variant="outline">
                   {post.platform}
                 </Badge>
@@ -245,6 +249,9 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
               </div>
             </div>
             <p className="mt-1 text-sm text-gray-900">{post.content}</p>
+            
+undefined
+            
             <div className="mt-2">
               {getStatusBadge(post.status)}
             </div>

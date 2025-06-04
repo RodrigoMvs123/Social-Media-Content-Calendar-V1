@@ -8,6 +8,9 @@ const defaultSettings: UserSettings = {
   emailPostPublished: true,
   emailPostFailed: false,
   browserNotifications: true,
+  slackPostScheduled: true,
+  slackPostPublished: true,
+  slackPostFailed: true,
   name: 'Demo User',
   email: 'demo@example.com',
   notificationEmail: ''

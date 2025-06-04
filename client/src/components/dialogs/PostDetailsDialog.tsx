@@ -9,8 +9,14 @@ import {
   TrendingUp, 
   Send, 
   Clock,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Film,
+  X
 } from 'lucide-react';
+import { useState } from 'react';
+import { updatePost } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PostDetailsDialogProps {
   post: Post | null;
@@ -66,11 +72,50 @@ const getStatusBadge = (status?: string) => {
 };
 
 const PostDetailsDialog = ({ post, open, onOpenChange }: PostDetailsDialogProps) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   if (!post) return null;
   
   const platformIconClass = getPlatformColor(post.platform);
   const formattedDate = format(new Date(post.scheduledTime), 'MMMM d, yyyy');
   const formattedTime = format(new Date(post.scheduledTime), 'h:mm a');
+  const hasMedia = post.media && post.media.length > 0;
+  
+  const handleRemoveMedia = async (index: number) => {
+    if (!post || !post.media) return;
+    
+    try {
+      setIsUpdating(true);
+      
+      // Create a new media array without the removed item
+      const updatedMedia = [...post.media];
+      updatedMedia.splice(index, 1);
+      
+      // Update the post with the new media array
+      await updatePost(post.id, {
+        media: updatedMedia.length > 0 ? updatedMedia : undefined
+      });
+      
+      // Refresh the data
+      queryClient.invalidateQueries(['/api/calendar']);
+      
+      toast({
+        title: "Media removed",
+        description: "The media has been removed from the post.",
+      });
+    } catch (error) {
+      console.error('Failed to remove media:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove media. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,13 +163,32 @@ const PostDetailsDialog = ({ post, open, onOpenChange }: PostDetailsDialogProps)
             </div>
           </div>
           
-          {post.media && post.media.length > 0 && (
+          {hasMedia && (
             <div className="mb-6">
               <h3 className="text-sm font-medium text-gray-500 mb-1">Media</h3>
               <div className="grid grid-cols-2 gap-2">
                 {post.media.map((item, index) => (
-                  <div key={index} className="border border-gray-200 rounded-md overflow-hidden">
-                    <img src={item.url} alt={`Media ${index + 1}`} className="w-full h-auto" />
+                  <div key={index} className="border border-gray-200 rounded-md overflow-hidden relative">
+                    {item.type === 'image' ? (
+                      <img 
+                        src={item.url} 
+                        alt={item.alt || `Media ${index + 1}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="bg-gray-100 p-4 flex flex-col items-center justify-center">
+                        <Film className="h-8 w-8 text-gray-400 mb-2" />
+                        <span className="text-sm text-gray-500">Video</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMedia(index)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                      disabled={isUpdating}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
                 ))}
               </div>

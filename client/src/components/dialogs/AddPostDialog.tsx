@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, AlertCircle } from 'lucide-react';
+import { CalendarIcon, AlertCircle, Image, X, Film, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { socialAccountsApi, createPost } from '@/lib/api';
@@ -42,6 +42,11 @@ const AddPostDialog = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
+  // Media upload state
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Update content when aiGeneratedContent changes
   useEffect(() => {
     if (aiGeneratedContent) {
@@ -67,6 +72,8 @@ const AddPostDialog = () => {
       setDate(new Date());
       setTime('12:00');
       setStatus('scheduled');
+      setMediaFiles([]);
+      setMediaPreviews([]);
     }
   }, [isAddPostDialogOpen, aiGeneratedContent, selectedPlatform, content, platform]);
   
@@ -91,6 +98,44 @@ const AddPostDialog = () => {
     }
   }, [isAddPostDialogOpen]);
   
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const newFiles: File[] = [];
+    const newPreviews: string[] = [];
+    
+    // Process each file
+    Array.from(files).forEach(file => {
+      // Check if it's an image or video
+      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+        newFiles.push(file);
+        
+        // Create preview URL
+        const previewUrl = URL.createObjectURL(file);
+        newPreviews.push(previewUrl);
+      }
+    });
+    
+    // Update state with new files and previews
+    setMediaFiles(prev => [...prev, ...newFiles]);
+    setMediaPreviews(prev => [...prev, ...newPreviews]);
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  const removeMedia = (index: number) => {
+    // Revoke the object URL to avoid memory leaks
+    URL.revokeObjectURL(mediaPreviews[index]);
+    
+    // Remove the file and preview
+    setMediaFiles(prev => prev.filter((_, i) => i !== index));
+    setMediaPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+  
   const handleSubmit = async () => {
     if (!content || !platform || !date) return;
     
@@ -102,11 +147,28 @@ const AddPostDialog = () => {
       const scheduledTime = new Date(date);
       scheduledTime.setHours(hours, minutes);
       
+      // In a real implementation, you would upload the media files to a server
+      // and get back URLs to include in the post
+      const mediaUrls = await Promise.all(
+        mediaFiles.map(async (file, index) => {
+          // This is a mock implementation - in a real app, you would upload the file
+          // and get back a URL from your server or a cloud storage service
+          
+          // For now, we'll just use the preview URL as a placeholder
+          return {
+            url: mediaPreviews[index],
+            type: file.type.startsWith('image/') ? 'image' : 'video'
+            // Removed alt property to prevent filename display
+          };
+        })
+      );
+      
       await createPost({
         content,
         platform,
         scheduledTime: scheduledTime.toISOString(),
         status,
+        media: mediaUrls.length > 0 ? mediaUrls : undefined
       });
       
       toast({
@@ -122,6 +184,11 @@ const AddPostDialog = () => {
       setDate(new Date());
       setTime('12:00');
       setStatus('scheduled');
+      
+      // Clean up media previews
+      mediaPreviews.forEach(url => URL.revokeObjectURL(url));
+      setMediaFiles([]);
+      setMediaPreviews([]);
       
       // Close dialog and reset context
       closeAddPostDialog();
@@ -193,6 +260,70 @@ const AddPostDialog = () => {
               placeholder="What do you want to share?"
               className="min-h-[100px]"
             />
+          </div>
+          
+          {/* Media Upload Section */}
+          <div className="grid gap-2">
+            <Label>Media</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {mediaPreviews.map((preview, index) => (
+                <div key={index} className="relative w-20 h-20 border rounded overflow-hidden">
+                  {mediaFiles[index]?.type.startsWith('image/') ? (
+                    <img 
+                      src={preview} 
+                      alt={`Media ${index + 1}`} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                      <Film className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1"
+              >
+                <Image className="h-4 w-4" />
+                Add Image
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1"
+              >
+                <Film className="h-4 w-4" />
+                Add Video
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleMediaUpload}
+                className="hidden"
+                multiple
+              />
+            </div>
+            {mediaPreviews.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {mediaPreviews.length} {mediaPreviews.length === 1 ? 'file' : 'files'} selected
+              </p>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">

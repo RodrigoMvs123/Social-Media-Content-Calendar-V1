@@ -6,6 +6,9 @@ export interface UserSettings {
   emailPostPublished: boolean;
   emailPostFailed: boolean;
   browserNotifications: boolean;
+  slackPostScheduled: boolean;
+  slackPostPublished: boolean;
+  slackPostFailed: boolean;
   name: string;
   email: string;
   notificationEmail?: string;

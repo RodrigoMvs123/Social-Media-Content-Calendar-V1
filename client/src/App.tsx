@@ -19,9 +19,9 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PostProvider>
-          <Router>
+      <Router>
+        <AuthProvider>
+          <PostProvider>
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               
@@ -58,9 +58,9 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <Toaster />
-          </Router>
-        </PostProvider>
-      </AuthProvider>
+          </PostProvider>
+        </AuthProvider>
+      </Router>
     </QueryClientProvider>
   );
 }

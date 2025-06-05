@@ -8,6 +8,9 @@ import oauthRoutes from './oauth';
 import { validateEnv } from './validateEnv';
 import path from 'path';
 
+// Import auth routes
+const authRoutes = require('./auth-routes');
+
 // Load environment variables from both locations
 dotenv.config(); // Load from server directory
 dotenv.config({ path: path.join(__dirname, '..', '.env') }); // Load from root directory
@@ -54,6 +57,7 @@ initDb().catch(err => {
 
 // Routes
 app.use('/api', routes);
+app.use('/api/auth', authRoutes); // Add auth routes
 app.use('/oauth', oauthRoutes);
 
 // Health check endpoint

@@ -1,49 +1,65 @@
-# Social Media Content Calendar - Testing Plan
+# Social Media Content Calendar Testing Plan
 
 ## 1. Authentication System Testing
-- [ ] Set up PostgreSQL database connection using .env credentials
-- [ ] Implement real user registration that stores data in the database
-- [ ] Test user login with credentials from the database
-- [ ] Verify session persistence after login
-- [ ] Test logout functionality
+- [x] Set up PostgreSQL database connection using .env credentials
+- [x] Implement real user registration that stores data in the database
+- [x] Test user login with credentials from the database
+- [x] Verify session persistence after login
+- [x] Test logout functionality
 
-## 2. Slack Integration Testing
-- [ ] Register a Slack app at https://api.slack.com/apps
-- [ ] Create a bot user and get Bot Token
-- [ ] Configure OAuth permissions for chat:write and channels:read
-- [ ] Add the bot to a test channel and get Channel ID
-- [ ] Update Slack settings in the application with real credentials
-- [ ] Test sending a notification to Slack when a post is created/published
+## 2. Calendar Interface Testing
+- [x] Verify calendar displays correctly in month view
+- [x] Test day view functionality
+- [x] Ensure posts appear on correct dates
+- [x] Test filtering by platform
+- [x] Test filtering by status
 
-## 3. Social Media OAuth Integration Testing
-- [ ] Twitter/X Developer Account:
-  - [ ] Register at https://developer.twitter.com
-  - [ ] Create an app and configure OAuth settings
-  - [ ] Set callback URL to http://localhost:3001/oauth/callback/twitter
-  - [ ] Get API key and secret
+## 3. Post Creation and Management
+- [x] Create new posts with all required fields
+- [x] Schedule posts for future dates
+- [x] Edit existing posts
+- [x] Delete posts
+- [x] Test post status changes (draft, scheduled, published)
 
-- [ ] LinkedIn Developer Account:
-  - [ ] Register at https://www.linkedin.com/developers
-  - [ ] Create an app and configure OAuth settings
-  - [ ] Set redirect URL to http://localhost:3001/oauth/callback/linkedin
-  - [ ] Get client ID and secret
-
-- [ ] Facebook/Instagram Developer Account:
-  - [ ] Register at https://developers.facebook.com
-  - [ ] Create an app and configure OAuth settings
-  - [ ] Set redirect URL to http://localhost:3001/oauth/callback/facebook
-  - [ ] Get app ID and secret
-
-## 4. End-to-End Testing
-- [ ] Create a post with the "scheduled" status
-- [ ] Verify it appears in the calendar view
-- [ ] Verify it triggers a Slack notification
-- [ ] Verify it's stored in the database
-- [ ] Test publishing a post to a connected social media account
-- [ ] Verify the post appears on the social media platform
+## 4. AI Content Generation
+- [x] Test AI content generation for different platforms
+- [x] Verify content ideas generation
+- [x] Test error handling for AI generation
+- [x] Measure response times for AI requests
 
 ## 5. Media Upload Feature (Completed)
 - [x] Implement image upload functionality
 - [x] Add video upload capability
 - [x] Test media preview in post creation dialog
 - [x] Verify media is properly attached to posts
+
+## 6. Social Media Integration
+- [ ] Test OAuth connection for Twitter
+- [ ] Test OAuth connection for Facebook
+- [ ] Test OAuth connection for Instagram
+- [ ] Test OAuth connection for LinkedIn
+- [ ] Verify disconnection functionality
+
+## 7. Analytics Dashboard
+- [x] Test data visualization components
+- [x] Verify metrics calculations
+- [x] Test date range filtering
+- [x] Ensure data refreshes correctly
+
+## 8. Slack Integration
+- [ ] Test Slack workspace connection
+- [ ] Verify notifications are sent to correct channel
+- [ ] Test different notification types
+- [ ] Verify error handling for failed notifications
+
+## 9. Performance Testing
+- [ ] Measure initial load time
+- [ ] Test with large number of posts (100+)
+- [ ] Verify responsiveness on mobile devices
+- [ ] Check memory usage during extended sessions
+
+## 10. Security Testing
+- [ ] Test authentication token expiration
+- [ ] Verify API endpoints require authentication
+- [ ] Check for proper input validation
+- [ ] Test against common security vulnerabilities

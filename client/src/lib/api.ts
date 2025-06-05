@@ -6,12 +6,22 @@ const API_BASE_URL = 'http://localhost:3001/api';
 
 // Configuration flags
 const USE_MOCK_DATA = true;  // Use mock data for posts and other data
+const USE_REAL_AUTH = true;  // Use real authentication with fallback to mock
 const USE_REAL_AI = true;    // Use real OpenAI API for content generation
+
+console.log("API Configuration:", { 
+  USE_MOCK_DATA, 
+  USE_REAL_AUTH, 
+  API_BASE_URL 
+});
 
 // Generic fetch wrapper with error handling
 async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const fullUrl = `${API_BASE_URL}${url}`;
+    console.log(`Fetching: ${fullUrl}`, options);
+    
+    const response = await fetch(fullUrl, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -20,16 +30,67 @@ async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Pr
       credentials: 'include' // Include cookies for session
     });
 
+    console.log(`Response status: ${response.status}`);
+    
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`API error: ${response.status}`, errorText);
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`Response data:`, data);
+    return data;
   } catch (error) {
     console.error(`Error fetching ${url}:`, error);
     throw error;
   }
 }
+
+// User Authentication API
+export const registerUser = async (userData: { name: string; email: string; password: string }) => {
+  console.log("registerUser called with:", userData.email);
+  console.log("Using real auth:", USE_REAL_AUTH);
+  
+  // Always use real authentication without fallback
+  console.log("Sending registration request to:", `${API_BASE_URL}/auth/register`);
+  return fetchWithErrorHandling('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(userData)
+  });
+};
+
+export const loginUser = async (credentials: { email: string; password: string }) => {
+  console.log("loginUser called with:", credentials.email);
+  console.log("Using real auth:", USE_REAL_AUTH);
+  
+  // Always use real authentication without fallback
+  console.log("Sending login request to:", `${API_BASE_URL}/auth/login`);
+  return fetchWithErrorHandling('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials)
+  });
+};
+
+export const logoutUser = async () => {
+  console.log("logoutUser called");
+  console.log("Using real auth:", USE_REAL_AUTH);
+  
+  // Always use real authentication without fallback
+  console.log("Sending logout request to:", `${API_BASE_URL}/auth/logout`);
+  return fetchWithErrorHandling('/auth/logout', {
+    method: 'POST'
+  });
+};
+
+export const getCurrentUser = async () => {
+  console.log("getCurrentUser called");
+  console.log("Using real auth:", USE_REAL_AUTH);
+  
+  // Always use real authentication without fallback
+  console.log("Sending getCurrentUser request to:", `${API_BASE_URL}/auth/me`);
+  return fetchWithErrorHandling('/auth/me');
+};
 
 // Settings API
 export const fetchSettings = () => {

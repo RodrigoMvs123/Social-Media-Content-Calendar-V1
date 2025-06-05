@@ -36,6 +36,8 @@ const AuthPage = () => {
     e.preventDefault();
     setIsLoading(true);
     
+    console.log("Attempting login with:", { email: loginEmail });
+    
     try {
       await login(loginEmail, loginPassword);
       toast({
@@ -45,6 +47,7 @@ const AuthPage = () => {
       navigate("/");
     } catch (error) {
       console.error("Login failed:", error);
+      console.error("Login error details:", error);
       toast({
         title: "Login failed",
         description: "Please check your credentials and try again.",
@@ -59,15 +62,27 @@ const AuthPage = () => {
     e.preventDefault();
     setIsLoading(true);
     
+    console.log("Attempting signup with:", { name: signupName, email: signupEmail });
+    
     try {
-      await signup(signupName, signupEmail, signupPassword);
+      const userData = await signup(signupName, signupEmail, signupPassword);
+      
+      // Show success message with user details
       toast({
-        title: "Account created",
-        description: "Your account has been created successfully.",
+        title: "Account created successfully",
+        description: `Welcome ${userData.name}! Please log in with your new credentials.`,
       });
-      navigate("/");
+      
+      // Switch to login tab and pre-fill email
+      setActiveTab("login");
+      setLoginEmail(signupEmail);
+      setSignupEmail("");
+      setSignupPassword("");
+      setSignupName("");
+      
     } catch (error) {
       console.error("Signup failed:", error);
+      console.error("Signup error details:", error);
       toast({
         title: "Signup failed",
         description: "Please check your information and try again.",

@@ -1,71 +1,78 @@
 import express from 'express';
 import cors from 'cors';
-import session from 'express-session';
 import dotenv from 'dotenv';
-import { initDb } from './db-wrapper';
-import routes from './routes';
-import oauthRoutes from './oauth';
-import { validateEnv } from './validateEnv';
 import path from 'path';
+import { Pool } from 'pg';
+import authRoutes from './auth-routes';
+import mediaRoutes from './media-routes';
 
-// Import auth routes
-const authRoutes = require('./auth-routes');
+// Load environment variables
+dotenv.config();
 
-// Load environment variables from both locations
-dotenv.config(); // Load from server directory
-dotenv.config({ path: path.join(__dirname, '..', '.env') }); // Load from root directory
-
-// Log environment variables for debugging
-console.log('Environment variables loaded:');
-console.log(`- DB_TYPE: ${process.env.DB_TYPE}`);
-console.log(`- DATABASE_URL: ${process.env.DATABASE_URL ? 'Set (hidden)' : 'Not set'}`);
-console.log(`- OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? 'Set (hidden)' : 'Not set'}`);
-console.log(`- SESSION_SECRET: ${process.env.SESSION_SECRET ? 'Set (hidden)' : 'Not set'}`);
-
-// Validate environment variables
-validateEnv();
-
-// Initialize Express app
+// Create Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const port = process.env.PORT || 3001;
+
+// Database configuration
+let dbConfig: any = {
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+};
+
+// Fallback to SQLite if no DATABASE_URL is provided
+let dbType = 'postgres';
+let dbAdapter;
+
+if (!process.env.DATABASE_URL) {
+  dbType = 'sqlite';
+  dbConfig = {
+    filename: './data.sqlite'
+  };
+}
+
+console.log('Database configuration (final):', [
+  `DB_TYPE: ${dbType}`,
+  `DB_PATH: ${dbType === 'sqlite' ? dbConfig.filename : 'N/A'}`
+]);
+
+// Set up database connection
+let pool;
+if (dbType === 'postgres') {
+  console.log('Using PostgreSQL database adapter');
+  pool = new Pool(dbConfig);
+} else {
+  console.log('Using SQLite database adapter (fallback)');
+  // SQLite adapter would be initialized here
+}
+
+// OpenAI API key check
+const openaiApiKey = process.env.OPENAI_API_KEY;
+console.log(`OpenAI API Key status: ${openaiApiKey ? 'FOUND' : 'NOT FOUND'}`);
 
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: 'http://localhost:3000',
   credentials: true
 }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Session middleware
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'social-media-calendar-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Initialize database
-initDb().catch(err => {
-  console.error('Failed to initialize database:', err);
-  process.exit(1);
-});
+// Serve static files from the uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.use('/api', routes);
-app.use('/api/auth', authRoutes); // Add auth routes
-app.use('/oauth', oauthRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/posts', require('./posts-routes'));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date() });
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
+
+export default app;

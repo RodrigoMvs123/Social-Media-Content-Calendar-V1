@@ -137,9 +137,25 @@ const EditPostDialog = ({ open, onOpenChange, post, onPostUpdated }: EditPostDia
     // Process new media files
     const newMediaItems = await Promise.all(
       mediaFiles.map(async (file, index) => {
+        const isImage = file.type.startsWith('image/');
+        
+        // Convert file to data URL for persistence
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        
+        console.log('Processing media in EditPostDialog:', {
+          fileName: file.name,
+          fileType: file.type,
+          isImage: isImage,
+          isDataUrl: dataUrl.startsWith('data:')
+        });
+        
         return {
-          url: mediaPreviews[index],
-          type: file.type.startsWith('image/') ? 'image' : 'video',
+          url: dataUrl,
+          type: isImage ? 'image' : 'video',
           alt: file.name
         };
       })

@@ -27,11 +27,12 @@
 - [x] Test error handling for AI generation
 - [x] Measure response times for AI requests
 
-## 5. Media Upload Feature (Completed)
+## 5. Media Upload Feature
 - [x] Implement image upload functionality
 - [x] Add video upload capability
 - [x] Test media preview in post creation dialog
 - [x] Verify media is properly attached to posts
+- [ ] Implement server-side storage for media files (planned)
 
 ## 6. Social Media Integration
 - [ ] Test OAuth connection for Twitter
@@ -60,6 +61,6 @@
 
 ## 10. Security Testing
 - [ ] Test authentication token expiration
-- [ ] Verify API endpoints require authentication
+- [x] Verify API endpoints require authentication
 - [ ] Check for proper input validation
 - [ ] Test against common security vulnerabilities

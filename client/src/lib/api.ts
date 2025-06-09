@@ -5,7 +5,7 @@ import { mockApi } from './mockApi';
 const API_BASE_URL = 'http://localhost:3001/api';
 
 // Configuration flags
-const USE_MOCK_DATA = true;  // Use mock data for posts and other data
+const USE_MOCK_DATA = false;  // Use real data from the server
 const USE_REAL_AUTH = true;  // Use real authentication with fallback to mock
 const USE_REAL_AI = true;    // Use real OpenAI API for content generation
 
@@ -133,29 +133,27 @@ export const fetchCalendarPosts = () => {
 
 // Upload media files
 export const uploadMedia = async (files: File[]): Promise<{ url: string, type: string, alt?: string }[]> => {
-  if (USE_MOCK_DATA) {
-    // In a mock environment, we'll just create object URLs for the files
-    // In a real app, you would upload these to a server or cloud storage
-    return Promise.resolve(
-      files.map(file => ({
-        url: URL.createObjectURL(file),
-        type: file.type.startsWith('image/') ? 'image' : 'video',
-        alt: file.name
-      }))
-    );
-  }
-  
-  // In a real app, you would use FormData to upload files
-  const formData = new FormData();
-  files.forEach((file, index) => {
-    formData.append(`file${index}`, file);
-  });
-  
-  return fetchWithErrorHandling('/media/upload', {
-    method: 'POST',
-    body: formData,
-    headers: {} // Let the browser set the content type with boundary
-  });
+  // Always use data URLs for persistence
+  console.log('Using data URLs for all files');
+  return Promise.all(
+    files.map(async file => {
+      return new Promise<{ url: string, type: string, alt?: string }>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // For large files, consider compressing or resizing before storing
+          const dataUrl = reader.result as string;
+          console.log(`File size: ${Math.round(dataUrl.length / 1024)} KB`);
+          
+          resolve({
+            url: dataUrl,
+            type: file.type.startsWith('image/') ? 'image' : 'video',
+            alt: file.name
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    })
+  );
 };
 
 export const createPost = (post: any) => {

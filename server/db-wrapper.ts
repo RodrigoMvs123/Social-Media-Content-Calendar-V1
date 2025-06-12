@@ -26,8 +26,11 @@ if (dbType.toLowerCase() === 'postgres') {
 // Create database adapter based on configuration
 let dbAdapter: DatabaseAdapter;
 
-// Force PostgreSQL if DATABASE_URL is set
-if (dbUrl && dbType.toLowerCase() === 'postgres') {
+// Use SQLite as primary database based on .env configuration
+if (dbType.toLowerCase() === 'sqlite') {
+  console.log('Using SQLite database adapter');
+  dbAdapter = new SQLiteAdapter(dbPath);
+} else if (dbUrl && dbType.toLowerCase() === 'postgres') {
   console.log('Using PostgreSQL database adapter');
   dbAdapter = new PostgresAdapter();
 } else {

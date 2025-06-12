@@ -85,25 +85,31 @@ const Home = () => {
       switch (filters.dateRange) {
         case 'upcoming':
           // Show posts scheduled for today or in the future
-          return isAfter(postDate, new Date(now.setHours(0, 0, 0, 0)));
+          // Fix: Create a new Date object to avoid modifying the original now variable
+          const today = new Date(now);
+          today.setHours(0, 0, 0, 0);
+          return isAfter(postDate, today) || postDate.getTime() === today.getTime();
           
         case 'this-week':
           // Show posts scheduled for this week
-          const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
-          const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
-          return isAfter(postDate, thisWeekStart) && isBefore(postDate, thisWeekEnd);
+          const thisWeekStart = startOfWeek(new Date(now), { weekStartsOn: 1 }); // Monday
+          const thisWeekEnd = endOfWeek(new Date(now), { weekStartsOn: 1 });
+          return (isAfter(postDate, thisWeekStart) || postDate.getTime() === thisWeekStart.getTime()) && 
+                 (isBefore(postDate, thisWeekEnd) || postDate.getTime() === thisWeekEnd.getTime());
           
         case 'next-week':
           // Show posts scheduled for next week
-          const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
-          const nextWeekEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 1 });
-          return isAfter(postDate, nextWeekStart) && isBefore(postDate, nextWeekEnd);
+          const nextWeekStart = startOfWeek(addWeeks(new Date(now), 1), { weekStartsOn: 1 });
+          const nextWeekEnd = endOfWeek(addWeeks(new Date(now), 1), { weekStartsOn: 1 });
+          return (isAfter(postDate, nextWeekStart) || postDate.getTime() === nextWeekStart.getTime()) && 
+                 (isBefore(postDate, nextWeekEnd) || postDate.getTime() === nextWeekEnd.getTime());
           
         case 'this-month':
           // Show posts scheduled for this month
-          const thisMonthStart = startOfMonth(now);
-          const thisMonthEnd = endOfMonth(now);
-          return isAfter(postDate, thisMonthStart) && isBefore(postDate, thisMonthEnd);
+          const thisMonthStart = startOfMonth(new Date(now));
+          const thisMonthEnd = endOfMonth(new Date(now));
+          return (isAfter(postDate, thisMonthStart) || postDate.getTime() === thisMonthStart.getTime()) && 
+                 (isBefore(postDate, thisMonthEnd) || postDate.getTime() === thisMonthEnd.getTime());
       }
     }
     

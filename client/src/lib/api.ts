@@ -21,10 +21,15 @@ async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Pr
     const fullUrl = `${API_BASE_URL}${url}`;
     console.log(`Fetching: ${fullUrl}`, options);
     
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    
     const response = await fetch(fullUrl, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        // Add Authorization header if token exists
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(options?.headers || {})
       },
       credentials: 'include' // Include cookies for session

@@ -289,8 +289,8 @@ export const generateContentIdeas = async (topic: string): Promise<string[]> => 
 
 // Analytics API for reports
 export const fetchAnalyticsData = async () => {
-  if (USE_MOCK_DATA) {
-    // Get the actual posts from the calendar
+  try {
+    // Always get the actual posts from the calendar for accurate analytics
     const posts = await fetchCalendarPosts();
     
     // Count posts by platform
@@ -299,10 +299,21 @@ export const fetchAnalyticsData = async () => {
       platformCounts[post.platform] = (platformCounts[post.platform] || 0) + 1;
     });
     
-    // Count posts by status
-    const statusCounts: Record<string, number> = {};
+    // Count posts by status - ensure all status types are included
+    const statusCounts: Record<string, number> = {
+      'draft': 0,
+      'needs_approval': 0,
+      'ready': 0,
+      'scheduled': 0,
+      'published': 0
+    };
+    
     posts.forEach(post => {
-      statusCounts[post.status] = (statusCounts[post.status] || 0) + 1;
+      if (statusCounts.hasOwnProperty(post.status)) {
+        statusCounts[post.status]++;
+      } else {
+        statusCounts[post.status] = 1;
+      }
     });
     
     // Format data for charts
@@ -334,8 +345,22 @@ export const fetchAnalyticsData = async () => {
         { date: '2023-06', count: 15 }
       ]
     };
+  } catch (error) {
+    console.error('Error fetching analytics data:', error);
+    // Return empty data structure if there's an error
+    return {
+      postsByPlatform: [],
+      postsByStatus: [
+        { status: 'draft', count: 0 },
+        { status: 'needs_approval', count: 0 },
+        { status: 'ready', count: 0 },
+        { status: 'scheduled', count: 0 },
+        { status: 'published', count: 0 }
+      ],
+      engagementByPlatform: [],
+      postsOverTime: []
+    };
   }
-  return fetchWithErrorHandling('/analytics');
 };
 
 // Social accounts API object

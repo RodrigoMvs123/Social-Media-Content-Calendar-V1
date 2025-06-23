@@ -29,7 +29,8 @@ const AddPostDialog = () => {
     closeAddPostDialog, 
     aiGeneratedContent, 
     selectedPlatform,
-    resetState
+    resetState,
+    navigateToDashboardAfterPost
   } = usePostContext();
   
   const queryClient = useQueryClient();
@@ -206,6 +207,9 @@ const AddPostDialog = () => {
       
       // Force refetch posts data to show the new post
       queryClient.invalidateQueries(['/api/calendar']);
+      
+      // Navigate to dashboard if created from calendar
+      navigateToDashboardAfterPost();
       
       // Add a small delay and refetch again to ensure data is updated
       setTimeout(() => {

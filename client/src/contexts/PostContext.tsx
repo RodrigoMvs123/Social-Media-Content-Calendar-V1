@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface PostContextType {
   // State
@@ -17,12 +18,15 @@ interface PostContextType {
   closeAIDialog: () => void;
   resetState: () => void;
   refreshPosts: () => void;
+  navigateToDashboardAfterPost: () => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
 
 export const PostProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [aiGeneratedContent, setAiGeneratedContent] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [isAddPostDialogOpen, setIsAddPostDialogOpen] = useState(false);
@@ -62,6 +66,13 @@ export const PostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     queryClient.invalidateQueries(['/api/calendar']);
   };
 
+  // Function to navigate to dashboard after post creation from calendar
+  const navigateToDashboardAfterPost = () => {
+    if (location.pathname === '/calendar') {
+      navigate('/');
+    }
+  };
+
   return (
     <PostContext.Provider
       value={{
@@ -76,7 +87,8 @@ export const PostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         openAIDialog,
         closeAIDialog,
         resetState,
-        refreshPosts
+        refreshPosts,
+        navigateToDashboardAfterPost
       }}
     >
       {children}

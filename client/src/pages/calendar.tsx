@@ -4,23 +4,28 @@ import { fetchCalendarPosts } from "@/lib/api";
 import { Post, FilterOptions } from "@/lib/types";
 import { Helmet } from "react-helmet";
 
+
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CalendarView from "@/components/calendar/CalendarView";
 import MonthCalendarView from "@/components/calendar/MonthCalendarView";
-import FilterBar from "@/components/filters/FilterBar";
+import SearchBar from "@/components/filters/SearchBar";
 import AddPostDialog from "@/components/dialogs/AddPostDialog";
 import PostDetailsDialog from "@/components/calendar/PostDetailsDialog";
 import AIContentDialog from "@/components/dialogs/AIContentDialog";
 import EmptyState from "@/components/calendar/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Plus, LayoutGrid, List, CalendarDays } from "lucide-react";
+import { Sparkles, Plus, CalendarDays } from "lucide-react";
+import { usePostContext } from "@/contexts/PostContext";
 
 const Calendar = () => {
-  const [isAddPostDialogOpen, setIsAddPostDialogOpen] = useState(false);
-  const [isAIContentDialogOpen, setIsAIContentDialogOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'grid' | 'list' | 'month'>('month');
+  const { 
+    openAddPostDialog, 
+    openAIDialog, 
+    resetState 
+  } = usePostContext();
+
   const [filters, setFilters] = useState<FilterOptions>({
     platform: '',
     dateRange: 'upcoming',
@@ -33,23 +38,14 @@ const Calendar = () => {
   const [selectedDatePosts, setSelectedDatePosts] = useState<Post[]>([]);
   const [isPostDetailsDialogOpen, setIsPostDetailsDialogOpen] = useState(false);
   
-  // State for AI generated content
-  const [generatedContent, setGeneratedContent] = useState<string>("");
+
 
   const { data: posts, isLoading, isError, refetch } = useQuery({
     queryKey: ['/api/calendar'],
     queryFn: fetchCalendarPosts,
   });
 
-  const handleGenerateAIContent = () => {
-    setIsAIContentDialogOpen(true);
-  };
 
-  const handleContentSelected = (content: string) => {
-    setGeneratedContent(content);
-    // Open the add post dialog with the generated content
-    setIsAddPostDialogOpen(true);
-  };
 
   const handleFilterChange = (newFilters: Partial<FilterOptions>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
@@ -61,24 +57,12 @@ const Calendar = () => {
     setIsPostDetailsDialogOpen(true);
   };
 
-  // Apply filters to posts
+  // Apply filters to posts (only search filter)
   const filteredPosts = posts?.filter((post: Post) => {
-    // Filter by platform
-    if (filters.platform && filters.platform !== 'all' && post.platform !== filters.platform) {
-      return false;
-    }
-    
-    // Filter by status
-    if (filters.status && filters.status !== 'all' && post.status !== filters.status) {
-      return false;
-    }
-    
     // Filter by search query
     if (filters.searchQuery && !post.content.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
       return false;
     }
-    
-    // Filter by date range will be implemented in a more complete version
     
     return true;
   }) || [];
@@ -108,7 +92,7 @@ const Calendar = () => {
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
-                  onClick={handleGenerateAIContent}
+                  onClick={openAIDialog}
                   className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
                 >
                   <Sparkles className="h-5 w-5 mr-2" />
@@ -116,7 +100,10 @@ const Calendar = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => setIsAddPostDialogOpen(true)}
+                  onClick={() => {
+                    resetState();
+                    openAddPostDialog();
+                  }}
                   className="border border-gray-300 text-gray-800"
                 >
                   <Plus className="h-5 w-5 mr-2 text-blue-600" />
@@ -126,27 +113,15 @@ const Calendar = () => {
             </div>
           </div>
 
-          {/* Filters */}
-          <FilterBar filters={filters} onFilterChange={handleFilterChange} />
+          {/* Search */}
+          <SearchBar filters={filters} onFilterChange={handleFilterChange} />
 
-          {/* View Toggle */}
+          {/* View Label */}
           <div className="flex justify-end mb-6">
-            <Tabs defaultValue={activeView} onValueChange={(value) => setActiveView(value as 'grid' | 'list' | 'month')}>
-              <TabsList>
-                <TabsTrigger value="month" className="flex items-center">
-                  <CalendarDays size={16} className="mr-1" />
-                  Month
-                </TabsTrigger>
-                <TabsTrigger value="list" className="flex items-center">
-                  <List size={16} className="mr-1" />
-                  List
-                </TabsTrigger>
-                <TabsTrigger value="grid" className="flex items-center">
-                  <LayoutGrid size={16} className="mr-1" />
-                  Grid
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center text-sm font-medium text-gray-700">
+              <CalendarDays size={16} className="mr-1" />
+              Month
+            </div>
           </div>
           
           {/* Calendar Content */}
@@ -174,43 +149,38 @@ const Calendar = () => {
               </div>
             </div>
           ) : filteredPosts.length === 0 ? (
-            <EmptyState onCreatePost={() => setIsAddPostDialogOpen(true)} />
+            <EmptyState 
+              onCreatePost={() => {
+                resetState();
+                openAddPostDialog();
+              }}
+              onGenerateWithAI={() => {
+                resetState();
+                openAIDialog();
+              }}
+            />
           ) : (
-            <>
-              {activeView === 'month' ? (
-                <MonthCalendarView 
-                  posts={filteredPosts} 
-                  onDateClick={handleDateClick}
-                />
-              ) : (
-                <CalendarView posts={filteredPosts} viewType={activeView as 'grid' | 'list'} />
-              )}
-            </>
+            <MonthCalendarView 
+              posts={filteredPosts} 
+              onDateClick={handleDateClick}
+            />
           )}
         </div>
       </main>
       
       <Footer />
       
-      <AddPostDialog
-        open={isAddPostDialogOpen}
-        onOpenChange={setIsAddPostDialogOpen}
-        onPostCreated={() => refetch()}
-        initialContent={generatedContent}
-      />
+      <AddPostDialog />
       
       <PostDetailsDialog
         open={isPostDetailsDialogOpen}
         onOpenChange={setIsPostDetailsDialogOpen}
         posts={selectedDatePosts}
         date={selectedDate}
+        onPostDeleted={() => refetch()}
       />
       
-      <AIContentDialog
-        open={isAIContentDialogOpen}
-        onOpenChange={setIsAIContentDialogOpen}
-        onContentSelected={handleContentSelected}
-      />
+      <AIContentDialog />
     </div>
   );
 };

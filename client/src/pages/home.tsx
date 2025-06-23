@@ -77,8 +77,8 @@ const Home = () => {
       return false;
     }
     
-    // Filter by date range
-    if (filters.dateRange) {
+    // Filter by date range (but allow past posts if filtering by published status)
+    if (filters.dateRange && filters.status !== 'published') {
       const postDate = parseISO(post.scheduledTime);
       const now = new Date();
       

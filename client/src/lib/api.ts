@@ -22,7 +22,7 @@ async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Pr
     console.log(`Fetching: ${fullUrl}`, options);
     
     // Get token from localStorage
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token');
     
     const response = await fetch(fullUrl, {
       ...options,
@@ -59,10 +59,18 @@ export const registerUser = async (userData: { name: string; email: string; pass
   
   // Always use real authentication without fallback
   console.log("Sending registration request to:", `${API_BASE_URL}/auth/register`);
-  return fetchWithErrorHandling('/auth/register', {
+  const response = await fetchWithErrorHandling('/auth/register', {
     method: 'POST',
     body: JSON.stringify(userData)
   });
+  
+  // Store the token if it exists in the response
+  if (response.token) {
+    localStorage.setItem('auth_token', response.token);
+    console.log('Token stored in localStorage');
+  }
+  
+  return response.user || response;
 };
 
 export const loginUser = async (credentials: { email: string; password: string }) => {
@@ -71,10 +79,18 @@ export const loginUser = async (credentials: { email: string; password: string }
   
   // Always use real authentication without fallback
   console.log("Sending login request to:", `${API_BASE_URL}/auth/login`);
-  return fetchWithErrorHandling('/auth/login', {
+  const response = await fetchWithErrorHandling('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials)
   });
+  
+  // Store the token if it exists in the response
+  if (response.token) {
+    localStorage.setItem('auth_token', response.token);
+    console.log('Token stored in localStorage');
+  }
+  
+  return response.user || response;
 };
 
 export const logoutUser = async () => {
@@ -83,9 +99,15 @@ export const logoutUser = async () => {
   
   // Always use real authentication without fallback
   console.log("Sending logout request to:", `${API_BASE_URL}/auth/logout`);
-  return fetchWithErrorHandling('/auth/logout', {
+  const response = await fetchWithErrorHandling('/auth/logout', {
     method: 'POST'
   });
+  
+  // Remove token from localStorage
+  localStorage.removeItem('auth_token');
+  console.log('Token removed from localStorage');
+  
+  return response;
 };
 
 export const getCurrentUser = async () => {

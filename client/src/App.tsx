@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PostProvider } from '@/contexts/PostContext';
+import { queryClient } from '@/lib/queryClient';
+
 
 // Pages
 import Home from '@/pages/home';
@@ -13,8 +15,7 @@ import Settings from '@/pages/settings';
 import AuthPage from '@/pages/auth/AuthPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
-// Create a client
-const queryClient = new QueryClient();
+// Using the configured queryClient from lib/queryClient.ts
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <Toaster />
+
           </PostProvider>
         </AuthProvider>
       </Router>

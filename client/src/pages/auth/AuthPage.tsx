@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const AuthPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, login, signup } = useAuth();
+  const { isAuthenticated, login, register } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +36,8 @@ const AuthPage = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    console.log("Attempting login with:", { email: loginEmail });
+    console.log("Login button clicked!");
+    console.log("Attempting login with:", { email: loginEmail, password: loginPassword });
     
     try {
       await login(loginEmail, loginPassword);
@@ -65,12 +66,12 @@ const AuthPage = () => {
     console.log("Attempting signup with:", { name: signupName, email: signupEmail });
     
     try {
-      const userData = await signup(signupName, signupEmail, signupPassword);
+      await register(signupEmail, signupPassword, signupName);
       
-      // Show success message with user details
+      // Show success message
       toast({
         title: "Account created successfully",
-        description: `Welcome ${userData.name}! Please log in with your new credentials.`,
+        description: `Welcome ${signupName}! Please log in with your new credentials.`,
       });
       
       // Switch to login tab and pre-fill email
@@ -118,8 +119,8 @@ const AuthPage = () => {
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
             
-              <CardContent className="mt-4">
-                <TabsContent value="login">
+              <TabsContent value="login">
+                <CardContent className="mt-4">
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -142,13 +143,27 @@ const AuthPage = () => {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isLoading}
+                      onClick={(e) => {
+                        console.log("Button clicked directly!");
+                        if (!loginEmail || !loginPassword) {
+                          e.preventDefault();
+                          alert("Please fill in both email and password");
+                          return;
+                        }
+                      }}
+                    >
                       {isLoading ? "Logging in..." : "Login"}
                     </Button>
                   </form>
-                </TabsContent>
+                </CardContent>
+              </TabsContent>
                 
-                <TabsContent value="signup">
+              <TabsContent value="signup">
+                <CardContent className="mt-4">
                   <form onSubmit={handleSignup} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
@@ -186,8 +201,8 @@ const AuthPage = () => {
                       {isLoading ? "Creating account..." : "Create Account"}
                     </Button>
                   </form>
-                </TabsContent>
-              </CardContent>
+                </CardContent>
+              </TabsContent>
             </Tabs>
           </CardHeader>
           

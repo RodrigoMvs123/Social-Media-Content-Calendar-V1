@@ -20,14 +20,13 @@ let dbConfig: any = {
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 };
 
-// Fallback to SQLite if no DATABASE_URL is provided
-let dbType = 'postgres';
+// Use DB_TYPE from environment variables
+let dbType = process.env.DB_TYPE || 'sqlite';
 let dbAdapter;
 
-if (!process.env.DATABASE_URL) {
-  dbType = 'sqlite';
+if (dbType === 'sqlite') {
   dbConfig = {
-    filename: './data.sqlite'
+    filename: process.env.DB_PATH || './data.sqlite'
   };
 }
 

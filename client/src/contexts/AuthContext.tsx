@@ -1,199 +1,125 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { loginUser, registerUser, logoutUser, getCurrentUser } from '@/lib/api';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 
 interface User {
-  id?: string | number;
-  name?: string;
+  id: string;
   email: string;
+  name?: string;
 }
 
 interface AuthContextType {
-  isAuthenticated: boolean;
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<User>;
-  logout: () => void;
+  isAuthenticated: boolean;
   isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
+  logout: () => void;
+  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
-  // Check if user is already authenticated on mount
+  // Check for existing auth on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log("AuthContext: Checking authentication status");
-        
-        try {
-          // Try to get current user from server
-          const userData = await getCurrentUser();
-          console.log("Auth check - User authenticated from server:", userData);
-          setIsAuthenticated(true);
-          setUser(userData);
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          // Verify token with backend
+          const response = await fetch('http://localhost:3001/api/auth/verify', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
           
-          // Store in localStorage as backup
-          localStorage.setItem('isAuthenticated', 'true');
-          localStorage.setItem('user', JSON.stringify(userData));
-          
-          // Don't redirect if already on auth page
-          if (window.location.pathname === '/auth') {
-            console.log("Auth check - Redirecting from /auth to / because user is authenticated");
-            navigate('/');
-          }
-          return;
-        } catch (err) {
-          console.log("Auth check - Server authentication failed, checking localStorage");
-        }
-        
-        // Fall back to localStorage if server check fails
-        const auth = localStorage.getItem('isAuthenticated');
-        const localUserData = localStorage.getItem('user');
-        
-        console.log("Auth check - localStorage auth:", auth);
-        console.log("Auth check - localStorage user:", localUserData);
-        
-        if (auth === 'true' && localUserData) {
-          console.log("Auth check - User is authenticated from localStorage");
-          setIsAuthenticated(true);
-          setUser(JSON.parse(localUserData));
-          
-          // Don't redirect if already on auth page
-          if (window.location.pathname === '/auth') {
-            console.log("Auth check - Redirecting from /auth to / because user is authenticated");
-            navigate('/');
-          }
-        } else {
-          console.log("Auth check - User is not authenticated");
-          // If not authenticated, redirect to auth page
-          if (window.location.pathname !== '/auth') {
-            console.log("Auth check - Redirecting to /auth because user is not authenticated");
-            navigate('/auth');
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData.user);
+          } else {
+            localStorage.removeItem('auth_token');
           }
         }
-      } catch (err) {
-        console.error("Auth check error:", err);
-        // If error, redirect to auth page
-        if (window.location.pathname !== '/auth') {
-          navigate('/auth');
-        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('auth_token');
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     checkAuth();
-  }, [navigate]);
+  }, []);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    
-    console.log("AuthContext: Login attempt with email:", email);
-    
     try {
-      // Call the login API
-      const userData = await loginUser({ email, password });
-      console.log("Login successful, user data:", userData);
-      
-      // Store auth state
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('notificationEmail', email);
-      
-      setIsAuthenticated(true);
-      setUser(userData);
-      
-      console.log("Login - isAuthenticated set to:", true);
-      console.log("Login - user set to:", userData);
-      
-      // Navigate to home after login
-      navigate('/');
-    } catch (err) {
-      console.error("Login error:", err);
-      setError(err instanceof Error ? err.message : 'Login failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
+      const response = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Login failed');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('auth_token', data.token);
+      setUser(data.user);
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
   };
 
-  const signup = async (name: string, email: string, password: string) => {
-    setIsLoading(true);
-    setError(null);
-    
-    console.log("AuthContext: Signup attempt with email:", email);
-    
+  const register = async (email: string, password: string, name?: string) => {
     try {
-      // Call the signup API
-      const userData = await registerUser({ name, email, password });
-      console.log("Signup successful, user data:", userData);
-      
-      // Don't set authentication state after signup
-      // User should log in explicitly
-      console.log("Signup successful - user will be redirected to login");
-      
-      return userData;
-    } catch (err) {
-      console.error("Signup error:", err);
-      setError(err instanceof Error ? err.message : 'Signup failed');
-      throw err;
-    } finally {
-      setIsLoading(false);
+      const response = await fetch('http://localhost:3001/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Registration failed');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('auth_token', data.token);
+      setUser(data.user);
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
     }
   };
 
-  const logout = async () => {
-    setIsLoading(true);
-    
-    console.log("AuthContext: Logout attempt");
-    
-    try {
-      // Call the logout API
-      await logoutUser();
-      console.log("Logout API call successful");
-    } catch (err) {
-      console.error("Logout error:", err);
-    } finally {
-      // Always clear local state even if API call fails
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('user');
-      setIsAuthenticated(false);
-      setUser(null);
-      setIsLoading(false);
-      
-      console.log("Logout - isAuthenticated set to:", false);
-      
-      // Navigate to auth page after logout
-      navigate('/auth', { replace: true });
-    }
+  const logout = () => {
+    localStorage.removeItem('auth_token');
+    setUser(null);
   };
 
-  if (isLoading && !isAuthenticated) {
-    console.log("AuthContext: Rendering loading state");
-    return <div>Loading...</div>;
-  }
-
-  const contextValue = {
-    isAuthenticated,
-    user,
-    login,
-    signup,
-    logout,
-    isLoading
-  };
-  
-  console.log("AuthContext - providing value:", contextValue);
+  const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        login,
+        register,
+        logout,
+        setUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

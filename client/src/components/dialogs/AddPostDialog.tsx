@@ -142,10 +142,20 @@ const AddPostDialog = () => {
     try {
       setIsLoading(true);
       
-      // Combine date and time
+      // Combine date and time using UTC to avoid timezone issues
       const [hours, minutes] = time.split(':').map(Number);
-      const scheduledTime = new Date(date);
-      scheduledTime.setHours(hours, minutes);
+      
+      // Get the date components from the selected date
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+      
+      // Create a new date in UTC to ensure consistent timezone handling
+      const scheduledTime = new Date(Date.UTC(year, month, day, hours, minutes));
+      
+      console.log('Creating post for date:', date.toISOString());
+      console.log('With time:', time);
+      console.log('Final scheduled time:', scheduledTime.toISOString());
       
       // In a real implementation, you would upload the media files to a server
       // and get back URLs to include in the post
@@ -345,7 +355,10 @@ const AddPostDialog = () => {
                     }
                     // Fix timezone issue by parsing the date parts directly
                     const [year, month, day] = e.target.value.split('-').map(Number);
-                    const newDate = new Date(year, month - 1, day, 12, 0, 0);
+                    // Create date at noon to avoid timezone issues
+                    const newDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+                    console.log('Selected date:', e.target.value);
+                    console.log('Created date object:', newDate.toISOString());
                     setDate(newDate);
                   }}
                   className="sr-only"

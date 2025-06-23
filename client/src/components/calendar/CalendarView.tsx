@@ -29,18 +29,28 @@ const CalendarView = ({ posts, viewType }: CalendarViewProps) => {
     const laterPosts: Post[] = [];
     
     sortedPosts.forEach(post => {
+      // Parse the date using the same method as in home.tsx
       const postDate = new Date(post.scheduledTime);
+      console.log(`Post date: ${post.scheduledTime}, parsed as: ${postDate.toISOString()}`);
       
       if (isToday(postDate)) {
+        console.log(`Post ${post.id} is today`);
         todayPosts.push(post);
       } else if (isTomorrow(postDate)) {
+        console.log(`Post ${post.id} is tomorrow`);
         tomorrowPosts.push(post);
       } else if (isThisWeek(postDate) && isAfter(postDate, tomorrow)) {
+        console.log(`Post ${post.id} is this week`);
         thisWeekPosts.push(post);
       } else if (isAfter(postDate, nextWeekStart) && !isAfter(postDate, nextWeekEnd)) {
+        console.log(`Post ${post.id} is next week`);
         nextWeekPosts.push(post);
       } else if (isAfter(postDate, nextWeekEnd)) {
+        console.log(`Post ${post.id} is later`);
         laterPosts.push(post);
+      } else {
+        console.log(`Post ${post.id} doesn't match any category, adding to today`);
+        todayPosts.push(post);
       }
     });
     

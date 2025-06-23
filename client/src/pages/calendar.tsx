@@ -155,11 +155,23 @@ const Calendar = () => {
               <p className="text-gray-500">Loading posts...</p>
             </div>
           ) : isError ? (
-            <div className="text-center py-10">
-              <p className="text-red-500">Error loading calendar. Try again later.</p>
-              <Button variant="outline" onClick={() => refetch()} className="mt-4">
-                Retry
-              </Button>
+            <div className="text-center py-20">
+              <div className="max-w-md mx-auto">
+                <div className="mb-6">
+                  <CalendarDays className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Unable to load your content</h3>
+                  <p className="text-gray-600">We're having trouble connecting to your calendar. Let's get you started with creating your first post!</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button onClick={() => setIsAddPostDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Post
+                  </Button>
+                  <Button variant="outline" onClick={() => refetch()}>
+                    Try Again
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : filteredPosts.length === 0 ? (
             <EmptyState onCreatePost={() => setIsAddPostDialogOpen(true)} />

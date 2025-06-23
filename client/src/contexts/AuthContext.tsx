@@ -28,8 +28,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const token = localStorage.getItem('auth_token');
         if (token) {
-          // Verify token with backend
-          const response = await fetch('http://localhost:3001/api/auth/verify', {
+          // Verify token with backend database
+          const response = await fetch('http://localhost:3001/api/auth/me', {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -37,8 +37,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           if (response.ok) {
             const userData = await response.json();
-            setUser(userData.user);
+            setUser(userData);
           } else {
+            // Token is invalid, remove it
             localStorage.removeItem('auth_token');
           }
         }

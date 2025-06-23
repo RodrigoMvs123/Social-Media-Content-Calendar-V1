@@ -250,8 +250,6 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
             </div>
             <p className="mt-1 text-sm text-gray-900">{post.content}</p>
             
-undefined
-            
             <div className="mt-2">
               {getStatusBadge(post.status)}
             </div>

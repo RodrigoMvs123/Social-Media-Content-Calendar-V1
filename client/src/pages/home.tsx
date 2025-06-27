@@ -41,7 +41,7 @@ const Home = () => {
   // Force refetch posts when component mounts or becomes visible
   useEffect(() => {
     const refetchPosts = () => {
-      queryClient.invalidateQueries(['/api/calendar']);
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
       refetch();
     };
 

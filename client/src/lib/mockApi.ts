@@ -60,7 +60,7 @@ let socialMediaAccounts: SocialMediaAccount[] = [
     id: 1,
     userId: 'user1',
     platform: 'Twitter',
-    username: 'exampleuser',
+    username: 'example.user',
     connected: true,
     connectedAt: new Date().toISOString(),
     accessToken: 'mock-token-123',

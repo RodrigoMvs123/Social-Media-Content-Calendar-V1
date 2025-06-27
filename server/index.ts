@@ -72,6 +72,7 @@ if (process.env.DB_TYPE === 'sqlite') {
   app.use('/api/auth', require('./auth-routes-sqlite'));
   app.use('/api/posts', require('./posts-routes-sqlite'));
   app.use('/api/analytics', require('./analytics-routes-sqlite'));
+  app.use('/api/slack', require('./slack-routes'));
 } else {
   app.use('/api/auth', authRoutes);
   app.use('/api/posts', require('./posts-routes'));

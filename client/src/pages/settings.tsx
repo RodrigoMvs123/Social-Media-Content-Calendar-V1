@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SlackSettings from "@/components/slack/SlackSettings";
+import SlackSettingsFixed from "@/components/slack/SlackSettingsFixed";
 import SlackStatus from "@/components/slack/SlackStatus";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,7 +116,7 @@ const Settings = () => {
             </TabsList>
             
             <TabsContent value="slack">
-              <SlackSettings />
+              <SlackSettingsFixed />
             </TabsContent>
             
             <TabsContent value="notifications">

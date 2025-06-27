@@ -15,8 +15,15 @@ console.log("API Configuration:", {
   API_BASE_URL 
 });
 
+// Add a type for authentication responses
+interface AuthResponse {
+  token?: string;
+  user?: any;
+  [key: string]: any;
+}
+
 // Generic fetch wrapper with error handling
-async function fetchWithErrorHandling<T>(url: string, options?: RequestInit): Promise<T> {
+async function fetchWithErrorHandling<T = any>(url: string, options?: RequestInit): Promise<T> {
   try {
     const fullUrl = `${API_BASE_URL}${url}`;
     console.log(`Fetching: ${fullUrl}`, options);
@@ -59,7 +66,7 @@ export const registerUser = async (userData: { name: string; email: string; pass
   
   // Always use real authentication without fallback
   console.log("Sending registration request to:", `${API_BASE_URL}/auth/register`);
-  const response = await fetchWithErrorHandling('/auth/register', {
+  const response = await fetchWithErrorHandling<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(userData)
   });
@@ -79,7 +86,7 @@ export const loginUser = async (credentials: { email: string; password: string }
   
   // Always use real authentication without fallback
   console.log("Sending login request to:", `${API_BASE_URL}/auth/login`);
-  const response = await fetchWithErrorHandling('/auth/login', {
+  const response = await fetchWithErrorHandling<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(credentials)
   });
@@ -99,7 +106,7 @@ export const logoutUser = async () => {
   
   // Always use real authentication without fallback
   console.log("Sending logout request to:", `${API_BASE_URL}/auth/logout`);
-  const response = await fetchWithErrorHandling('/auth/logout', {
+  const response = await fetchWithErrorHandling<AuthResponse>('/auth/logout', {
     method: 'POST'
   });
   
@@ -116,7 +123,7 @@ export const getCurrentUser = async () => {
   
   // Always use real authentication without fallback
   console.log("Sending getCurrentUser request to:", `${API_BASE_URL}/auth/me`);
-  return fetchWithErrorHandling('/auth/me');
+  return fetchWithErrorHandling<AuthResponse>('/auth/me');
 };
 
 // Settings API
@@ -227,7 +234,8 @@ export const connectSocialAccount = (platform: string, data: any) => {
       username: data.username || 'demo_user',
       accessToken: 'mock-token',
       connected: true,
-      connectedAt: new Date().toISOString()
+      connectedAt: new Date().toISOString(),
+      userId: data.userId || 'mock-user-id' // <-- Add this line
     });
   }
   return fetchWithErrorHandling(`/social-accounts/${platform}`, {
@@ -253,7 +261,7 @@ export const generateAIContent = async (prompt: string, platform: string): Promi
   }
   
   try {
-    const response = await fetchWithErrorHandling('/ai/generate', {
+    const response = await fetchWithErrorHandling<{ content: string }>('/ai/generate', {
       method: 'POST',
       body: JSON.stringify({ prompt, platform })
     });
@@ -270,7 +278,7 @@ export const generateContentIdeas = async (topic: string): Promise<string[]> => 
   }
   
   try {
-    const response = await fetchWithErrorHandling('/ai/ideas', {
+    const response = await fetchWithErrorHandling<{ ideas: string[] }>('/ai/ideas', {
       method: 'POST',
       body: JSON.stringify({ topic })
     });

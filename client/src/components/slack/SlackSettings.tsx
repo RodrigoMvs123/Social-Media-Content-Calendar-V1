@@ -1,77 +1,207 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ExternalLink } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ExternalLink, TestTube } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { loadSettings, saveSettingsToServer } from '@/lib/localStorage';
 
-interface SlackStatusResponse {
-  connected: boolean;
-  channelConfigured: boolean;
-  tokenConfigured: boolean;
+interface SlackChannel {
+  id: string;
+  name: string;
+  type: 'dm' | 'channel';
+}
+
+interface SlackSettings {
+  configured: boolean;
+  channelId?: string;
+  channelName?: string;
+  isActive?: boolean;
+  hasToken?: boolean;
 }
 
 const SlackSettings = () => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // Load initial values from localStorage
-  const storedSettings = loadSettings();
-  const [botToken, setBotToken] = useState(storedSettings.botToken || '');
-  const [channelId, setChannelId] = useState(storedSettings.channelId || '');
+  const [botToken, setBotToken] = useState('');
+  const [selectedChannelId, setSelectedChannelId] = useState('');
+  const [channels, setChannels] = useState<SlackChannel[]>([]);
+  const [validationResult, setValidationResult] = useState<any>(null);
 
-  const { data: slackStatus, isLoading, refetch } = useQuery({
-    queryKey: ['/api/slack/status'],
+  // Load existing settings when component mounts
+  useEffect(() => {
+    if (slackSettings?.configured) {
+      setSelectedChannelId(slackSettings.channelId || '');
+      // Don't load bot token for security reasons
+    }
+  }, [slackSettings]);
+
+  const { data: slackSettings, isLoading, refetch } = useQuery({
+    queryKey: ['/api/slack/settings'],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/slack/status');
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('http://localhost:3001/api/slack/settings', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (!response.ok) {
-          throw new Error('Failed to fetch Slack status');
+          console.error('Slack settings fetch failed:', response.status);
+          return { configured: false };
         }
-        return response.json() as Promise<SlackStatusResponse>;
+        return response.json() as Promise<SlackSettings>;
       } catch (error) {
-        // Provide a mock response for demo purposes
-        return {
-          connected: false,
-          channelConfigured: false,
-          tokenConfigured: false
-        } as SlackStatusResponse;
+        console.error('Slack settings error:', error);
+        return { configured: false };
       }
-    }
+    },
+    retry: false
   });
 
-  // This would be a real API call in production
+  // Validate bot token
+  const validateBotToken = async (token: string) => {
+    if (!token) {
+      setValidationResult(null);
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const cleanToken = token.trim();
+      
+      const response = await fetch('http://localhost:3001/api/slack/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ botToken: cleanToken })
+      });
+      
+      const data = await response.json();
+      setValidationResult(data);
+      
+      if (data.valid) {
+        toast({
+          title: "Bot Token Valid!",
+          description: `Connected to ${data.botInfo.team} as ${data.botInfo.user}`,
+        });
+        // Load channels after successful validation
+        await loadChannels(cleanToken);
+      } else {
+        toast({
+          title: "Invalid Bot Token",
+          description: data.error || "Please check your Slack bot token.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Validation error:', error);
+      setValidationResult({ valid: false, error: 'Network error' });
+      toast({
+        title: "Error",
+        description: `Failed to validate bot token: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Load channels when bot token changes
+  const loadChannels = async (token: string) => {
+    if (!token) {
+      setChannels([]);
+      return;
+    }
+
+    setIsLoadingChannels(true);
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch(`http://localhost:3001/api/slack/channels?botToken=${encodeURIComponent(token)}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setChannels(data.channels || []);
+        
+        if (data.message) {
+          toast({
+            title: "Bot Token Valid",
+            description: data.message,
+            variant: "default",
+          });
+        }
+      } else {
+        const errorData = await response.json();
+        setChannels([]);
+        toast({
+          title: "Error Loading Channels",
+          description: errorData.details || "Please check your bot token.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      setChannels([]);
+      toast({
+        title: "Error",
+        description: "Failed to load Slack channels.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  };
+
   const handleSaveSettings = async () => {
-    if (!botToken && !channelId) {
+    if (!botToken || !selectedChannelId) {
       toast({
         title: "Validation Error",
-        description: "Please enter either a Bot Token or Channel ID to save.",
+        description: "Please enter bot token and select a channel.",
         variant: "destructive",
       });
       return;
     }
     
-    // In a real app, this would be a POST request to save the settings
     setIsSaving(true);
     try {
-      // Simulating API request
-      await new Promise(resolve => setTimeout(resolve, 500)); // Add delay for better UX
+      const selectedChannel = channels.find(c => c.id === selectedChannelId);
+      const authToken = localStorage.getItem('auth_token');
       
-      // Save to localStorage and server
-      await saveSettingsToServer({
-        botToken,
-        channelId
+      const response = await fetch('http://localhost:3001/api/slack/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          channelId: selectedChannelId,
+          channelName: selectedChannel?.name
+        })
       });
       
-      toast({
-        title: "Settings Saved",
-        description: "Your Slack integration settings have been updated successfully.",
-      });
-      await refetch();
+      if (response.ok) {
+        toast({
+          title: "Settings Saved",
+          description: "Your Slack integration settings have been updated successfully.",
+        });
+        await refetch();
+      } else {
+        throw new Error('Failed to save settings');
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -82,6 +212,57 @@ const SlackSettings = () => {
       setIsSaving(false);
     }
   };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:3001/api/slack/test', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Test Successful!",
+          description: "Check your Slack channel for the test message.",
+        });
+      } else {
+        throw new Error('Test failed');
+      }
+    } catch (error) {
+      toast({
+        title: "Test Failed",
+        description: "Unable to send test message. Please check your settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <Card className="w-full">
+        <CardContent className="pt-6">
+          <div className="text-center text-red-600">
+            <p>Error loading Slack settings: {error}</p>
+            <button 
+              onClick={() => {
+                setError(null);
+                refetch();
+              }}
+              className="mt-2 text-blue-600 underline"
+            >
+              Try again
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -105,71 +286,103 @@ const SlackSettings = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <div className="flex items-center">
-            <Label htmlFor="bot-token" className="flex-grow">Bot Token</Label>
-            <div className="ml-4">
-              <p className="text-xs text-gray-500">
-                A Bot Token allows this app to send messages to your Slack workspace.
-              </p>
-            </div>
+          <Label htmlFor="bot-token">Bot Token</Label>
+          <p className="text-xs text-gray-500 mb-2">
+            Enter your Slack bot token (starts with xoxb-). This allows the app to send messages to your Slack workspace.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              id="bot-token"
+              type="password"
+              placeholder="xoxb-..."
+              value={botToken}
+              onChange={(e) => {
+                const value = e.target.value.trim();
+                setBotToken(value);
+                setValidationResult(null);
+                setChannels([]);
+                setSelectedChannelId('');
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pastedText = e.clipboardData.getData('text').trim();
+                setBotToken(pastedText);
+                setValidationResult(null);
+                setChannels([]);
+                setSelectedChannelId('');
+              }}
+              className="flex-1"
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => validateBotToken(botToken)}
+              disabled={!botToken || isValidating}
+            >
+              {isValidating ? 'Validating...' : 'Validate'}
+            </Button>
           </div>
-          <Input
-            id="bot-token"
-            type="password"
-            placeholder="xoxb-..."
-            value={botToken}
-            onChange={(e) => setBotToken(e.target.value)}
-          />
-          {slackStatus?.tokenConfigured && (
-            <p className="text-xs text-green-600">✓ Token configured in environment</p>
+          {validationResult && (
+            <div className={`text-xs p-2 rounded ${validationResult.valid ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {validationResult.valid ? (
+                `✓ Valid token for ${validationResult.botInfo?.team} (${validationResult.botInfo?.user})`
+              ) : (
+                `✗ ${validationResult.error}`
+              )}
+            </div>
           )}
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center">
-            <Label htmlFor="channel-id" className="flex-grow">Channel ID</Label>
-            <div className="ml-4">
-              <p className="text-xs text-gray-500">
-                The Channel ID is where notifications will be sent.
-              </p>
-            </div>
-          </div>
-          <Input
-            id="channel-id"
-            placeholder="C04HL619LG"
-            value={channelId}
-            onChange={(e) => setChannelId(e.target.value)}
-          />
-          {slackStatus?.channelConfigured && (
-            <p className="text-xs text-green-600">✓ Channel configured in environment</p>
+          <Label htmlFor="channel-select">Channel</Label>
+          <p className="text-xs text-gray-500 mb-2">
+            Select where you want to receive notifications.
+          </p>
+          <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+            <SelectTrigger>
+              <SelectValue placeholder={isLoadingChannels ? "Loading channels..." : "Select a channel"} />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.map((channel) => (
+                <SelectItem key={channel.id} value={channel.id}>
+                  {channel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {channels.length === 0 && botToken && !isLoadingChannels && (
+            <p className="text-xs text-red-600">No channels found. Please check your bot token.</p>
           )}
         </div>
 
         <div className="pt-2">
-          <Button
-            asChild
-            variant="link"
-            className="h-auto p-0 text-sm text-gray-500"
+          <a
+            href="https://api.slack.com/apps"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <a
-              href="https://api.slack.com/apps"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center"
-            >
-              <ExternalLink className="mr-1 h-3 w-3" />
-              Open Slack API Dashboard
-            </a>
-          </Button>
+            <ExternalLink className="mr-1 h-3 w-3" />
+            Open Slack API Dashboard
+          </a>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between items-center">
-        <div>
-          {slackStatus?.connected && (
-            <span className="text-sm text-green-600">✓ Connected to Slack</span>
+        <div className="flex gap-2">
+          {slackSettings?.configured && (
+            <Button 
+              variant="outline" 
+              onClick={handleTestConnection} 
+              disabled={isTesting}
+            >
+              <TestTube className="mr-2 h-4 w-4" />
+              {isTesting ? 'Testing...' : 'Test Connection'}
+            </Button>
           )}
         </div>
-        <Button onClick={handleSaveSettings} disabled={isSaving}>
+        <Button 
+          onClick={handleSaveSettings} 
+          disabled={isSaving || !botToken || !selectedChannelId}
+        >
           {isSaving ? 'Saving...' : 'Save Settings'}
         </Button>
       </CardFooter>

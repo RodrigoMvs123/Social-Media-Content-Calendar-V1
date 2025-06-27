@@ -24,17 +24,20 @@ const SlackStatus = ({ className }: SlackStatusProps) => {
     queryKey: ['/api/slack/status'],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/slack/status');
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('http://localhost:3001/api/slack/status', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch Slack status');
         }
         return response.json() as Promise<SlackStatusResponse>;
       } catch (error) {
-        // Don't show error on initial load
-        if (!errorShown) {
-          return { connected: false, channelConfigured: false, tokenConfigured: false };
-        }
-        throw error;
+        console.error('Slack status error:', error);
+        // Always return default state instead of throwing
+        return { connected: false, channelConfigured: false, tokenConfigured: false };
       }
     },
     // Don't show error on initial load

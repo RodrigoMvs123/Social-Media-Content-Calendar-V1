@@ -49,8 +49,8 @@ const CalendarView = ({ posts, viewType }: CalendarViewProps) => {
         console.log(`Post ${post.id} is later`);
         laterPosts.push(post);
       } else {
-        console.log(`Post ${post.id} doesn't match any category, adding to today`);
-        todayPosts.push(post);
+        console.log(`Post ${post.id} doesn't match any category, adding to later`);
+        laterPosts.push(post);
       }
     });
     

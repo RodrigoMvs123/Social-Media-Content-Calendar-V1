@@ -50,3 +50,9 @@ export interface SocialMediaAccount {
   accessToken?: string;
   tokenExpiry?: string;
 }
+
+export type PostsGroupedByDate = {
+  date: string;
+  title: string;
+  posts: Post[];
+};

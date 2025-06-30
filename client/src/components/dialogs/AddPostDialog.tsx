@@ -206,14 +206,14 @@ const AddPostDialog = () => {
       resetState();
       
       // Force refetch posts data to show the new post
-      queryClient.invalidateQueries(['/api/calendar']);
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
       
       // Navigate to dashboard if created from calendar
       navigateToDashboardAfterPost();
       
-      // Add a small delay and refetch again to ensure data is updated
+      // Add a small delay and invalidate again to ensure data is updated
       setTimeout(() => {
-        queryClient.refetchQueries(['/api/calendar']);
+        queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
       }, 500);
       
     } catch (error) {
@@ -343,7 +343,7 @@ const AddPostDialog = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="date">Date</Label>
-              <div className="relative w-full" onClick={() => document.getElementById('date-input')?.showPicker()}>
+              <div className="relative w-full" onClick={() => (document.getElementById('date-input') as HTMLInputElement | null)?.showPicker()}>
                 <div className="w-full px-3 py-2 border rounded-md flex justify-between items-center cursor-pointer">
                   <span>{date ? format(date, "MM/dd/yyyy") : "Pick a date"}</span>
                   <CalendarIcon className="h-4 w-4" />
@@ -372,7 +372,7 @@ const AddPostDialog = () => {
             
             <div className="grid gap-2">
               <Label htmlFor="time">Time</Label>
-              <div className="relative w-full" onClick={() => document.getElementById('time-input')?.showPicker()}>
+              <div className="relative w-full" onClick={() => (document.getElementById('time-input') as HTMLInputElement | null)?.showPicker()}>
                 <div className="w-full px-3 py-2 border rounded-md flex justify-between items-center cursor-pointer">
                   <span>{time || "Select time"}</span>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

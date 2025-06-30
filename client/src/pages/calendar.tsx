@@ -138,7 +138,13 @@ const Calendar = () => {
                   <p className="text-gray-600">We're having trouble connecting to your calendar. Let's get you started with creating your first post!</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <Button onClick={() => setIsAddPostDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                  <Button
+                    onClick={() => {
+                      resetState();
+                      openAddPostDialog();
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Your First Post
                   </Button>

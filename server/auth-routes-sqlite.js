@@ -91,13 +91,10 @@ router.post('/register', async (req, res) => {
     
     const newUser = await db.get('SELECT id, name, email FROM users WHERE id = ?', result.lastID);
     
-    // Generate JWT token
-    const token = generateToken(newUser);
-    
     console.log('User registered successfully:', newUser);
     res.status(201).json({
       user: newUser,
-      token
+      message: 'User registered successfully. Please log in with your credentials.'
     });
   } catch (error) {
     console.error('Error registering user:', error);

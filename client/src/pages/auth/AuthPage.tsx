@@ -13,15 +13,20 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, login, register } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("login");
+  const [activeTab, setActiveTab] = useState("signup");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   
-  // Redirect if already authenticated
+  // Redirect if already authenticated (but not during registration)
   useEffect(() => {
-    if (isAuthenticated) {
+    console.log('🔍 REDIRECT CHECK:', { isAuthenticated, isRegistering });
+    if (isAuthenticated && !isRegistering) {
+      console.log('🔍 REDIRECTING TO DASHBOARD');
       navigate("/");
+    } else {
+      console.log('🔍 NOT REDIRECTING');
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, isRegistering]);
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -61,12 +66,22 @@ const AuthPage = () => {
   
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 SIGNUP FORM SUBMITTED');
     setIsLoading(true);
+    setIsRegistering(true);
+    
+    // Clear any existing auth tokens before registration
+    localStorage.removeItem('auth_token');
     
     console.log("Attempting signup with:", { name: signupName, email: signupEmail });
     
     try {
+      console.log('🚀 CALLING REGISTER FUNCTION');
       await register(signupEmail, signupPassword, signupName);
+      console.log('🚀 REGISTER FUNCTION COMPLETED');
+      
+      console.log("Registration completed, user should NOT be authenticated");
+      console.log("isAuthenticated after registration:", isAuthenticated);
       
       // Show success message
       toast({
@@ -74,9 +89,10 @@ const AuthPage = () => {
         description: `Welcome ${signupName}! Please log in with your new credentials.`,
       });
       
-      // Switch to login tab and pre-fill email
-      setActiveTab("login");
-      setLoginEmail(signupEmail);
+      // Switch to login tab
+      setTimeout(() => {
+        setActiveTab("login");
+      }, 100);
       setSignupEmail("");
       setSignupPassword("");
       setSignupName("");
@@ -91,6 +107,7 @@ const AuthPage = () => {
       });
     } finally {
       setIsLoading(false);
+      setIsRegistering(false);
     }
   };
   
@@ -113,7 +130,7 @@ const AuthPage = () => {
         
         <Card>
           <CardHeader>
-            <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -164,7 +181,7 @@ const AuthPage = () => {
                 
               <TabsContent value="signup">
                 <CardContent className="mt-4">
-                  <form onSubmit={handleSignup} className="space-y-4">
+                  <form onSubmit={handleSignup} className="space-y-4" method="" action="">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
                       <Input 

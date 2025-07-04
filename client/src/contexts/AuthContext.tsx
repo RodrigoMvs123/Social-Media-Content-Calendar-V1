@@ -21,13 +21,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegistering, setIsRegistering] = useState(false);
+  
+  // Debug logging for user state changes
+  React.useEffect(() => {
+    console.log('🔍 AUTH STATE CHANGED:', {
+      user: user ? `${user.email} (ID: ${user.id})` : 'null',
+      isAuthenticated: !!user,
+      timestamp: new Date().toISOString()
+    });
+  }, [user]);
 
   // Check for existing auth on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('auth_token');
+        console.log('🔍 AUTH CHECK ON MOUNT:', { hasToken: !!token, token: token ? `${token.substring(0, 20)}...` : 'none' });
+        
         if (token) {
+          console.log('🔍 VERIFYING TOKEN WITH BACKEND...');
           // Verify token with backend database
           const response = await fetch('http://localhost:3001/api/auth/me', {
             headers: {
@@ -37,16 +50,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           if (response.ok) {
             const userData = await response.json();
+            console.log('🔍 TOKEN VALID - SETTING USER:', userData);
             setUser(userData);
           } else {
+            console.log('🔍 TOKEN INVALID - REMOVING');
             // Token is invalid, remove it
             localStorage.removeItem('auth_token');
           }
+        } else {
+          console.log('🔍 NO TOKEN FOUND');
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+        console.error('🔍 AUTH CHECK FAILED:', error);
         localStorage.removeItem('auth_token');
       } finally {
+        console.log('🔍 AUTH CHECK COMPLETE - SETTING LOADING FALSE');
         setIsLoading(false);
       }
     };
@@ -79,7 +97,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const register = async (email: string, password: string, name?: string) => {
+    setIsRegistering(true);
     try {
+      console.log('Starting registration process...');
+      
+      // Force clear any authentication state
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      
       const response = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: {
@@ -90,15 +115,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
+        console.log('Registration failed with status:', response.status);
+        console.log('Error details:', error);
+        throw new Error(error.error || error.message || 'Registration failed');
       }
 
       const data = await response.json();
-      localStorage.setItem('auth_token', data.token);
-      setUser(data.user);
+      console.log('Registration response:', data);
+      
+      // FORCE user to remain null and clear all auth data
+      setUser(null);
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      
+      // Double check - if somehow a token was set, remove it
+      setTimeout(() => {
+        localStorage.removeItem('auth_token');
+        setUser(null);
+        console.log('Final auth state after registration:', { user: null, token: localStorage.getItem('auth_token') });
+      }, 100);
+      
+      console.log('Registration completed - user should be null');
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -107,7 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
   };
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user && !isRegistering;
 
   return (
     <AuthContext.Provider

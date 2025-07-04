@@ -20,13 +20,13 @@ const Settings = () => {
   // Load initial values from localStorage
   const storedSettings = loadSettings();
   
-  const [emailDigest, setEmailDigest] = useState(storedSettings.emailDigest !== undefined ? storedSettings.emailDigest : true);
-  const [emailPostPublished, setEmailPostPublished] = useState(storedSettings.emailPostPublished !== undefined ? storedSettings.emailPostPublished : true);
-  const [emailPostFailed, setEmailPostFailed] = useState(storedSettings.emailPostFailed !== undefined ? storedSettings.emailPostFailed : true);
-  const [browserNotifications, setBrowserNotifications] = useState(storedSettings.browserNotifications !== undefined ? storedSettings.browserNotifications : true);
-  const [slackPostScheduled, setSlackPostScheduled] = useState(storedSettings.slackPostScheduled !== undefined ? storedSettings.slackPostScheduled : true);
-  const [slackPostPublished, setSlackPostPublished] = useState(storedSettings.slackPostPublished !== undefined ? storedSettings.slackPostPublished : true);
-  const [slackPostFailed, setSlackPostFailed] = useState(storedSettings.slackPostFailed !== undefined ? storedSettings.slackPostFailed : true);
+  const [emailDigest, setEmailDigest] = useState(storedSettings.emailDigest !== undefined ? storedSettings.emailDigest : false);
+  const [emailPostPublished, setEmailPostPublished] = useState(storedSettings.emailPostPublished !== undefined ? storedSettings.emailPostPublished : false);
+  const [emailPostFailed, setEmailPostFailed] = useState(storedSettings.emailPostFailed !== undefined ? storedSettings.emailPostFailed : false);
+  const [browserNotifications, setBrowserNotifications] = useState(storedSettings.browserNotifications !== undefined ? storedSettings.browserNotifications : false);
+  const [slackPostScheduled, setSlackPostScheduled] = useState(storedSettings.slackPostScheduled !== undefined ? storedSettings.slackPostScheduled : false);
+  const [slackPostPublished, setSlackPostPublished] = useState(storedSettings.slackPostPublished !== undefined ? storedSettings.slackPostPublished : false);
+  const [slackPostFailed, setSlackPostFailed] = useState(storedSettings.slackPostFailed !== undefined ? storedSettings.slackPostFailed : false);
   const [notificationEmail, setNotificationEmail] = useState('');
   
   // Load settings from server on component mount
@@ -40,9 +40,9 @@ const Settings = () => {
         setEmailPostPublished(serverSettings.emailPostPublished);
         setEmailPostFailed(serverSettings.emailPostFailed);
         setBrowserNotifications(serverSettings.browserNotifications);
-        setSlackPostScheduled(serverSettings.slackPostScheduled || true);
-        setSlackPostPublished(serverSettings.slackPostPublished || true);
-        setSlackPostFailed(serverSettings.slackPostFailed || true);
+        setSlackPostScheduled(serverSettings.slackPostScheduled || false);
+        setSlackPostPublished(serverSettings.slackPostPublished || false);
+        setSlackPostFailed(serverSettings.slackPostFailed || false);
       } catch (error) {
         console.error('Failed to load settings from server', error);
         // Already using localStorage values as fallback

@@ -103,21 +103,8 @@ const SlackStatus = ({ className }: SlackStatusProps) => {
     );
   }
 
-  return (
-    <Alert className={className}>
-      <AlertTriangle className="h-4 w-4" />
-      <AlertTitle>Slack Integration Incomplete</AlertTitle>
-      <AlertDescription>
-        {!data.tokenConfigured && !data.channelConfigured ? (
-          "Slack bot token and channel ID are missing. Configure them in the settings below."
-        ) : !data.tokenConfigured ? (
-          "Slack bot token is missing. Configure it in the settings below."
-        ) : (
-          "Slack channel ID is missing. Configure it in the settings below."
-        )}
-      </AlertDescription>
-    </Alert>
-  );
+  // Don't show incomplete status message
+  return null;
 };
 
 export default SlackStatus;

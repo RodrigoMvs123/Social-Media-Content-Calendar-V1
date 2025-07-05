@@ -3,12 +3,72 @@ const router = express.Router();
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const auth = require('./middleware/auth');
+const { WebClient } = require('@slack/web-api');
 
 // Get database path from environment
 const dbPath = process.env.DB_PATH || './data.sqlite';
 
 // Initialize SQLite database connection
 let db;
+
+// Function to send Slack notification
+async function sendSlackNotification(userId, post) {
+  try {
+    // Get user's Slack settings
+    const slackSettings = await db.get(
+      'SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1', 
+      userId
+    );
+    
+    if (!slackSettings) {
+      console.log('No active Slack settings found for user:', userId);
+      return;
+    }
+    
+    const slack = new WebClient(slackSettings.botToken);
+    
+    // Format the scheduled time
+    const scheduledDate = new Date(post.scheduledTime);
+    const formattedDate = scheduledDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Create message using Slack's markdown format
+    const message = `📅 *New post scheduled*\n\n` +
+      `*Platform:* ${post.platform}\n` +
+      `*Scheduled for:* ${formattedDate}\n` +
+      `*Content:* ${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}\n` +
+      `*Status:* ${post.status}`;
+    
+    // Send message to Slack - use your direct message channel
+    let channelToUse = slackSettings.channelId;
+    
+    // If using placeholder, use your #social channel
+    if (channelToUse === 'DM_PLACEHOLDER') {
+      channelToUse = 'C08PUPJ15LJ'; // Your #social channel
+      console.log('Using #social channel: C08PUPJ15LJ');
+    }
+    
+    // Send message to Slack
+    console.log(`Sending message to channel: ${channelToUse}`);
+    await slack.chat.postMessage({
+      channel: channelToUse,
+      text: message,
+      mrkdwn: true
+    });
+    
+    console.log('✅ Slack notification sent for post:', post.id);
+  } catch (error) {
+    console.error('❌ Slack notification failed:', error.message);
+    throw error;
+  }
+}
+
 (async () => {
   try {
     db = await open({
@@ -98,6 +158,14 @@ router.post('/', auth, async (req, res) => {
       } catch (e) {
         console.error('Error parsing media JSON:', e);
       }
+    }
+    
+    // Send Slack notification if configured
+    try {
+      await sendSlackNotification(userId, newPost);
+    } catch (error) {
+      console.error('Failed to send Slack notification:', error);
+      // Don't fail the post creation if Slack fails
     }
     
     res.status(201).json(newPost);

@@ -47,6 +47,39 @@ const getUserId = (req, res, next) => {
   }
 };
 
+// POST /api/slack/channels - Get channels for bot token
+router.post('/channels', getUserId, async (req, res) => {
+  try {
+    const { botToken } = req.body;
+    
+    if (!botToken || typeof botToken !== 'string') {
+      return res.status(400).json({ 
+        error: 'Bot token is required' 
+      });
+    }
+
+    const slack = new WebClient(botToken.trim());
+    
+    // Get channels list
+    const channelsResult = await slack.conversations.list({
+      types: 'public_channel,private_channel'
+    });
+    
+    const channels = channelsResult.channels.map(channel => ({
+      id: channel.id,
+      name: `#${channel.name}`,
+      is_private: channel.is_private
+    }));
+    
+    res.json({ channels });
+  } catch (error) {
+    console.error('Error fetching channels:', error.message);
+    res.status(400).json({ 
+      error: 'Failed to fetch channels. Please check your bot token.' 
+    });
+  }
+});
+
 // POST /api/slack/validate - Validate bot token and get basic info
 router.post('/validate', getUserId, async (req, res) => {
   try {

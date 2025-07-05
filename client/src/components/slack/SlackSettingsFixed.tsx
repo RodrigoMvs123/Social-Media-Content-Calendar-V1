@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 // Slack Icon Component
@@ -23,6 +24,9 @@ const SlackIcon = () => (
 const SlackSettingsFixed = () => {
   const { toast } = useToast();
   const [botToken, setBotToken] = useState('');
+  const [selectedChannelId, setSelectedChannelId] = useState('');
+  const [channels, setChannels] = useState<any[]>([]);
+  const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
@@ -101,6 +105,8 @@ const SlackSettingsFixed = () => {
           title: "Bot Token Valid!",
           description: `Connected to ${data.botInfo.team} as ${data.botInfo.user}`,
         });
+        // Load channels after successful validation
+        await loadChannels(botToken.trim());
       } else {
         toast({
           title: "Invalid Bot Token",
@@ -120,6 +126,33 @@ const SlackSettingsFixed = () => {
     }
   };
 
+  const loadChannels = async (token: string) => {
+    setIsLoadingChannels(true);
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:3001/api/slack/channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ botToken: token })
+      });
+      
+      const data = await response.json();
+      if (data.channels) {
+        setChannels(data.channels);
+        if (data.channels.length > 0 && !selectedChannelId) {
+          setSelectedChannelId(data.channels[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading channels:', error);
+    } finally {
+      setIsLoadingChannels(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!botToken.trim()) {
       toast({
@@ -130,8 +163,18 @@ const SlackSettingsFixed = () => {
       return;
     }
 
+    if (!selectedChannelId) {
+      toast({
+        title: "Error",
+        description: "Please select a channel",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
+      const selectedChannel = channels.find(c => c.id === selectedChannelId);
       const authToken = localStorage.getItem('auth_token');
       const response = await fetch('http://localhost:3001/api/slack/settings', {
         method: 'POST',
@@ -141,8 +184,8 @@ const SlackSettingsFixed = () => {
         },
         body: JSON.stringify({
           botToken: botToken.trim(),
-          channelId: 'DM_PLACEHOLDER',
-          channelName: 'Direct Messages'
+          channelId: selectedChannelId,
+          channelName: selectedChannel?.name || 'Unknown Channel'
         })
       });
       
@@ -225,11 +268,38 @@ const SlackSettingsFixed = () => {
             </div>
           )}
         </div>
+        
+        {channels.length > 0 && (
+          <div className="space-y-2">
+            <Label htmlFor="channel-select">Slack Channel</Label>
+            <p className="text-xs text-gray-500 mb-2">
+              Select the channel where notifications will be sent.
+            </p>
+            <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a channel" />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        
+        {isLoadingChannels && (
+          <div className="text-xs text-gray-500">
+            Loading channels...
+          </div>
+        )}
       </CardContent>
       <CardFooter>
         <Button 
           onClick={handleSave} 
-          disabled={isSaving || !botToken.trim()}
+          disabled={isSaving || !botToken.trim() || !selectedChannelId}
         >
           {isSaving ? 'Saving...' : 'Save Settings'}
         </Button>

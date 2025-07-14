@@ -30,6 +30,7 @@ const SlackSettingsFixed = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   // Load existing settings
   const { data: slackSettings, refetch } = useQuery({
@@ -210,6 +211,43 @@ const SlackSettingsFixed = () => {
     }
   };
 
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:3001/api/slack/disconnect', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Slack Disconnected",
+          description: "Your Slack integration has been disconnected.",
+        });
+        // Reset all state
+        setBotToken('');
+        setSelectedChannelId('');
+        setChannels([]);
+        setValidationResult(null);
+        // Refresh the settings query
+        refetch();
+      } else {
+        throw new Error('Failed to disconnect');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Slack integration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -296,13 +334,22 @@ const SlackSettingsFixed = () => {
           </div>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex gap-2">
         <Button 
           onClick={handleSave} 
           disabled={isSaving || !botToken.trim() || !selectedChannelId}
         >
           {isSaving ? 'Saving...' : 'Save Settings'}
         </Button>
+        {slackSettings?.configured && (
+          <Button 
+            variant="outline"
+            onClick={handleDisconnect}
+            disabled={isDisconnecting}
+          >
+            {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

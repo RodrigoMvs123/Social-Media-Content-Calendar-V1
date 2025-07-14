@@ -324,6 +324,31 @@ router.get('/settings', getUserId, async (req, res) => {
   }
 });
 
+// DELETE /api/slack/disconnect - Disconnect Slack integration
+router.delete('/disconnect', getUserId, async (req, res) => {
+  try {
+    const db = await getDb();
+    
+    // Delete user's Slack settings
+    const result = await db.run(
+      'DELETE FROM slack_settings WHERE userId = ?',
+      [req.userId]
+    );
+    
+    console.log(`Slack integration disconnected for user: ${req.userId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Slack integration disconnected successfully' 
+    });
+  } catch (error) {
+    console.error('Error disconnecting Slack:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to disconnect Slack integration' 
+    });
+  }
+});
+
 // POST /api/slack/settings - Save user's Slack settings
 router.post('/settings', getUserId, async (req, res) => {
   try {

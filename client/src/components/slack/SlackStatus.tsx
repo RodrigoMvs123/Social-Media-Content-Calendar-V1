@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Slack as LucideSlackIcon, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { slackEvents } from '@/lib/slackEvents';
 
 // Official Slack Icon Component
 const SlackIcon = () => (
@@ -33,21 +34,43 @@ interface SlackStatusResponse {
 const SlackStatus = ({ className }: SlackStatusProps) => {
   // Set errorShown to false initially to hide the error message
   const [errorShown, setErrorShown] = useState(false);
+  const queryClient = useQueryClient();
+  
+  // Effect to refresh status when component mounts or when status changes
+  useEffect(() => {
+    // Invalidate the query cache to force a fresh fetch
+    queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
+    
+    // Subscribe to status change events
+    const unsubscribe = slackEvents.subscribe(() => {
+      console.log('SlackStatus: Received status change event, refetching...');
+      queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
+      refetch();
+    });
+    
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, [queryClient]);
   
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['/api/slack/status'],
     queryFn: async () => {
       try {
+        console.log('Fetching Slack status...');
         const token = localStorage.getItem('auth_token');
         const response = await fetch('http://localhost:3001/api/slack/status', {
           headers: {
             'Authorization': `Bearer ${token}`
-          }
+          },
+          // Add cache busting parameter
+          cache: 'no-store'
         });
         if (!response.ok) {
           throw new Error('Failed to fetch Slack status');
         }
-        return response.json() as Promise<SlackStatusResponse>;
+        const result = await response.json();
+        console.log('Slack status result:', result);
+        return result as SlackStatusResponse;
       } catch (error) {
         console.error('Slack status error:', error);
         // Always return default state instead of throwing
@@ -56,12 +79,15 @@ const SlackStatus = ({ className }: SlackStatusProps) => {
     },
     // Don't show error on initial load
     retry: false,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000, // Refresh every 5 seconds
+    staleTime: 0 // Consider data always stale
   });
 
   // Function to manually check connection and show errors
   const checkConnection = () => {
     setErrorShown(true);
+    queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
     refetch();
   };
 
@@ -117,8 +143,22 @@ const SlackStatus = ({ className }: SlackStatusProps) => {
     );
   }
 
-  // Don't show incomplete status message
-  return null;
+  // Show disconnected status
+  return (
+    <Card className={className}>
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <SlackIcon />
+            <span className="text-sm font-medium">Slack Integration</span>
+          </div>
+          <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">
+            Disconnected
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
 export default SlackStatus;

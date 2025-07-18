@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,7 @@ const SlackIcon = () => (
 
 const SlackSettingsFixed = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [botToken, setBotToken] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState('');
   const [channels, setChannels] = useState<any[]>([]);
@@ -70,6 +71,17 @@ const SlackSettingsFixed = () => {
       });
       // Show placeholder in input to indicate token is saved
       setBotToken('••••••••••••••••••••••••••••••••••••••••••••••••••••');
+      
+      // If we have a saved channel, create a channel option for it
+      if (slackSettings.channelId && slackSettings.channelName) {
+        const savedChannel = {
+          id: slackSettings.channelId,
+          name: slackSettings.channelName
+        };
+        setChannels([savedChannel]);
+        setSelectedChannelId(slackSettings.channelId);
+        console.log('Loaded saved channel:', savedChannel);
+      }
     } else {
       setValidationResult(null);
       setBotToken('');
@@ -232,8 +244,9 @@ const SlackSettingsFixed = () => {
         setSelectedChannelId('');
         setChannels([]);
         setValidationResult(null);
-        // Refresh the settings query
+        // Refresh all Slack-related queries
         refetch();
+        queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
       } else {
         throw new Error('Failed to disconnect');
       }
@@ -307,7 +320,8 @@ const SlackSettingsFixed = () => {
           )}
         </div>
         
-        {channels.length > 0 && (
+        {/* Always show channel section if we have a selected channel or available channels */}
+        {(channels.length > 0 || selectedChannelId) && (
           <div className="space-y-2">
             <Label htmlFor="channel-select">Slack Channel</Label>
             <p className="text-xs text-gray-500 mb-2">
@@ -325,6 +339,11 @@ const SlackSettingsFixed = () => {
                 ))}
               </SelectContent>
             </Select>
+            {selectedChannelId && channels.length > 0 && (
+              <div className="text-xs text-green-600 mt-1">
+                ✓ Using channel: {channels.find(c => c.id === selectedChannelId)?.name || selectedChannelId}
+              </div>
+            )}
           </div>
         )}
         

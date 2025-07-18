@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExternalLink, TestTube } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { slackEvents } from '@/lib/slackEvents';
 
 interface SlackChannel {
   id: string;
@@ -24,6 +25,7 @@ interface SlackSettings {
 
 const SlackSettings = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -97,6 +99,8 @@ const SlackSettings = () => {
         });
         // Load channels after successful validation
         await loadChannels(cleanToken);
+        // Notify status change
+        slackEvents.emitStatusChange();
       } else {
         toast({
           title: "Invalid Bot Token",
@@ -198,7 +202,12 @@ const SlackSettings = () => {
           title: "Settings Saved",
           description: "Your Slack integration settings have been updated successfully.",
         });
+        // Invalidate both settings and status queries
+        queryClient.invalidateQueries({ queryKey: ['/api/slack/settings'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
         await refetch();
+        // Notify status change
+        slackEvents.emitStatusChange();
       } else {
         throw new Error('Failed to save settings');
       }
@@ -229,6 +238,8 @@ const SlackSettings = () => {
           title: "Test Successful!",
           description: "Check your Slack channel for the test message.",
         });
+        // Notify status change
+        slackEvents.emitStatusChange();
       } else {
         throw new Error('Test failed');
       }

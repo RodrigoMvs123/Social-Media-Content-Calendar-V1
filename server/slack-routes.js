@@ -311,6 +311,12 @@ router.get('/settings', getUserId, async (req, res) => {
       return res.json({ configured: false });
     }
 
+    // Log the channel information for debugging
+    console.log('Returning Slack settings with channel:', {
+      channelId: settings.channelId,
+      channelName: settings.channelName
+    });
+
     res.json({
       configured: true,
       channelId: settings.channelId,
@@ -410,6 +416,13 @@ router.post('/test', getUserId, async (req, res) => {
 // GET /api/slack/status - Get connection status
 router.get('/status', getUserId, async (req, res) => {
   try {
+    console.log(`Checking Slack status for user: ${req.userId}`);
+    
+    // Add cache control headers
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     const db = await getDb();
     const settings = await db.get(
       'SELECT botToken, channelId, isActive FROM slack_settings WHERE userId = ?',
@@ -417,6 +430,7 @@ router.get('/status', getUserId, async (req, res) => {
     );
 
     if (!settings) {
+      console.log(`No Slack settings found for user: ${req.userId}`);
       return res.json({
         connected: false,
         tokenConfigured: false,
@@ -424,11 +438,14 @@ router.get('/status', getUserId, async (req, res) => {
       });
     }
 
-    res.json({
+    const status = {
       connected: settings.isActive && !!settings.botToken && !!settings.channelId,
       tokenConfigured: !!settings.botToken,
       channelConfigured: !!settings.channelId
-    });
+    };
+    
+    console.log(`Slack status for user ${req.userId}:`, status);
+    res.json(status);
   } catch (error) {
     console.error('Error checking Slack status:', error);
     res.status(500).json({ error: 'Failed to check status' });

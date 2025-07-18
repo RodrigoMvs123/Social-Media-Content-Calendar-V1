@@ -1,27 +1,84 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import SlackStatus from '@/components/slack/SlackStatus';
+import { slackEvents } from '@/lib/slackEvents';
 
 const SlackIntegrationTab = () => {
   const [botToken, setBotToken] = useState('');
   const [channelId, setChannelId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const handleDisconnect = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:3001/api/slack/disconnect', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Disconnected",
+          description: "Slack integration has been disconnected.",
+        });
+        
+        // Clear form fields
+        setBotToken('');
+        setChannelId('');
+        
+        // Invalidate queries and emit event
+        queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
+        slackEvents.emitStatusChange();
+      } else {
+        throw new Error('Failed to disconnect');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Slack integration.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSave = async () => {
     setIsLoading(true);
     
     try {
-      // In a real app, you would save these settings to your backend
-      // For now, we'll just simulate a successful save
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Settings saved",
-        description: "Your Slack integration settings have been saved.",
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:3001/api/slack/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          botToken: botToken.trim(),
+          channelId,
+          channelName: channelId // Using channelId as name for simplicity
+        })
       });
+      
+      if (response.ok) {
+        toast({
+          title: "Settings saved",
+          description: "Your Slack integration settings have been saved.",
+        });
+        
+        // Invalidate queries to refresh status
+        queryClient.invalidateQueries({ queryKey: ['/api/slack/status'] });
+        slackEvents.emitStatusChange();
+      } else {
+        throw new Error('Failed to save settings');
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -40,6 +97,17 @@ const SlackIntegrationTab = () => {
         <p className="text-sm text-gray-500">
           Connect your Slack workspace to receive notifications about your scheduled posts.
         </p>
+      </div>
+      
+      <div className="flex justify-between items-center mb-4">
+        <SlackStatus className="flex-grow" />
+        <Button 
+          variant="outline" 
+          onClick={handleDisconnect} 
+          className="ml-4"
+        >
+          Disconnect
+        </Button>
       </div>
       
       <div className="space-y-4">

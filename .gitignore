@@ -39,3 +39,6 @@ server/.env
 # Build files
 build/
 out/
+
+# Continue folder
+.continue/

@@ -4,7 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Twitter, Linkedin, Instagram, Facebook, ExternalLink } from 'lucide-react';
+import { Linkedin, Instagram, Facebook, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -178,7 +178,7 @@ const ConnectPage = () => {
     let developerUrl = '';
     
     switch(platform) {
-      case 'Twitter':
+      case 'X':
         developerUrl = 'https://developer.twitter.com/';
         break;
       case 'LinkedIn':
@@ -357,9 +357,9 @@ const ConnectPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {renderSocialMediaCard(
-              "Twitter",
-              <Twitter className="h-5 w-5 text-blue-400" />,
-              "Schedule and publish tweets"
+              "X",
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-gray-700"><path d="M4 4l11.733 16h4.267l-11.733 -16z"/><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"/></svg>,
+              "Schedule and publish posts on X"
             )}
             
             {renderSocialMediaCard(

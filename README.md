@@ -93,7 +93,7 @@ This application supports two modes for social media integration:
 To use real social media integration:
 
 1. Register as a developer on each platform:
-   - Twitter: [Twitter Developer Portal](https://developer.twitter.com/)
+   - X (formerly Twitter): [X Developer Portal](https://developer.twitter.com/)
    - LinkedIn: [LinkedIn Developer Portal](https://developer.linkedin.com/)
    - Facebook/Instagram: [Meta for Developers](https://developers.facebook.com/)
 
@@ -104,9 +104,9 @@ To use real social media integration:
 
 4. Copy the client ID and secret to **both** `.env` files (root and server directory):
    ```
-   # Twitter OAuth credentials
-   TWITTER_CLIENT_ID=your_twitter_client_id
-   TWITTER_CLIENT_SECRET=your_twitter_client_secret
+   # X (formerly Twitter) OAuth credentials
+   TWITTER_CLIENT_ID=your_x_client_id
+   TWITTER_CLIENT_SECRET=your_x_client_secret
 
    # LinkedIn OAuth credentials
    LINKEDIN_CLIENT_ID=your_linkedin_client_id
@@ -140,7 +140,7 @@ The application is already configured to use these credentials when available.
 - **Calendar Views**: Month, List, and Grid views for visualizing your content schedule
 - **Post Management**: Create, edit, and delete posts across multiple platforms
 - **AI Content Generation**: Generate content ideas and full posts with AI assistance
-- **Multi-Platform Support**: Schedule posts for Twitter, LinkedIn, Facebook, and Instagram
+- **Multi-Platform Support**: Schedule posts for X (formerly Twitter), LinkedIn, Facebook, and Instagram
 - **Filtering & Search**: Filter posts by platform, status, and search by content
 - **Persistent Storage**: Store your data in PostgreSQL or SQLite database
 - **User Accounts**: Create and manage user accounts with secure authentication

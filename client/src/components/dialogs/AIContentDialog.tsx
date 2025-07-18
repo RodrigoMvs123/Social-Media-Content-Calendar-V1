@@ -25,7 +25,7 @@ const AIContentDialog = () => {
   } = usePostContext();
   
   const [prompt, setPrompt] = useState<string>("");
-  const [platform, setPlatform] = useState<string>("Twitter");
+  const [platform, setPlatform] = useState<string>("X");
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
@@ -35,7 +35,7 @@ const AIContentDialog = () => {
     if (isAIDialogOpen) {
       setPrompt("");
       setGeneratedContent("");
-      setPlatform("Twitter");
+      setPlatform("X");
     }
   }, [isAIDialogOpen]);
 
@@ -110,7 +110,7 @@ const AIContentDialog = () => {
                 <SelectValue placeholder="Select platform" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Twitter">Twitter</SelectItem>
+                <SelectItem value="X">X</SelectItem>
                 <SelectItem value="LinkedIn">LinkedIn</SelectItem>
                 <SelectItem value="Facebook">Facebook</SelectItem>
                 <SelectItem value="Instagram">Instagram</SelectItem>

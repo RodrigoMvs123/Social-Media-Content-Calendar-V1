@@ -229,7 +229,7 @@ const AddPostDialog = () => {
   };
   
   // Simplified platform selection - avoid complex filtering that might cause issues
-  const platforms = ['Twitter', 'LinkedIn', 'Instagram', 'Facebook'];
+  const platforms = ['X', 'LinkedIn', 'Instagram', 'Facebook'];
   
   // Status options
   const statusOptions = [

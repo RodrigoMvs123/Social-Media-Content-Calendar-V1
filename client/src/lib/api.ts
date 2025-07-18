@@ -339,7 +339,7 @@ export const fetchAnalyticsData = async () => {
       postsByPlatform,
       postsByStatus,
       engagementByPlatform: [
-        { platform: 'Twitter', likes: 145, shares: 78, comments: 32 },
+        { platform: 'X', likes: 145, shares: 78, comments: 32 },
         { platform: 'LinkedIn', likes: 89, shares: 34, comments: 21 },
         { platform: 'Facebook', likes: 67, shares: 12, comments: 45 },
         { platform: 'Instagram', likes: 234, shares: 0, comments: 56 }

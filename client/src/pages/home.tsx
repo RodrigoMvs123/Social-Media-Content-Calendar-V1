@@ -28,7 +28,7 @@ const Home = () => {
   const [activeView, setActiveView] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<FilterOptions>({
     platform: '',
-    dateRange: 'upcoming',
+    dateRange: 'all', // Changed from 'upcoming' to 'all' to show all posts by default
     status: '',
     searchQuery: '',
   });
@@ -83,6 +83,10 @@ const Home = () => {
       const now = new Date();
       
       switch (filters.dateRange) {
+        case 'all':
+          // Show all posts regardless of date
+          return true;
+          
         case 'upcoming':
           // Show posts scheduled for today or in the future
           // Fix: Create a new Date object to avoid modifying the original now variable
@@ -220,7 +224,7 @@ const Home = () => {
               }}
             />
           ) : (
-            <CalendarView posts={filteredPosts} viewType={activeView} />
+            <CalendarView posts={filteredPosts} viewType={activeView} filters={filters} />
           )}
         </div>
       </main>

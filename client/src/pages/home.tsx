@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCalendarPosts } from "@/lib/api";
 import { Post, FilterOptions } from "@/lib/types";
 import { Helmet } from "react-helmet";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, isAfter, isBefore, parseISO } from "date-fns";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, isAfter, isBefore, parseISO, isToday, isTomorrow, isThisWeek, addDays } from "date-fns";
 
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -60,68 +60,11 @@ const Home = () => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  // Apply filters to posts
-  const filteredPosts = posts?.filter((post: Post) => {
-    // Filter by platform
-    if (filters.platform && filters.platform !== 'all' && post.platform !== filters.platform) {
-      return false;
-    }
-    
-    // Filter by status
-    if (filters.status && filters.status !== 'all' && post.status !== filters.status) {
-      return false;
-    }
-    
-    // Filter by search query
-    if (filters.searchQuery && !post.content.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
-      return false;
-    }
-    
-    // Filter by date range (but allow past posts if filtering by published status)
-    if (filters.dateRange && filters.status !== 'published') {
-      const postDate = parseISO(post.scheduledTime);
-      const now = new Date();
-      
-      switch (filters.dateRange) {
-        case 'all':
-          // Show all posts regardless of date
-          return true;
-          
-        case 'upcoming':
-          // Show posts scheduled for today or in the future
-          // Fix: Create a new Date object to avoid modifying the original now variable
-          const today = new Date(now);
-          today.setHours(0, 0, 0, 0);
-          return isAfter(postDate, today) || postDate.getTime() === today.getTime();
-          
-        case 'this-week':
-          // Show posts scheduled for this week
-          const thisWeekStart = startOfWeek(new Date(now), { weekStartsOn: 1 }); // Monday
-          const thisWeekEnd = endOfWeek(new Date(now), { weekStartsOn: 1 });
-          return (isAfter(postDate, thisWeekStart) || postDate.getTime() === thisWeekStart.getTime()) && 
-                 (isBefore(postDate, thisWeekEnd) || postDate.getTime() === thisWeekEnd.getTime());
-          
-        case 'next-week':
-          // Show posts scheduled for next week
-          const nextWeekStart = startOfWeek(addWeeks(new Date(now), 1), { weekStartsOn: 1 });
-          const nextWeekEnd = endOfWeek(addWeeks(new Date(now), 1), { weekStartsOn: 1 });
-          return (isAfter(postDate, nextWeekStart) || postDate.getTime() === nextWeekStart.getTime()) && 
-                 (isBefore(postDate, nextWeekEnd) || postDate.getTime() === nextWeekEnd.getTime());
-          
-        case 'this-month':
-          // Show posts scheduled for this month
-          const thisMonthStart = startOfMonth(new Date(now));
-          const thisMonthEnd = endOfMonth(new Date(now));
-          return (isAfter(postDate, thisMonthStart) || postDate.getTime() === thisMonthStart.getTime()) && 
-                 (isBefore(postDate, thisMonthEnd) || postDate.getTime() === thisMonthEnd.getTime());
-      }
-    }
-    
-    return true;
-  }) || [];
+  // We'll pass all posts to CalendarView and let it handle the filtering
+  const filteredPosts = posts || [];
 
-  // Check if we have posts but they're all filtered out
-  const hasPostsButFiltered = posts && posts.length > 0 && filteredPosts.length === 0;
+  // We'll handle this in the CalendarView component
+  const hasPostsButFiltered = false;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -194,22 +137,6 @@ const Home = () => {
               <p className="text-red-500">Error loading calendar. Try again later.</p>
               <Button variant="outline" onClick={() => refetch()} className="mt-4">
                 Retry
-              </Button>
-            </div>
-          ) : hasPostsButFiltered ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500">No posts match your current filters.</p>
-              <Button 
-                variant="outline" 
-                onClick={() => setFilters({
-                  platform: '',
-                  dateRange: 'upcoming',
-                  status: '',
-                  searchQuery: '',
-                })} 
-                className="mt-4"
-              >
-                Clear Filters
               </Button>
             </div>
           ) : filteredPosts.length === 0 ? (

@@ -51,8 +51,7 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
       return safeParseDate(a.scheduledTime).getTime() - safeParseDate(b.scheduledTime).getTime();
     });
     
-    // Always group posts by Today, Tomorrow, This Week, Next Week, Later
-    // regardless of the filter, but respect the filter for which posts are shown
+    // Group posts by Today, Tomorrow, This Week, Next Week, Later
     const todayPosts: Post[] = [];
     const tomorrowPosts: Post[] = [];
     const thisWeekPosts: Post[] = [];
@@ -62,50 +61,86 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
     sortedPosts.forEach(post => {
       const postDate = safeParseDate(post.scheduledTime);
       
-      // Debug log to help identify issues
-      console.log(`Categorizing post: ${post.id}, date: ${post.scheduledTime}, parsed: ${postDate}`);
-      
       if (isToday(postDate)) {
-        console.log(`Post ${post.id} categorized as Today`);
         todayPosts.push(post);
       } else if (isTomorrow(postDate)) {
-        console.log(`Post ${post.id} categorized as Tomorrow`);
         tomorrowPosts.push(post);
       } else if (isThisWeek(postDate, { weekStartsOn: 1 }) && isAfter(postDate, tomorrow)) {
-        console.log(`Post ${post.id} categorized as This Week`);
         thisWeekPosts.push(post);
       } else if (
         // Check if date is in next week (between next week start and end)
         (isAfter(postDate, nextWeekStart) || postDate.getTime() === nextWeekStart.getTime()) && 
         (isBefore(postDate, nextWeekEnd) || postDate.getTime() === nextWeekEnd.getTime())
       ) {
-        console.log(`Post ${post.id} categorized as Next Week`);
         nextWeekPosts.push(post);
       } else if (isAfter(postDate, nextWeekEnd)) {
-        console.log(`Post ${post.id} categorized as Later (after next week)`);
         laterPosts.push(post);
       } else {
-        console.warn(`Post ${post.id} has unexpected date categorization:`, post.scheduledTime);
         laterPosts.push(post);
       }
     });
     
-    // Always add all groups, even if empty, to maintain consistent UI
-    groups.push({ date: format(today, 'yyyy-MM-dd'), title: 'Today', posts: todayPosts });
-    groups.push({ date: format(tomorrow, 'yyyy-MM-dd'), title: 'Tomorrow', posts: tomorrowPosts });
-    groups.push({ date: 'this-week', title: 'This Week', posts: thisWeekPosts });
-    groups.push({ date: 'next-week', title: 'Next Week', posts: nextWeekPosts });
-    groups.push({ date: 'later', title: 'Later', posts: laterPosts });
+    // Check if a specific date filter is selected
+    const dateRange = filters?.dateRange || 'all';
     
-    return groups;
+    // Create sections based on date filter
+    let sections = [];
+    
+    // If a specific date filter is selected, only include that section
+    if (dateRange === 'today') {
+      sections = [{ date: format(today, 'yyyy-MM-dd'), title: 'Today', posts: todayPosts }];
+    } else if (dateRange === 'tomorrow') {
+      sections = [{ date: format(tomorrow, 'yyyy-MM-dd'), title: 'Tomorrow', posts: tomorrowPosts }];
+    } else if (dateRange === 'this-week') {
+      sections = [{ date: 'this-week', title: 'This Week', posts: thisWeekPosts }];
+    } else if (dateRange === 'next-week') {
+      sections = [{ date: 'next-week', title: 'Next Week', posts: nextWeekPosts }];
+    } else if (dateRange === 'later') {
+      sections = [{ date: 'later', title: 'Later', posts: laterPosts }];
+    } else {
+      // For 'all' or any other date filter, include all sections
+      sections = [
+        { date: format(today, 'yyyy-MM-dd'), title: 'Today', posts: todayPosts },
+        { date: format(tomorrow, 'yyyy-MM-dd'), title: 'Tomorrow', posts: tomorrowPosts },
+        { date: 'this-week', title: 'This Week', posts: thisWeekPosts },
+        { date: 'next-week', title: 'Next Week', posts: nextWeekPosts },
+        { date: 'later', title: 'Later', posts: laterPosts }
+      ];
+    }
+    
+    // Apply platform filter to each section's posts
+    if (filters?.platform && filters.platform !== 'all') {
+      sections.forEach(section => {
+        section.posts = section.posts.filter(post => post.platform === filters.platform);
+      });
+    }
+    
+    // Apply status filter to each section's posts
+    if (filters?.status && filters.status !== 'all') {
+      sections.forEach(section => {
+        section.posts = section.posts.filter(post => post.status === filters.status);
+      });
+    }
+    
+    // Apply search filter to each section's posts
+    if (filters?.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      sections.forEach(section => {
+        section.posts = section.posts.filter(post => 
+          post.content.toLowerCase().includes(query)
+        );
+      });
+    }
+    
+    // Remove empty sections
+    return sections.filter(section => section.posts.length > 0);
   }, [posts, filters]);
 
 
   return (
     <div className="space-y-5 mb-8">
-      {groupedPosts
-        .filter(group => group.posts.length > 0) // Only include groups with posts
-        .map((group) => (
+      {groupedPosts.length > 0 ? (
+        groupedPosts.map((group) => (
           <DateSection 
             key={group.date} 
             dateTitle={group.title} 
@@ -113,12 +148,17 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
             viewType={viewType}
           />
         ))
-      }
-      
-      {/* Show message if no posts in any category */}
-      {groupedPosts.every(group => group.posts.length === 0) && (
+      ) : (
         <div className="text-center py-10">
-          <p className="text-gray-500">No posts scheduled for any time period.</p>
+          <p className="text-gray-500">No posts match your current filters.</p>
+          {(filters?.platform || filters?.dateRange !== 'all' || filters?.status || filters?.searchQuery) && (
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="mt-4 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       )}
     </div>

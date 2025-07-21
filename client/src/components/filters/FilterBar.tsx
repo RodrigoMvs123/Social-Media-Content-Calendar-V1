@@ -60,7 +60,7 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Platforms</SelectItem>
-                <SelectItem value="Twitter">Twitter</SelectItem>
+                <SelectItem value="X">X</SelectItem>
                 <SelectItem value="LinkedIn">LinkedIn</SelectItem>
                 <SelectItem value="Instagram">Instagram</SelectItem>
                 <SelectItem value="Facebook">Facebook</SelectItem>
@@ -79,6 +79,7 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
                 <SelectValue placeholder="Upcoming" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">All Posts</SelectItem>
                 <SelectItem value="upcoming">Upcoming</SelectItem>
                 <SelectItem value="this-week">This Week</SelectItem>
                 <SelectItem value="next-week">Next Week</SelectItem>

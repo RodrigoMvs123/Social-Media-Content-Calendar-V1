@@ -80,10 +80,11 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Posts</SelectItem>
-                <SelectItem value="upcoming">Upcoming</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="tomorrow">Tomorrow</SelectItem>
                 <SelectItem value="this-week">This Week</SelectItem>
                 <SelectItem value="next-week">Next Week</SelectItem>
-                <SelectItem value="this-month">This Month</SelectItem>
+                <SelectItem value="later">Later</SelectItem>
               </SelectContent>
             </Select>
           </div>

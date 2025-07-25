@@ -149,7 +149,35 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
               <p className="text-sm text-gray-900 line-clamp-3">{post.content}</p>
             </div>
             
-
+            {hasMedia && (
+              <div className="mb-3">
+                <div className="flex gap-1 overflow-x-auto">
+                  {post.media.slice(0, 3).map((item, index) => (
+                    <div key={index} className="flex-shrink-0 w-12 h-12 rounded border overflow-hidden">
+                      {item.type === 'image' ? (
+                        <img 
+                          src={item.url} 
+                          alt={`Media ${index + 1}`} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {post.media.length > 3 && (
+                    <div className="flex-shrink-0 w-12 h-12 rounded border bg-gray-100 flex items-center justify-center">
+                      <span className="text-xs text-gray-500">+{post.media.length - 3}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div className="flex items-center justify-between">
               <div>
@@ -257,6 +285,36 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
               </div>
             </div>
             <p className="mt-1 text-sm text-gray-900">{post.content}</p>
+            
+            {hasMedia && (
+              <div className="mt-2">
+                <div className="flex gap-1">
+                  {post.media.slice(0, 4).map((item, index) => (
+                    <div key={index} className="w-8 h-8 rounded border overflow-hidden">
+                      {item.type === 'image' ? (
+                        <img 
+                          src={item.url} 
+                          alt={`Media ${index + 1}`} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {post.media.length > 4 && (
+                    <div className="w-8 h-8 rounded border bg-gray-100 flex items-center justify-center">
+                      <span className="text-xs text-gray-500">+{post.media.length - 4}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div className="mt-2">
               {getStatusBadge(post.status)}

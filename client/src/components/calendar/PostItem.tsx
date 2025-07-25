@@ -75,6 +75,8 @@ const getStatusBadge = (status?: string) => {
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Needs approval</Badge>;
     case 'ready':
       return <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">Ready to publish</Badge>;
+    case 'failed':
+      return <Badge variant="outline" className="bg-red-100 text-red-800 hover:bg-red-200">❌ Failed</Badge>;
     default:
       return <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-200">Scheduled</Badge>;
   }
@@ -86,7 +88,7 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const platformIconClass = getPlatformColor(post.platform);
-  const formattedTime = format(new Date(post.scheduledTime), 'h:mm a');
+  const formattedTime = format(new Date(post.scheduledTime), 'HH:mm');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -98,7 +100,10 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   const handleDelete = async () => {
     try {
       await deletePost(post.id);
+      // Invalidate all post-related queries to sync Dashboard and Calendar
       queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
       toast({
         title: "Post deleted",
         description: "The post has been successfully deleted.",
@@ -211,7 +216,11 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
           open={isEditDialogOpen} 
           onOpenChange={setIsEditDialogOpen} 
           post={post}
-          onPostUpdated={() => queryClient.invalidateQueries({ queryKey: ['/api/calendar'] })}
+          onPostUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
+            queryClient.invalidateQueries({ queryKey: ['posts'] });
+          }}
         />
         
         <PostDetailsDialog
@@ -327,7 +336,11 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
         open={isEditDialogOpen} 
         onOpenChange={setIsEditDialogOpen} 
         post={post}
-        onPostUpdated={() => queryClient.invalidateQueries({ queryKey: ['/api/calendar'] })}
+        onPostUpdated={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
+          queryClient.invalidateQueries({ queryKey: ['posts'] });
+        }}
       />
       
       <PostDetailsDialog

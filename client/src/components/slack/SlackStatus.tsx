@@ -58,7 +58,7 @@ const SlackStatus = ({ className }: SlackStatusProps) => {
       try {
         console.log('Fetching Slack status...');
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://localhost:3001/api/slack/status', {
+        const response = await fetch('/api/slack/status', {
           headers: {
             'Authorization': `Bearer ${token}`
           },

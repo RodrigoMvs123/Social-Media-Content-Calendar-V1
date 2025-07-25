@@ -63,6 +63,17 @@ export class SQLiteAdapter implements DatabaseAdapter {
         browserNotifications BOOLEAN NOT NULL DEFAULT 1,
         updatedAt TEXT NOT NULL
       );
+      
+      CREATE TABLE IF NOT EXISTS slack_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId TEXT NOT NULL UNIQUE,
+        botToken TEXT,
+        channelId TEXT,
+        channelName TEXT,
+        isActive BOOLEAN NOT NULL DEFAULT 1,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
     `);
   }
   

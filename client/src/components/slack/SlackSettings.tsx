@@ -50,7 +50,7 @@ const SlackSettings = () => {
     queryFn: async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('http://localhost:3001/api/slack/settings', {
+        const response = await fetch('/api/slack/settings', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -80,7 +80,7 @@ const SlackSettings = () => {
       const authToken = localStorage.getItem('auth_token');
       const cleanToken = token.trim();
       
-      const response = await fetch('http://localhost:3001/api/slack/validate', {
+      const response = await fetch('/api/slack/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ const SlackSettings = () => {
     setIsLoadingChannels(true);
     try {
       const authToken = localStorage.getItem('auth_token');
-      const response = await fetch(`http://localhost:3001/api/slack/channels?botToken=${encodeURIComponent(token)}`, {
+      const response = await fetch(`/api/slack/channels?botToken=${encodeURIComponent(token)}`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -184,7 +184,7 @@ const SlackSettings = () => {
       const selectedChannel = channels.find(c => c.id === selectedChannelId);
       const authToken = localStorage.getItem('auth_token');
       
-      const response = await fetch('http://localhost:3001/api/slack/settings', {
+      const response = await fetch('/api/slack/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ const SlackSettings = () => {
     setIsTesting(true);
     try {
       const authToken = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:3001/api/slack/test', {
+      const response = await fetch('/api/slack/test', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`

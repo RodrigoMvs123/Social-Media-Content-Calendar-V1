@@ -17,7 +17,7 @@ const SlackIntegrationTab = () => {
   const handleDisconnect = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:3001/api/slack/disconnect', {
+      const response = await fetch('/api/slack/disconnect', {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -54,7 +54,7 @@ const SlackIntegrationTab = () => {
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:3001/api/slack/settings', {
+      const response = await fetch('/api/slack/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

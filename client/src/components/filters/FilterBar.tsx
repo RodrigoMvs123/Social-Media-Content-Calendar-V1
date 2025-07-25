@@ -112,7 +112,7 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
           
           {/* Search */}
           <div>
-            <Label htmlFor="search-posts" className="text-sm mb-1">Search posts</Label>
+            <Label htmlFor="search-posts" className="text-sm mb-1">Search for keyword</Label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
@@ -120,7 +120,7 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
               <Input
                 id="search-posts"
                 type="text"
-                placeholder="Search posts..."
+                placeholder="Search for keyword..."
                 className="pl-10 pr-4 py-2 bg-gray-50"
                 defaultValue={filters.searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}

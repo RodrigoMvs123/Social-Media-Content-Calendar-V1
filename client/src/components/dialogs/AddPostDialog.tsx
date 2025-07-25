@@ -103,24 +103,18 @@ const AddPostDialog = () => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     
-    const newFiles: File[] = [];
-    const newPreviews: string[] = [];
-    
-    // Process each file
+    // Process each file and convert to data URL immediately
     Array.from(files).forEach(file => {
-      // Check if it's an image or video
       if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        newFiles.push(file);
-        
-        // Create preview URL
-        const previewUrl = URL.createObjectURL(file);
-        newPreviews.push(previewUrl);
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          setMediaFiles(prev => [...prev, file]);
+          setMediaPreviews(prev => [...prev, dataUrl]);
+        };
+        reader.readAsDataURL(file);
       }
     });
-    
-    // Update state with new files and previews
-    setMediaFiles(prev => [...prev, ...newFiles]);
-    setMediaPreviews(prev => [...prev, ...newPreviews]);
     
     // Reset the file input
     if (fileInputRef.current) {
@@ -129,10 +123,7 @@ const AddPostDialog = () => {
   };
   
   const removeMedia = (index: number) => {
-    // Revoke the object URL to avoid memory leaks
-    URL.revokeObjectURL(mediaPreviews[index]);
-    
-    // Remove the file and preview
+    // Remove the file and preview (no need to revoke data URLs)
     setMediaFiles(prev => prev.filter((_, i) => i !== index));
     setMediaPreviews(prev => prev.filter((_, i) => i !== index));
   };
@@ -158,21 +149,11 @@ const AddPostDialog = () => {
       console.log('With time:', time);
       console.log('Final scheduled time:', scheduledTime.toISOString());
       
-      // In a real implementation, you would upload the media files to a server
-      // and get back URLs to include in the post
-      const mediaUrls = await Promise.all(
-        mediaFiles.map(async (file, index) => {
-          // This is a mock implementation - in a real app, you would upload the file
-          // and get back a URL from your server or a cloud storage service
-          
-          // For now, we'll just use the preview URL as a placeholder
-          return {
-            url: mediaPreviews[index],
-            type: file.type.startsWith('image/') ? 'image' : 'video'
-            // Removed alt property to prevent filename display
-          };
-        })
-      );
+      // Use the data URLs we already created
+      const mediaUrls = mediaFiles.map((file, index) => ({
+        url: mediaPreviews[index],
+        type: file.type.startsWith('image/') ? 'image' : 'video'
+      }));
       
       await createPost({
         content,
@@ -196,8 +177,7 @@ const AddPostDialog = () => {
       setTime('12:00');
       setStatus('scheduled');
       
-      // Clean up media previews
-      mediaPreviews.forEach(url => URL.revokeObjectURL(url));
+      // Clean up media previews (no cleanup needed for data URLs)
       setMediaFiles([]);
       setMediaPreviews([]);
       

@@ -56,7 +56,7 @@ console.log(`OpenAI API Key status: ${openaiApiKey ? 'FOUND' : 'NOT FOUND'}`);
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: true,
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));

@@ -1,8 +1,8 @@
 import { UserSettings, Post, SocialMediaAccount } from './types';
 import { mockApi } from './mockApi';
 
-// Base API URL - Fix this to point to the correct server
-const API_BASE_URL = 'http://localhost:3001/api';
+// Base API URL - Use relative path with Vite proxy
+const API_BASE_URL = '/api';
 
 // Configuration flags
 const USE_MOCK_DATA = false;  // Use real data from the server
@@ -27,6 +27,7 @@ async function fetchWithErrorHandling<T = any>(url: string, options?: RequestIni
   try {
     const fullUrl = `${API_BASE_URL}${url}`;
     console.log(`Fetching: ${fullUrl}`, options);
+    console.log(`API_BASE_URL is: ${API_BASE_URL}`);
     
     // Get token from localStorage
     const token = localStorage.getItem('auth_token');

@@ -181,7 +181,7 @@ const PostDetailsDialog: React.FC<PostDetailsDialogProps> = ({
             
             <div className="mb-3 flex items-center text-sm text-gray-500">
               <Clock className="mr-1 h-4 w-4" />
-              {format(new Date(currentPost.scheduledTime), 'h:mm a')}
+              {format(new Date(currentPost.scheduledTime), 'HH:mm')}
             </div>
             
             <div className="mb-4">

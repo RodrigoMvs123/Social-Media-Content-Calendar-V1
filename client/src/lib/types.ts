@@ -24,6 +24,7 @@ export interface Post {
   status: string;
   createdAt: string;
   updatedAt: string;
+  errorMessage?: string;
   media?: {
     url: string;
     type: string;

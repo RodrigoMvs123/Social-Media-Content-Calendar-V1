@@ -73,6 +73,7 @@ if (process.env.DB_TYPE === 'sqlite') {
   app.use('/api/posts', require('./posts-routes-sqlite'));
   app.use('/api/analytics', require('./analytics-routes-sqlite'));
   app.use('/api/slack', require('./slack-routes'));
+  app.use('/api/notifications', require('./notification-routes'));
 } else {
   app.use('/api/auth', authRoutes);
   app.use('/api/posts', require('./posts-routes'));
@@ -83,6 +84,13 @@ app.use('/api/media', mediaRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
+
+// Initialize cron jobs for daily digest
+require('./cron-jobs');
+
+// Start post scheduler
+const { startPostScheduler } = require('./post-scheduler');
+startPostScheduler();
 
 // Start server
 app.listen(port, () => {

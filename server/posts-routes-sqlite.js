@@ -117,12 +117,12 @@ async function sendSlackNotification(userId, post) {
         } else {
           messagePayload.text += '\n\n📷 *Image attached* (View image in Social Media Content Calendar dashboard)';
         }
-      } else if (mediaUrl && (mediaUrl.startsWith('http') || mediaUrl.startsWith('https'))) {
-        // Only use HTTP/HTTPS URLs for Slack attachments
+      } else if (mediaUrl && (mediaUrl.startsWith('http') || mediaUrl.startsWith('https')) && !mediaUrl.startsWith('data:')) {
+        // Only use HTTP/HTTPS URLs (not data URLs) for Slack attachments
         if (mediaType === 'video') {
           // Slack doesn't support video attachments directly, so add text indicator
           messagePayload.text += `\n\n🎥 *Video attached*: ${mediaUrl}`;
-          console.log('Adding video link to Slack message:', mediaUrl);
+          console.log('Adding video link to Slack message');
         } else {
           // Image attachment
           messagePayload.attachments = [{
@@ -130,10 +130,10 @@ async function sendSlackNotification(userId, post) {
             image_url: mediaUrl,
             color: '#36a64f'
           }];
-          console.log('Adding image to Slack message:', mediaUrl);
+          console.log('Adding image to Slack message');
         }
       } else {
-        console.log(`${mediaType} URL not suitable for Slack:`, mediaUrl);
+        console.log(`${mediaType} not suitable for Slack (data URL or invalid)`);
         if (mediaType === 'video') {
           messagePayload.text += '\n\n🎥 *Video attached* (View video in Social Media Content Calendar dashboard)';
         } else {
@@ -146,6 +146,13 @@ async function sendSlackNotification(userId, post) {
     
     // Send message to Slack
     console.log(`Sending message to channel: ${channelToUse}`);
+    // Create clean payload for logging (without potential base64 data)
+    const logPayload = {
+      channel: messagePayload.channel,
+      text: messagePayload.text.substring(0, 200) + '...',
+      hasAttachments: !!messagePayload.attachments
+    };
+    console.log('Slack payload (truncated):', logPayload);
     const result = await slack.chat.postMessage(messagePayload);
     
     // Store the Slack message timestamp for future deletion
@@ -255,12 +262,21 @@ router.post('/', auth, async (req, res) => {
       }
     }
     
-    // Send Slack notification if configured
+    // Send notifications only for published posts
+    // Scheduled posts will get notifications when the scheduler publishes them
     try {
-      await sendSlackNotification(userId, newPost);
+      if (status === 'published') {
+        // Send Slack notification for published posts
+        await sendSlackNotification(userId, newPost);
+        
+        // Send email notification for published posts
+        const { notifyPostPublished } = require('./notification-service');
+        await notifyPostPublished(userId, newPost);
+      }
+      
     } catch (error) {
-      console.error('Failed to send Slack notification:', error);
-      // Don't fail the post creation if Slack fails
+      console.error('Failed to send notifications:', error);
+      // Don't fail the post creation if notifications fail
     }
     
     res.status(201).json(newPost);

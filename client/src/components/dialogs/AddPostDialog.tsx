@@ -16,6 +16,7 @@ import { SocialMediaAccount } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePostContext } from '@/contexts/PostContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { notificationService } from '@/lib/notifications';
 
 // Check if token is valid
 const isTokenValid = (account: SocialMediaAccount): boolean => {
@@ -72,11 +73,35 @@ const AddPostDialog = () => {
       // Always reset these
       setDate(new Date());
       setTime('12:00');
-      setStatus('scheduled');
+      setStatus('ready'); // Will be auto-adjusted by date effect
       setMediaFiles([]);
       setMediaPreviews([]);
     }
   }, [isAddPostDialogOpen, aiGeneratedContent, selectedPlatform, content, platform]);
+  
+  // Auto-adjust status when date changes
+  useEffect(() => {
+    if (!date) return;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    const isPast = selectedDate < today;
+    const isFuture = selectedDate > today;
+    
+    if (isPast) {
+      // Past dates: auto-set to published
+      setStatus('published');
+    } else {
+      // Today and future: default to ready if current status is not valid
+      if (status === 'published' || status === 'scheduled' || status === 'needs_approval') {
+        setStatus('ready');
+      }
+    }
+  }, [date, status]);
   
   // Load connected accounts on mount
   useEffect(() => {
@@ -134,7 +159,7 @@ const AddPostDialog = () => {
     try {
       setIsLoading(true);
       
-      // Combine date and time using UTC to avoid timezone issues
+      // Combine date and time in local timezone
       const [hours, minutes] = time.split(':').map(Number);
       
       // Get the date components from the selected date
@@ -142,8 +167,8 @@ const AddPostDialog = () => {
       const month = date.getMonth();
       const day = date.getDate();
       
-      // Create a new date in UTC to ensure consistent timezone handling
-      const scheduledTime = new Date(Date.UTC(year, month, day, hours, minutes));
+      // Create a new date in local timezone
+      const scheduledTime = new Date(year, month, day, hours, minutes);
       
       console.log('Creating post for date:', date.toISOString());
       console.log('With time:', time);
@@ -170,6 +195,24 @@ const AddPostDialog = () => {
           : `Your post has been created with status: ${status}.`,
       });
       
+      // Show browser notification only for published posts
+      // Scheduled posts will get notifications when actually published
+      try {
+        const token = localStorage.getItem('auth_token');
+        const notifResponse = await fetch('/api/notifications', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (notifResponse.ok) {
+          const preferences = await notifResponse.json();
+          if (preferences.browserNotifications && status === 'published') {
+            await notificationService.notifyPostPublished(platform, content);
+          }
+        }
+      } catch (error) {
+        console.log('Browser notification failed:', error);
+      }
+      
       // Reset form and context
       setContent('');
       setPlatform('');
@@ -185,8 +228,10 @@ const AddPostDialog = () => {
       closeAddPostDialog();
       resetState();
       
-      // Force refetch posts data to show the new post
+      // Force refetch posts data to show the new post in both Dashboard and Calendar
       queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
       
       // Navigate to dashboard if created from calendar
       navigateToDashboardAfterPost();
@@ -194,6 +239,8 @@ const AddPostDialog = () => {
       // Add a small delay and invalidate again to ensure data is updated
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
       }, 500);
       
     } catch (error) {
@@ -211,14 +258,33 @@ const AddPostDialog = () => {
   // Simplified platform selection - avoid complex filtering that might cause issues
   const platforms = ['X', 'LinkedIn', 'Instagram', 'Facebook'];
   
-  // Status options
-  const statusOptions = [
-    { value: 'draft', label: 'Draft' },
-    { value: 'scheduled', label: 'Scheduled' },
-    { value: 'published', label: 'Published' },
-    { value: 'needs_approval', label: 'Needs Approval' },
-    { value: 'ready', label: 'Ready to Publish' }
-  ];
+  // Smart status options based on selected date
+  const getStatusOptions = () => {
+    if (!date) return [];
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0); // Start of selected date
+    
+    const isPast = selectedDate < today;
+    const isFuture = selectedDate > today;
+    const isToday = selectedDate.getTime() === today.getTime();
+    
+    if (isPast) {
+      // Past dates: only published makes sense
+      return [{ value: 'published', label: 'Published' }];
+    } else {
+      // Today and future: only Draft and Ready to Publish
+      return [
+        { value: 'draft', label: 'Draft' },
+        { value: 'ready', label: 'Ready to Publish' }
+      ];
+    }
+  };
+  
+  const statusOptions = getStatusOptions();
 
   return (
     <Dialog open={isAddPostDialogOpen} onOpenChange={closeAddPostDialog}>
@@ -373,16 +439,25 @@ const AddPostDialog = () => {
           
           <div className="grid gap-2">
             <Label htmlFor="status">Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {statusOptions.length === 1 ? (
+              <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-700">
+                {statusOptions[0].label}
+                <p className="text-xs text-gray-500 mt-1">
+                  Past dates are automatically marked as published
+                </p>
+              </div>
+            ) : (
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
         

@@ -102,7 +102,7 @@ async function sendSlackNotification(userId, post) {
     };
     
     // Add image if media exists
-    console.log('Post media data:', JSON.stringify(post.media, null, 2));
+    console.log('Post has media:', !!post.media, '- Media count:', post.media?.length || 0);
     
     if (post.media && Array.isArray(post.media) && post.media.length > 0) {
       const mediaItem = post.media[0];

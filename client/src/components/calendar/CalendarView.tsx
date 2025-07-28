@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { Post, PostsGroupedByDate, FilterOptions } from '@/lib/types';
 import DateSection from './DateSection';
+import EmptyState from './EmptyState';
+import { usePostContext } from '@/contexts/PostContext';
 import { format, isToday, isTomorrow, addDays, isThisWeek, isAfter, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addWeeks, isBefore, isPast } from 'date-fns';
 
 interface CalendarViewProps {
@@ -12,6 +14,13 @@ interface CalendarViewProps {
 const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
   // Check if we're in the calendar view or dashboard view
   const isCalendarView = window.location.pathname.includes('/calendar');
+  const { openAddPostDialog, openAIContentDialog } = usePostContext();
+  
+  // Check if any filters are active
+  const hasActiveFilters = (filters?.platform && filters.platform !== 'all') || 
+                          (filters?.dateRange && filters.dateRange !== 'all') || 
+                          (filters?.status && filters.status !== 'all') || 
+                          (filters?.searchQuery && filters.searchQuery.trim() !== '');
   // Helper function to safely parse dates
   const safeParseDate = (dateString: string): Date => {
     try {
@@ -149,17 +158,22 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
           />
         ))
       ) : (
-        <div className="text-center py-10">
-          <p className="text-gray-500">No posts match your current filters.</p>
-          {(filters?.platform || filters?.dateRange !== 'all' || filters?.status || filters?.searchQuery) && (
+        hasActiveFilters ? (
+          <div className="text-center py-10">
+            <p className="text-gray-500">No posts match your current filters.</p>
             <button 
               onClick={() => window.location.href = '/'}
               className="mt-4 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Clear Filters
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <EmptyState 
+            onCreatePost={openAddPostDialog}
+            onGenerateWithAI={openAIContentDialog}
+          />
+        )
       )}
     </div>
   );

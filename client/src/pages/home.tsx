@@ -51,8 +51,12 @@ const Home = () => {
     // Refetch when window gains focus
     window.addEventListener('focus', refetchPosts);
     
+    // Auto-refresh every 30 seconds to catch status changes
+    const interval = setInterval(refetchPosts, 30000);
+    
     return () => {
       window.removeEventListener('focus', refetchPosts);
+      clearInterval(interval);
     };
   }, [queryClient, refetch]);
 

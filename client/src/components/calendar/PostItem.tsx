@@ -74,7 +74,7 @@ const getStatusBadge = (status?: string) => {
     case 'needs_approval':
       return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Needs approval</Badge>;
     case 'ready':
-      return <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">Ready to publish</Badge>;
+      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Ready to publish</Badge>;
     case 'failed':
       return <Badge variant="outline" className="bg-red-100 text-red-800 hover:bg-red-200">❌ Failed</Badge>;
     default:

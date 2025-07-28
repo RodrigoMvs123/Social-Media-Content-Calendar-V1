@@ -195,8 +195,7 @@ const AddPostDialog = () => {
           : `Your post has been created with status: ${status}.`,
       });
       
-      // Show browser notification only for published posts
-      // Scheduled posts will get notifications when actually published
+      // Show browser notification for both scheduled and published posts
       try {
         const token = localStorage.getItem('auth_token');
         const notifResponse = await fetch('/api/notifications', {
@@ -205,8 +204,12 @@ const AddPostDialog = () => {
         
         if (notifResponse.ok) {
           const preferences = await notifResponse.json();
-          if (preferences.browserNotifications && status === 'published') {
-            await notificationService.notifyPostPublished(platform, content);
+          if (preferences.browserNotifications) {
+            if (status === 'ready' || status === 'draft') {
+              await notificationService.notifyPostScheduled(platform, content);
+            } else if (status === 'published') {
+              await notificationService.notifyPostPublished(platform, content);
+            }
           }
         }
       } catch (error) {

@@ -14,11 +14,6 @@ let db;
 // Function to delete Slack notification
 async function deleteSlackNotification(userId, post) {
   try {
-    if (!post.slackMessageTs) {
-      console.log('No Slack message timestamp found for post:', post.id);
-      return;
-    }
-    
     // Get user's Slack settings
     const slackSettings = await db.get(
       'SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1', 
@@ -38,15 +33,38 @@ async function deleteSlackNotification(userId, post) {
       channelToUse = 'C08PUPJ15LJ'; // Your #social channel
     }
     
-    // Delete the Slack message
-    await slack.chat.delete({
-      channel: channelToUse,
-      ts: post.slackMessageTs
-    });
+    // Delete scheduled message if exists
+    if (post.slackScheduledTs) {
+      try {
+        await slack.chat.delete({
+          channel: channelToUse,
+          ts: post.slackScheduledTs
+        });
+        console.log('✅ Slack scheduled message deleted:', post.slackScheduledTs);
+      } catch (error) {
+        console.log('⚠️ Failed to delete scheduled message (may already be gone):', error.message);
+      }
+    }
     
-    console.log('✅ Slack message deleted for post:', post.id);
+    // Delete published message if exists
+    if (post.slackMessageTs) {
+      try {
+        await slack.chat.delete({
+          channel: channelToUse,
+          ts: post.slackMessageTs
+        });
+        console.log('✅ Slack published message deleted:', post.slackMessageTs);
+      } catch (error) {
+        console.log('⚠️ Failed to delete published message (may not exist):', error.message);
+      }
+    }
+    
+    if (!post.slackScheduledTs && !post.slackMessageTs) {
+      console.log('No Slack message timestamps found for post:', post.id);
+    }
+    
   } catch (error) {
-    console.error('❌ Failed to delete Slack message:', error.message);
+    console.error('❌ Failed to delete Slack messages:', error.message);
     // Don't throw error - post deletion should still succeed
   }
 }
@@ -67,23 +85,44 @@ async function sendSlackNotification(userId, post) {
     
     const slack = new WebClient(slackSettings.botToken);
     
-    // Format the scheduled time
+    // Format the scheduled time in 24-hour format in São Paulo timezone
     const scheduledDate = new Date(post.scheduledTime);
-    const formattedDate = scheduledDate.toLocaleDateString('en-US', {
+    const formattedScheduledTime = scheduledDate.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      timeZone: 'America/Sao_Paulo'
+    }) + ' at ' + scheduledDate.toLocaleTimeString('en-GB', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Sao_Paulo'
+    });
+    
+    // Format current time (when post was created) in São Paulo timezone
+    const createdDate = new Date();
+    const formattedCreatedTime = createdDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Sao_Paulo'
+    }) + ' at ' + createdDate.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Sao_Paulo'
     });
     
     // Create message using Slack's markdown format
+    const statusDisplay = post.status === 'ready' ? 'Ready to Publish' : post.status;
     const message = `📅 *New post scheduled*\n\n` +
       `*Platform:* ${post.platform}\n` +
-      `*Scheduled for:* ${formattedDate}\n` +
+      `*Created at:* ${formattedCreatedTime}\n` +
+      `*Scheduled for:* ${formattedScheduledTime}\n` +
       `*Content:* ${post.content}\n` +
-      `*Status:* ${post.status}`;
+      `*Status:* ${statusDisplay}`;
     
     // Send message to Slack - use your direct message channel
     let channelToUse = slackSettings.channelId;
@@ -157,11 +196,12 @@ async function sendSlackNotification(userId, post) {
     
     // Store the Slack message timestamp for future deletion
     if (result.ok && result.ts) {
+      // Store as scheduled timestamp (will be updated to published timestamp later)
       await db.run(
-        'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+        'UPDATE posts SET slackScheduledTs = ? WHERE id = ?',
         [result.ts, post.id]
       );
-      console.log('✅ Slack notification sent and timestamp stored:', result.ts);
+      console.log('✅ Slack scheduled notification sent and timestamp stored:', result.ts);
     }
     
     console.log('✅ Slack notification sent for post:', post.id, '- Content length:', post.content.length, '- Has media:', !!post.media);
@@ -262,16 +302,16 @@ router.post('/', auth, async (req, res) => {
       }
     }
     
-    // Send notifications only for published posts
-    // Scheduled posts will get notifications when the scheduler publishes them
+    // Send notifications based on status
     try {
       if (status === 'published') {
-        // Send Slack notification for published posts
+        // Send notifications for published posts
         await sendSlackNotification(userId, newPost);
-        
-        // Send email notification for published posts
         const { notifyPostPublished } = require('./notification-service');
         await notifyPostPublished(userId, newPost);
+      } else if (status === 'ready' || status === 'draft') {
+        // Send Slack notification for scheduled posts (ready/draft)
+        await sendSlackNotification(userId, newPost);
       }
       
     } catch (error) {
@@ -415,6 +455,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
     
     // Delete Slack notification if it exists
+    console.log('🗑️ Attempting to delete Slack notification for post:', existingPost.id, 'with timestamp:', existingPost.slackMessageTs);
     try {
       await deleteSlackNotification(userId, existingPost);
     } catch (error) {

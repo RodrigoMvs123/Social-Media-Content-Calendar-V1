@@ -39,7 +39,7 @@ async function getUserNotificationSettings(userId) {
 // Send Slack notification
 async function sendSlackNotification(slackSettings, message) {
   try {
-    if (!slackSettings) return;
+    if (!slackSettings) return null;
     
     const slack = new WebClient(slackSettings.botToken);
     let channelToUse = slackSettings.channelId;
@@ -48,11 +48,13 @@ async function sendSlackNotification(slackSettings, message) {
       channelToUse = 'C08PUPJ15LJ'; // Your #social channel
     }
     
-    await slack.chat.postMessage({
+    const result = await slack.chat.postMessage({
       channel: channelToUse,
       text: message,
       mrkdwn: true
     });
+    
+    return result;
     
     console.log('✅ Slack notification sent');
   } catch (error) {
@@ -84,12 +86,35 @@ async function notifyPostPublished(userId, post) {
     
     // Slack notification
     if (settings.slackSettings) {
+      const publishedDate = new Date();
+      const formattedPublishedTime = publishedDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Sao_Paulo'
+      }) + ' at ' + publishedDate.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Sao_Paulo'
+      });
+      
       const message = `🎉 *Post Published Successfully*\n\n` +
         `*Platform:* ${post.platform}\n` +
         `*Content:* ${post.content}\n` +
-        `*Published at:* ${new Date().toLocaleString()}`;
+        `*Published at:* ${formattedPublishedTime}`;
       
-      await sendSlackNotification(settings.slackSettings, message);
+      const result = await sendSlackNotification(settings.slackSettings, message);
+      
+      // Update the slackMessageTs with the new published message timestamp
+      if (result && result.ts && db) {
+        await db.run(
+          'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+          [result.ts, post.id]
+        );
+        console.log('📝 Updated Slack message timestamp for published post:', result.ts);
+      }
     }
     
     // Browser notification would be handled on frontend

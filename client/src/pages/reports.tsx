@@ -26,11 +26,14 @@ const Reports = () => {
     value: item.count
   })) || [];
 
-  // Transform data for status report
-  const statusData = analytics?.postsByStatus?.map(item => ({
-    name: item.status,
-    value: item.count
-  })) || [];
+  // Transform data for status report - only show current valid statuses
+  const validStatuses = ['draft', 'ready', 'published', 'failed'];
+  const statusData = analytics?.postsByStatus
+    ?.filter(item => validStatuses.includes(item.status))
+    ?.map(item => ({
+      name: item.status === 'ready' ? 'ready to publish' : item.status,
+      value: item.count
+    })) || [];
 
   // Calculate total posts
   const totalPosts = analytics?.postsByPlatform?.reduce((sum, item) => sum + item.count, 0) || 0;
@@ -73,7 +76,7 @@ const Reports = () => {
                         >
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="name" />
-                          <YAxis />
+                          <YAxis domain={[0, Math.max(61, Math.max(...(platformData.length ? platformData.map(d => d.value) : [0])) + 10)]} />
                           <Tooltip />
                           <Legend />
                           <Bar dataKey="value" name="Posts" fill="#8884d8" />
@@ -138,7 +141,7 @@ const Reports = () => {
                         >
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="name" />
-                          <YAxis />
+                          <YAxis domain={[0, Math.max(61, Math.max(...(statusData.length ? statusData.map(d => d.value) : [0])) + 10)]} />
                           <Tooltip />
                           <Legend />
                           <Bar dataKey="value" name="Posts" fill="#82ca9d" />

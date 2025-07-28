@@ -59,6 +59,20 @@ const Home = () => {
   const handleFilterChange = (newFilters: Partial<FilterOptions>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
+  
+  const handleClearFilters = () => {
+    setFilters({
+      platform: '',
+      dateRange: 'all',
+      status: '',
+      searchQuery: '',
+    });
+    // Also clear the search input
+    const searchInput = document.querySelector('#search-posts') as HTMLInputElement;
+    if (searchInput) {
+      searchInput.value = '';
+    }
+  };
 
   // We'll pass all posts to CalendarView and let it handle the filtering
   const filteredPosts = posts || [];
@@ -151,7 +165,12 @@ const Home = () => {
               }}
             />
           ) : (
-            <CalendarView posts={filteredPosts} viewType={activeView} filters={filters} />
+            <CalendarView 
+              posts={filteredPosts} 
+              viewType={activeView} 
+              filters={filters}
+              onClearFilters={handleClearFilters}
+            />
           )}
         </div>
       </main>

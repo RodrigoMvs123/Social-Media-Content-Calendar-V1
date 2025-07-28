@@ -9,9 +9,10 @@ interface CalendarViewProps {
   posts: Post[];
   viewType: 'grid' | 'list';
   filters?: FilterOptions;
+  onClearFilters?: () => void;
 }
 
-const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
+const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarViewProps) => {
   // Check if we're in the calendar view or dashboard view
   const isCalendarView = window.location.pathname.includes('/calendar');
   const { openAddPostDialog, openAIContentDialog } = usePostContext();
@@ -167,7 +168,13 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
                 'No posts match your current filters.'}
             </p>
             <button 
-              onClick={() => window.location.href = '/'}
+              onClick={() => {
+                if (onClearFilters) {
+                  onClearFilters();
+                } else {
+                  window.location.href = '/';
+                }
+              }}
               className="mt-4 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               {filters?.searchQuery ? 'Clear Search' : 'Clear Filters'}

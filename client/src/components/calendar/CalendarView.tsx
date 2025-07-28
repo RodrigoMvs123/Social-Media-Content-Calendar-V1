@@ -133,10 +133,11 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
     
     // Apply search filter to each section's posts
     if (filters?.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
+      const query = filters.searchQuery.toLowerCase().trim();
       sections.forEach(section => {
         section.posts = section.posts.filter(post => 
-          post.content.toLowerCase().includes(query)
+          post.content.toLowerCase().includes(query) ||
+          post.platform.toLowerCase().includes(query)
         );
       });
     }
@@ -160,12 +161,16 @@ const CalendarView = ({ posts, viewType, filters }: CalendarViewProps) => {
       ) : (
         hasActiveFilters ? (
           <div className="text-center py-10">
-            <p className="text-gray-500">No posts match your current filters.</p>
+            <p className="text-gray-500">
+              {filters?.searchQuery ? 
+                `No posts found for "${filters.searchQuery}"` : 
+                'No posts match your current filters.'}
+            </p>
             <button 
               onClick={() => window.location.href = '/'}
               className="mt-4 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
-              Clear Filters
+              {filters?.searchQuery ? 'Clear Search' : 'Clear Filters'}
             </button>
           </div>
         ) : (

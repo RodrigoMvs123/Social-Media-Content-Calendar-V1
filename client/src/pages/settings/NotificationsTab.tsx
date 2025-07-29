@@ -3,13 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { notificationService } from '@/lib/notifications';
 
 const NotificationsTab = () => {
-  const [emailDigest, setEmailDigest] = useState(false);
-  const [emailPostPublished, setEmailPostPublished] = useState(false);
-  const [emailPostFailed, setEmailPostFailed] = useState(false);
-  const [browserNotifications, setBrowserNotifications] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const { toast } = useToast();
@@ -27,10 +22,7 @@ const NotificationsTab = () => {
         
         if (response.ok) {
           const preferences = await response.json();
-          setEmailDigest(preferences.emailDigest);
-          setEmailPostPublished(preferences.emailPostPublished);
-          setEmailPostFailed(preferences.emailPostFailed);
-          setBrowserNotifications(preferences.browserNotifications);
+          // Only loading Slack notification preferences
         }
       } catch (error) {
         console.error('Failed to load notification preferences:', error);
@@ -54,17 +46,15 @@ const NotificationsTab = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          emailDigest,
-          emailPostPublished,
-          emailPostFailed,
-          browserNotifications
+          // Only Slack notifications are managed in this component
+          slackSettings: {}
         })
       });
       
       if (response.ok) {
         toast({
           title: "Settings saved",
-          description: "Your notification preferences have been updated.",
+          description: "Your Slack notification preferences have been saved.",
         });
       } else {
         throw new Error('Failed to save preferences');
@@ -100,95 +90,6 @@ const NotificationsTab = () => {
       </div>
       
       <div className="space-y-4">
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium">Email Notifications</h4>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="email-digest">Daily Digest</Label>
-              <p className="text-xs text-gray-500">
-                Receive a daily summary of your scheduled posts.
-              </p>
-            </div>
-            <Switch
-              id="email-digest"
-              checked={emailDigest}
-              onCheckedChange={setEmailDigest}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="email-published">Post Published</Label>
-              <p className="text-xs text-gray-500">
-                Receive an email when a post is successfully published.
-              </p>
-            </div>
-            <Switch
-              id="email-published"
-              checked={emailPostPublished}
-              onCheckedChange={setEmailPostPublished}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="email-failed">Post Failed</Label>
-              <p className="text-xs text-gray-500">
-                Receive an email when a post fails to publish.
-              </p>
-            </div>
-            <Switch
-              id="email-failed"
-              checked={emailPostFailed}
-              onCheckedChange={setEmailPostFailed}
-            />
-          </div>
-        </div>
-        
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium">Browser Notifications</h4>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="browser-notifications">Enable Notifications</Label>
-              <p className="text-xs text-gray-500">
-                Receive browser notifications for important events.
-              </p>
-              {!notificationService.isSupported() && (
-                <p className="text-xs text-red-500">
-                  Browser notifications not supported
-                </p>
-              )}
-            </div>
-            <Switch
-              id="browser-notifications"
-              checked={browserNotifications}
-              onCheckedChange={async (checked) => {
-                if (checked) {
-                  const granted = await notificationService.requestPermission();
-                  if (granted) {
-                    setBrowserNotifications(true);
-                    toast({
-                      title: "Notifications enabled",
-                      description: "You'll now receive browser notifications.",
-                    });
-                  } else {
-                    toast({
-                      title: "Permission denied",
-                      description: "Please enable notifications in your browser settings.",
-                      variant: "destructive",
-                    });
-                  }
-                } else {
-                  setBrowserNotifications(false);
-                }
-              }}
-              disabled={!notificationService.isSupported()}
-            />
-          </div>
-        </div>
-        
         <div className="space-y-4">
           <h4 className="text-sm font-medium">Slack Notifications</h4>
           <p className="text-xs text-gray-500 mb-3">

@@ -8,7 +8,7 @@ import SlackSettingsFixed from "@/components/slack/SlackSettingsFixed";
 import SlackStatus from "@/components/slack/SlackStatus";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bell, MessageSquare, Mail, BellRing } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { loadSettings, loadSettingsFromServer, saveSettingsToServer } from '@/lib/localStorage';
 import { fetchSettings, saveSettings } from '@/lib/api';
@@ -20,14 +20,9 @@ const Settings = () => {
   // Load initial values from localStorage
   const storedSettings = loadSettings();
   
-  const [emailDigest, setEmailDigest] = useState(storedSettings.emailDigest !== undefined ? storedSettings.emailDigest : false);
-  const [emailPostPublished, setEmailPostPublished] = useState(storedSettings.emailPostPublished !== undefined ? storedSettings.emailPostPublished : false);
-  const [emailPostFailed, setEmailPostFailed] = useState(storedSettings.emailPostFailed !== undefined ? storedSettings.emailPostFailed : false);
-  const [browserNotifications, setBrowserNotifications] = useState(storedSettings.browserNotifications !== undefined ? storedSettings.browserNotifications : false);
   const [slackPostScheduled, setSlackPostScheduled] = useState(storedSettings.slackPostScheduled !== undefined ? storedSettings.slackPostScheduled : false);
   const [slackPostPublished, setSlackPostPublished] = useState(storedSettings.slackPostPublished !== undefined ? storedSettings.slackPostPublished : false);
   const [slackPostFailed, setSlackPostFailed] = useState(storedSettings.slackPostFailed !== undefined ? storedSettings.slackPostFailed : false);
-  const [notificationEmail, setNotificationEmail] = useState('');
   
   // Load settings from server on component mount
   useEffect(() => {
@@ -36,10 +31,6 @@ const Settings = () => {
         const serverSettings = await loadSettingsFromServer();
         
         // Update state with server settings
-        setEmailDigest(serverSettings.emailDigest);
-        setEmailPostPublished(serverSettings.emailPostPublished);
-        setEmailPostFailed(serverSettings.emailPostFailed);
-        setBrowserNotifications(serverSettings.browserNotifications);
         setSlackPostScheduled(serverSettings.slackPostScheduled || false);
         setSlackPostPublished(serverSettings.slackPostPublished || false);
         setSlackPostFailed(serverSettings.slackPostFailed || false);
@@ -48,11 +39,6 @@ const Settings = () => {
         // Already using localStorage values as fallback
       }
     };
-    
-    // Get the email from localStorage (set during signup)
-    const email = localStorage.getItem('notificationEmail') || localStorage.getItem('user') ? 
-      JSON.parse(localStorage.getItem('user') || '{}').email || '' : '';
-    setNotificationEmail(email);
     
     fetchSettings();
   }, []);
@@ -66,14 +52,9 @@ const Settings = () => {
       
       // Save to localStorage and server
       await saveSettingsToServer({
-        emailDigest,
-        emailPostPublished,
-        emailPostFailed,
-        browserNotifications,
         slackPostScheduled,
         slackPostPublished,
-        slackPostFailed,
-        notificationEmail // Include the email
+        slackPostFailed
       });
       
       toast({
@@ -131,64 +112,6 @@ const Settings = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4 flex items-center">
-                        <Mail className="h-5 w-5 mr-2" />
-                        Email Notifications
-                      </h3>
-                      <p className="text-gray-600 mb-2">
-                        Notifications will be sent to: <strong>{notificationEmail}</strong>
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="checkbox" 
-                          id="daily-digest" 
-                          checked={emailDigest}
-                          onChange={(e) => setEmailDigest(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="daily-digest" className="text-sm">Daily digest of upcoming posts</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <input 
-                          type="checkbox" 
-                          id="post-published" 
-                          checked={emailPostPublished}
-                          onChange={(e) => setEmailPostPublished(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="post-published" className="text-sm">When a post is published</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <input 
-                          type="checkbox" 
-                          id="post-failed" 
-                          checked={emailPostFailed}
-                          onChange={(e) => setEmailPostFailed(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="post-failed" className="text-sm">When a post fails to publish</label>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium mb-4 flex items-center">
-                        <Bell className="h-5 w-5 mr-2" />
-                        Browser Notifications
-                      </h3>
-                      <p className="text-gray-600 mb-2">Receive real-time notifications in your browser</p>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="checkbox" 
-                          id="browser-notifications" 
-                          checked={browserNotifications}
-                          onChange={(e) => setBrowserNotifications(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="browser-notifications" className="text-sm">Enable browser notifications</label>
-                      </div>
-                    </div>
-                    
                     <div>
                       <h3 className="text-lg font-medium mb-4 flex items-center">
                         <MessageSquare className="h-5 w-5 mr-2" />

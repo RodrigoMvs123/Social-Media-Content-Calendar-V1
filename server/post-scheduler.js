@@ -6,16 +6,22 @@ const dbPath = process.env.DB_PATH || './data.sqlite';
 let db;
 
 // Initialize database
-(async () => {
+async function initializeDb() {
   try {
     db = await open({
       filename: dbPath,
       driver: sqlite3.Database
     });
+    return db;
   } catch (error) {
     console.error('Error setting up post scheduler DB:', error);
+    throw error;
   }
-})();
+}
+
+// Track the last time we logged a check with no posts
+let lastNoPostsLog = 0;
+const NO_POSTS_LOG_INTERVAL = 5 * 60 * 1000; // Log every 5 minutes if no posts
 
 // Check and publish posts that are ready
 async function checkAndPublishPosts() {
@@ -31,10 +37,19 @@ async function checkAndPublishPosts() {
       AND status != 'failed'
     `, [now]);
     
-    console.log(`📅 Checking posts to publish: ${postsToPublish.length} found`);
-    
-    for (const post of postsToPublish) {
-      await publishPost(post);
+    // Only log if we found posts or if it's been a while since our last "no posts" message
+    if (postsToPublish.length > 0) {
+      console.log(`📅 Found ${postsToPublish.length} post(s) to publish`);
+      
+      for (const post of postsToPublish) {
+        await publishPost(post);
+      }
+    } else {
+      const currentTime = Date.now();
+      if (currentTime - lastNoPostsLog >= NO_POSTS_LOG_INTERVAL) {
+        console.log('📅 No posts scheduled for publishing at this time');
+        lastNoPostsLog = currentTime;
+      }
     }
     
   } catch (error) {
@@ -107,15 +122,40 @@ async function simulatePublishToSocialMedia(post) {
   return Math.random() > 0.05;
 }
 
+let isChecking = false;
+let schedulerStartTime = 0;
+
 // Start the scheduler (runs every minute)
-function startPostScheduler() {
-  console.log('📅 Post scheduler started - checking every minute');
+async function startPostScheduler() {
+  try {
+    await initializeDb();
+    schedulerStartTime = Date.now();
+    console.log('📅 Post scheduler initialized successfully');
+    
+    // Run immediately but don't await
+    runSchedulerCheck();
+    
+    // Then run every minute
+    setInterval(runSchedulerCheck, 60 * 1000); // 60 seconds
+  } catch (error) {
+    console.error('❌ Failed to start post scheduler:', error);
+  }
+}
+
+async function runSchedulerCheck() {
+  // Prevent multiple simultaneous checks
+  if (isChecking) {
+    return;
+  }
   
-  // Run immediately
-  checkAndPublishPosts();
-  
-  // Then run every minute
-  setInterval(checkAndPublishPosts, 60 * 1000); // 60 seconds
+  try {
+    isChecking = true;
+    await checkAndPublishPosts();
+  } catch (error) {
+    console.error('❌ Error checking posts:', error);
+  } finally {
+    isChecking = false;
+  }
 }
 
 module.exports = {

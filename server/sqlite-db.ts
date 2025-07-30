@@ -88,10 +88,11 @@ export class SQLiteAdapter implements DatabaseAdapter {
     
     findByPlatform: async (userId: string, platform: string): Promise<SocialAccount | null> => {
       if (!this.db) throw new Error('Database not initialized');
-      return this.db.get<SocialAccount>(
+      const result = await this.db.get<SocialAccount>(
         'SELECT * FROM social_accounts WHERE userId = ? AND platform = ?',
         userId, platform
       );
+      return result || null;
     },
     
     create: async (account: SocialAccount): Promise<SocialAccount> => {
@@ -196,7 +197,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
         }
       }
       
-      return post;
+      return post || null;
     },
     
     create: async (post: Post): Promise<Post> => {
@@ -262,18 +263,20 @@ export class SQLiteAdapter implements DatabaseAdapter {
   users = {
     findByEmail: async (email: string): Promise<User | null> => {
       if (!this.db) throw new Error('Database not initialized');
-      return this.db.get<User>(
+      const result = await this.db.get<User>(
         'SELECT * FROM users WHERE email = ?',
         email
       );
+      return result || null;
     },
     
     findById: async (id: number | string): Promise<User | null> => {
       if (!this.db) throw new Error('Database not initialized');
-      return this.db.get<User>(
+      const result = await this.db.get<User>(
         'SELECT * FROM users WHERE id = ?',
         id
       );
+      return result || null;
     },
     
     create: async (user: User): Promise<User> => {
@@ -329,10 +332,11 @@ export class SQLiteAdapter implements DatabaseAdapter {
   notificationPreferences = {
     findByUserId: async (userId: string): Promise<NotificationPreference | null> => {
       if (!this.db) throw new Error('Database not initialized');
-      return this.db.get<NotificationPreference>(
+      const result = await this.db.get<NotificationPreference>(
         'SELECT * FROM notification_preferences WHERE userId = ?',
         userId
       );
+      return result || null;
     },
     
     create: async (preference: NotificationPreference): Promise<NotificationPreference> => {

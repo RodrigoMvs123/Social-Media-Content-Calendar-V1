@@ -4,15 +4,25 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { Pool } from 'pg';
 import { SQLiteAdapter } from './sqlite-db';
-import authRoutes from './auth-routes';
+import { findFreePort } from './utils/port-finder';
+import { startPostScheduler } from './post-scheduler';
+
+// Route imports
+import authRoutesPostgres from './auth-routes';
 import mediaRoutes from './media-routes';
+import authRoutesSqlite from './auth-routes-sqlite';
+import postsRoutesSqlite from './posts-routes-sqlite';
+import analyticsRoutesSqlite from './analytics-routes-sqlite';
+import slackRoutes from './slack-routes';
+import notificationRoutes from './notification-routes';
+import postsRoutes from './posts-routes';
 
 // Load environment variables
 dotenv.config();
 
 // Create Express app
 const app = express();
-const port = process.env.PORT || 3001;
+const port = parseInt(process.env.PORT || '3001', 10);
 
 // Database configuration
 let dbConfig: any = {
@@ -69,14 +79,14 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Use SQLite routes when DB_TYPE is sqlite
 if (process.env.DB_TYPE === 'sqlite') {
   console.log('Using SQLite with JWT authentication');
-  app.use('/api/auth', require('./auth-routes-sqlite'));
-  app.use('/api/posts', require('./posts-routes-sqlite'));
-  app.use('/api/analytics', require('./analytics-routes-sqlite'));
-  app.use('/api/slack', require('./slack-routes'));
-  app.use('/api/notifications', require('./notification-routes'));
+  app.use('/api/auth', authRoutesSqlite);
+  app.use('/api/posts', postsRoutesSqlite);
+  app.use('/api/analytics', analyticsRoutesSqlite);
+  app.use('/api/slack', slackRoutes);
+  app.use('/api/notifications', notificationRoutes);
 } else {
-  app.use('/api/auth', authRoutes);
-  app.use('/api/posts', require('./posts-routes'));
+  app.use('/api/auth', authRoutesPostgres);
+  app.use('/api/posts', postsRoutes);
 }
 app.use('/api/media', mediaRoutes);
 
@@ -85,16 +95,22 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
-// Initialize cron jobs for daily digest
-require('./cron-jobs');
-
 // Start post scheduler
-const { startPostScheduler } = require('./post-scheduler');
 startPostScheduler();
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Start server with automatic port finding
+async function startServer() {
+  try {
+    const availablePort = await findFreePort(port);
+    app.listen(availablePort, () => {
+      console.log(`Server running on port ${availablePort}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export default app;

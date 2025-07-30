@@ -3,16 +3,26 @@ const router = express.Router();
 const { Pool } = require('pg');
 
 // Get database connection from environment
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || process.env.DB_URL,
-  ssl: { rejectUnauthorized: false } // Always use SSL with rejectUnauthorized: false
-});
+let pool;
 
-// Log connection attempt
-console.log('Connecting to PostgreSQL using environment variables');
+// Only initialize PostgreSQL pool if not using SQLite
+if (process.env.DB_TYPE !== 'sqlite') {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL || process.env.DB_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  console.log('Connecting to PostgreSQL using environment variables');
+} else {
+  console.log('Using SQLite - skipping PostgreSQL connection');
+}
 
 // Check if posts table exists and has the right structure
 (async () => {
+  // Skip PostgreSQL initialization if using SQLite
+  if (process.env.DB_TYPE === 'sqlite') {
+    return;
+  }
+  
   try {
     // First check if the table exists
     const tableCheck = await pool.query(`

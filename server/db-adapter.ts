@@ -24,6 +24,7 @@ export interface Post {
   status: string;
   createdAt: string;
   updatedAt: string;
+  media?: any;
 }
 
 export interface User {

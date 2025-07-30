@@ -170,7 +170,6 @@ router.get('/me', async (req, res) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, JWT_SECRET);
-      console.log('Token verified:', decoded);
       
       // Find user by id
       const user = await db.get('SELECT id, name, email FROM users WHERE id = ?', decoded.id);
@@ -180,7 +179,6 @@ router.get('/me', async (req, res) => {
         return res.status(404).json({ error: 'User not found' });
       }
       
-      console.log('Current user found:', user);
       res.json(user);
     } catch (err) {
       console.error('Token verification failed:', err);

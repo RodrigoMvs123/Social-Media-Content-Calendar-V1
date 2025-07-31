@@ -43,8 +43,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         media TEXT,
-        slackMessageTs TEXT,
-        slackScheduledTs TEXT
+        slackMessageTs TEXT
       );
       
       CREATE TABLE IF NOT EXISTS users (
@@ -59,9 +58,6 @@ export class SQLiteAdapter implements DatabaseAdapter {
       CREATE TABLE IF NOT EXISTS notification_preferences (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId TEXT NOT NULL UNIQUE,
-        emailDigest BOOLEAN NOT NULL DEFAULT 0,
-        emailPostPublished BOOLEAN NOT NULL DEFAULT 0,
-        emailPostFailed BOOLEAN NOT NULL DEFAULT 0,
         browserNotifications BOOLEAN NOT NULL DEFAULT 1,
         updatedAt TEXT NOT NULL
       );

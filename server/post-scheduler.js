@@ -47,7 +47,7 @@ async function checkAndPublishPosts() {
     } else {
       const currentTime = Date.now();
       if (currentTime - lastNoPostsLog >= NO_POSTS_LOG_INTERVAL) {
-        console.log('📅 No posts scheduled for publishing at this time');
+        
         lastNoPostsLog = currentTime;
       }
     }

@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Get database path and JWT secret from environment
 const dbPath = process.env.DB_PATH || './data.sqlite';
-const JWT_SECRET = process.env.JWT_SECRET || '9d16c4f7cdddbbc7c9b3d204b3ef540abc47a5d36a6c93502fba3cd9f1815cce';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Initialize SQLite database connection
 let db;
@@ -170,7 +170,6 @@ router.get('/me', async (req, res) => {
     try {
       // Verify token
       const decoded = jwt.verify(token, JWT_SECRET);
-      console.log('Token verified:', decoded);
       
       // Find user by id
       const user = await db.get('SELECT id, name, email FROM users WHERE id = ?', decoded.id);
@@ -180,7 +179,6 @@ router.get('/me', async (req, res) => {
         return res.status(404).json({ error: 'User not found' });
       }
       
-      console.log('Current user found:', user);
       res.json(user);
     } catch (err) {
       console.error('Token verification failed:', err);

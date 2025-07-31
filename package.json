@@ -6,7 +6,7 @@
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && cross-env NODE_ENV=development ts-node-dev --respawn --transpile-only index.ts",
+    "server": "cd server && cross-env NODE_ENV=development ts-node-dev -r dotenv/config --files --respawn --transpile-only index.ts",
     "client": "cd client && npm run dev",
     "build": "cd client && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"

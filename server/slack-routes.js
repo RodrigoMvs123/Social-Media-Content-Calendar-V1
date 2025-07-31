@@ -39,8 +39,6 @@ const getUserId = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Handle both userId and id from JWT token
     req.userId = decoded.userId || decoded.id;
-    console.log('Token verified:', decoded);
-    console.log('Setting userId to:', req.userId);
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });

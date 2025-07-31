@@ -42,7 +42,9 @@ export class SQLiteAdapter implements DatabaseAdapter {
         status TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
-        media TEXT
+        media TEXT,
+        slackMessageTs TEXT,
+        slackScheduledTs TEXT
       );
       
       CREATE TABLE IF NOT EXISTS users (

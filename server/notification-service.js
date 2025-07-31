@@ -1,5 +1,4 @@
 const { WebClient } = require('@slack/web-api');
-const { sendEmailNotification, emailTemplates } = require('./email-service');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 
@@ -66,23 +65,10 @@ async function sendSlackNotification(slackSettings, message) {
 async function notifyPostPublished(userId, post) {
   try {
     const settings = await getUserNotificationSettings(userId);
-    console.log('📧 Email notification check:', {
-      hasEmail: !!settings.email,
-      emailEnabled: !!settings.preferences.emailPostPublished,
-      email: settings.email
-    });
     
-    // Email notification
-    if (settings.preferences.emailPostPublished && settings.email) {
-      console.log('📧 Sending email notification...');
-      await sendEmailNotification(
-        settings.email,
-        '🎉 Post Published Successfully',
-        emailTemplates.postPublished(post)
-      );
-    } else {
-      console.log('📧 Email notification skipped - not enabled or no email');
-    }
+    
+    
+    
     
     // Slack notification
     if (settings.slackSettings) {
@@ -128,14 +114,7 @@ async function notifyPostFailed(userId, post, errorMessage) {
   try {
     const settings = await getUserNotificationSettings(userId);
     
-    // Email notification
-    if (settings.preferences.emailPostFailed && settings.email) {
-      await sendEmailNotification(
-        settings.email,
-        '❌ Post Failed to Publish',
-        emailTemplates.postFailed(post, errorMessage)
-      );
-    }
+    
     
     // Slack notification
     if (settings.slackSettings) {
@@ -154,46 +133,8 @@ async function notifyPostFailed(userId, post, errorMessage) {
   }
 }
 
-async function sendDailyDigest() {
-  try {
-    // Get all users with email digest enabled
-    const users = await db.all(`
-      SELECT u.id, u.email, np.emailDigest 
-      FROM users u 
-      JOIN notification_preferences np ON u.id = np.userId 
-      WHERE np.emailDigest = 1
-    `);
-    
-    for (const user of users) {
-      // Get today's posts for this user
-      const today = new Date();
-      const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-      const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-      
-      const todaysPosts = await db.all(`
-        SELECT * FROM posts 
-        WHERE userId = ? AND scheduledTime BETWEEN ? AND ?
-        ORDER BY scheduledTime ASC
-      `, [user.id, startOfDay, endOfDay]);
-      
-      if (todaysPosts.length > 0) {
-        await sendEmailNotification(
-          user.email,
-          '📅 Daily Digest - Your Scheduled Posts',
-          emailTemplates.dailyDigest(todaysPosts)
-        );
-      }
-    }
-    
-    console.log('✅ Daily digest sent to all users');
-  } catch (error) {
-    console.error('❌ Failed to send daily digest:', error);
-  }
-}
-
 module.exports = {
   notifyPostPublished,
   notifyPostFailed,
-  sendDailyDigest,
   getUserNotificationSettings
 };

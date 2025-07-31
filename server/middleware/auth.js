@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 // Get JWT secret from environment
-const JWT_SECRET = process.env.JWT_SECRET || '9d16c4f7cdddbbc7c9b3d204b3ef540abc47a5d36a6c93502fba3cd9f1815cce';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Authentication middleware
 function auth(req, res, next) {

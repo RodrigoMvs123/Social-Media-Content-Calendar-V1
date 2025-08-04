@@ -24,6 +24,13 @@ async function getUserNotificationSettings(userId) {
     const preferences = await db.get('SELECT * FROM notification_preferences WHERE userId = ?', [userId]);
     const slackSettings = await db.get('SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1', [userId]);
     
+    console.log('🔍 Slack settings for notifications:', {
+      userId,
+      slackScheduled: slackSettings?.slackScheduled,
+      slackPublished: slackSettings?.slackPublished,
+      slackFailed: slackSettings?.slackFailed
+    });
+    
     return {
       email: user?.email,
       preferences: preferences || {},
@@ -70,8 +77,14 @@ async function notifyPostPublished(userId, post) {
     
     
     
-    // Slack notification
-    if (settings.slackSettings) {
+    // Slack notification - only if enabled
+    console.log('🔔 Checking published notification preference:', {
+      hasSlackSettings: !!settings.slackSettings,
+      slackPublished: settings.slackSettings?.slackPublished,
+      willSend: !!(settings.slackSettings && settings.slackSettings.slackPublished)
+    });
+    
+    if (settings.slackSettings && settings.slackSettings.slackPublished) {
       const publishedDate = new Date();
       const formattedPublishedTime = publishedDate.toLocaleDateString('en-US', {
         weekday: 'long',
@@ -101,6 +114,8 @@ async function notifyPostPublished(userId, post) {
         );
         console.log('📝 Updated Slack message timestamp for published post:', result.ts);
       }
+    } else {
+      console.log('❌ Skipping published notification (disabled)');
     }
     
     // Browser notification would be handled on frontend
@@ -116,8 +131,14 @@ async function notifyPostFailed(userId, post, errorMessage) {
     
     
     
-    // Slack notification
-    if (settings.slackSettings) {
+    // Slack notification - only if enabled
+    console.log('🔔 Checking failed notification preference:', {
+      hasSlackSettings: !!settings.slackSettings,
+      slackFailed: settings.slackSettings?.slackFailed,
+      willSend: !!(settings.slackSettings && settings.slackSettings.slackFailed)
+    });
+    
+    if (settings.slackSettings && settings.slackSettings.slackFailed) {
       const message = `❌ *Post Failed to Publish*\n\n` +
         `*Platform:* ${post.platform}\n` +
         `*Content:* ${post.content}\n` +
@@ -125,6 +146,8 @@ async function notifyPostFailed(userId, post, errorMessage) {
         `*Scheduled for:* ${new Date(post.scheduledTime).toLocaleString()}`;
       
       await sendSlackNotification(settings.slackSettings, message);
+    } else {
+      console.log('❌ Skipping failed notification (disabled)');
     }
     
     console.log('✅ Post failed notifications sent for user:', userId);

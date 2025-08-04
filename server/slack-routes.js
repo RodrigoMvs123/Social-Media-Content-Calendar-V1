@@ -301,7 +301,7 @@ router.get('/settings', getUserId, async (req, res) => {
   try {
     const db = await getDb();
     const settings = await db.get(
-      'SELECT botToken, channelId, channelName, isActive FROM slack_settings WHERE userId = ?',
+      'SELECT botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed FROM slack_settings WHERE userId = ?',
       [req.userId]
     );
     
@@ -309,18 +309,15 @@ router.get('/settings', getUserId, async (req, res) => {
       return res.json({ configured: false });
     }
 
-    // Log the channel information for debugging
-    console.log('Returning Slack settings with channel:', {
-      channelId: settings.channelId,
-      channelName: settings.channelName
-    });
-
     res.json({
       configured: true,
       channelId: settings.channelId,
       channelName: settings.channelName,
       isActive: settings.isActive,
-      hasToken: !!settings.botToken
+      hasToken: !!settings.botToken,
+      slackScheduled: settings.slackScheduled ?? true,
+      slackPublished: settings.slackPublished ?? true,
+      slackFailed: settings.slackFailed ?? true
     });
   } catch (error) {
     console.error('Error fetching Slack settings:', error);
@@ -369,17 +366,54 @@ router.post('/settings', getUserId, async (req, res) => {
     const db = await getDb();
     const now = new Date().toISOString();
 
-    // Upsert settings
+    // Upsert settings with default notification preferences
     await db.run(`
       INSERT OR REPLACE INTO slack_settings 
-      (userId, botToken, channelId, channelName, isActive, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, 1, ?, ?)
+      (userId, botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, 1, 1, 1, 1, ?, ?)
     `, [req.userId, botToken, channelId, channelName, now, now]);
 
     res.json({ success: true, message: 'Slack settings saved successfully' });
   } catch (error) {
     console.error('Error saving Slack settings:', error);
     res.status(400).json({ error: 'Invalid bot token or failed to save settings' });
+  }
+});
+
+// POST /api/slack/preferences - Update Slack notification preferences
+router.post('/preferences', getUserId, async (req, res) => {
+  try {
+    console.log('🔧 SLACK PREFERENCES REQUEST RECEIVED!');
+    console.log('🔧 Request body:', req.body);
+    console.log('🔧 User ID:', req.userId);
+    
+    const { slackScheduled, slackPublished, slackFailed } = req.body;
+    
+    console.log('🔧 Updating Slack preferences for user:', req.userId, {
+      slackScheduled,
+      slackPublished, 
+      slackFailed
+    });
+    
+    const db = await getDb();
+    const now = new Date().toISOString();
+    
+    // Update notification preferences
+    const result = await db.run(`
+      UPDATE slack_settings 
+      SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
+      WHERE userId = ?
+    `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Slack settings not found. Please configure Slack integration first.' });
+    }
+    
+    console.log('✅ Slack preferences updated successfully');
+    res.json({ success: true, message: 'Slack notification preferences updated successfully' });
+  } catch (error) {
+    console.error('Error updating Slack preferences:', error);
+    res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
 

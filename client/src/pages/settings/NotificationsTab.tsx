@@ -7,25 +7,34 @@ import { useToast } from '@/hooks/use-toast';
 const NotificationsTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+  const [slackScheduled, setSlackScheduled] = useState(true);
+  const [slackPublished, setSlackPublished] = useState(true);
+  const [slackFailed, setSlackFailed] = useState(true);
   const { toast } = useToast();
+  
+  console.log('🔧 NotificationsTab component rendered');
 
-  // Load notification preferences on component mount
+  // Load Slack notification preferences on component mount
   useEffect(() => {
     const loadPreferences = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch('/api/notifications', {
+        const response = await fetch('/api/slack/settings', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         
         if (response.ok) {
-          const preferences = await response.json();
-          // Only loading Slack notification preferences
+          const settings = await response.json();
+          if (settings.configured) {
+            setSlackScheduled(settings.slackScheduled ?? true);
+            setSlackPublished(settings.slackPublished ?? true);
+            setSlackFailed(settings.slackFailed ?? true);
+          }
         }
       } catch (error) {
-        console.error('Failed to load notification preferences:', error);
+        console.error('Failed to load Slack preferences:', error);
       } finally {
         setIsLoadingPreferences(false);
       }
@@ -35,31 +44,40 @@ const NotificationsTab = () => {
   }, []);
 
   const handleSave = async () => {
+    console.log('🔧 SAVE BUTTON CLICKED!');
+    console.log('🔧 Current state:', { slackScheduled, slackPublished, slackFailed });
+    console.log('🔧 About to make fetch request to /api/slack/preferences');
     setIsLoading(true);
     
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/notifications', {
+      const response = await fetch('/api/slack/preferences', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          // Only Slack notifications are managed in this component
-          slackSettings: {}
+          slackScheduled,
+          slackPublished,
+          slackFailed
         })
       });
       
+      console.log('🔧 Response received:', response.status);
+      
       if (response.ok) {
+        console.log('✅ Save successful!');
         toast({
           title: "Settings saved",
           description: "Your Slack notification preferences have been saved.",
         });
       } else {
+        console.log('❌ Save failed:', response.status);
         throw new Error('Failed to save preferences');
       }
     } catch (error) {
+      console.log('❌ Error in save function:', error);
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
@@ -105,8 +123,8 @@ const NotificationsTab = () => {
             </div>
             <Switch
               id="slack-scheduled"
-              checked={true}
-              disabled
+              checked={slackScheduled}
+              onCheckedChange={setSlackScheduled}
             />
           </div>
           
@@ -119,8 +137,8 @@ const NotificationsTab = () => {
             </div>
             <Switch
               id="slack-published"
-              checked={false}
-              disabled
+              checked={slackPublished}
+              onCheckedChange={setSlackPublished}
             />
           </div>
           
@@ -133,17 +151,44 @@ const NotificationsTab = () => {
             </div>
             <Switch
               id="slack-failed"
-              checked={false}
-              disabled
+              checked={slackFailed}
+              onCheckedChange={setSlackFailed}
             />
           </div>
-          
-          <p className="text-xs text-gray-400 italic">
-            Note: Slack notifications are currently configured in the Slack Integration tab.
-          </p>
         </div>
         
-        <Button onClick={handleSave} disabled={isLoading}>
+        <Button 
+          onClick={async () => {
+            console.log('🔧 SAVE BUTTON CLICKED DIRECTLY!');
+            setIsLoading(true);
+            try {
+              const token = localStorage.getItem('auth_token');
+              const response = await fetch('/api/slack/preferences', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  slackScheduled,
+                  slackPublished,
+                  slackFailed
+                })
+              });
+              
+              if (response.ok) {
+                toast({ title: "Settings saved", description: "Your Slack notification preferences have been saved." });
+              } else {
+                throw new Error('Failed to save');
+              }
+            } catch (error) {
+              toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+            } finally {
+              setIsLoading(false);
+            }
+          }} 
+          disabled={isLoading}
+        >
           {isLoading ? "Saving..." : "Save Preferences"}
         </Button>
       </div>

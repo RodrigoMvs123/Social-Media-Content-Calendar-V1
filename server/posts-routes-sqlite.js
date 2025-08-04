@@ -310,8 +310,24 @@ router.post('/', auth, async (req, res) => {
         const { notifyPostPublished } = require('./notification-service');
         await notifyPostPublished(userId, newPost);
       } else if (status === 'ready' || status === 'draft') {
-        // Send Slack notification for scheduled posts (ready/draft)
-        await sendSlackNotification(userId, newPost);
+        // Check if scheduled notifications are enabled before sending
+        const slackSettings = await db.get(
+          'SELECT slackScheduled FROM slack_settings WHERE userId = ? AND isActive = 1', 
+          userId
+        );
+        
+        console.log('🔔 Checking scheduled notification preference:', {
+          userId,
+          slackScheduled: slackSettings?.slackScheduled,
+          willSend: !!(slackSettings && slackSettings.slackScheduled)
+        });
+        
+        if (slackSettings && slackSettings.slackScheduled) {
+          console.log('✅ Sending scheduled notification');
+          await sendSlackNotification(userId, newPost);
+        } else {
+          console.log('❌ Skipping scheduled notification (disabled)');
+        }
       }
       
     } catch (error) {

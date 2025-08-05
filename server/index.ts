@@ -84,6 +84,126 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
+// Serve test page
+app.get('/slack-test', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Slack Preferences Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .checkbox-group { margin: 10px 0; }
+        button { padding: 10px 20px; margin: 10px 0; background: #007cba; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .status { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Slack Notification Preferences</h1>
+        
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="scheduled" checked> When a post is scheduled
+            </label>
+        </div>
+        
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="published" checked> When a post is published
+            </label>
+        </div>
+        
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="failed" checked> When a post fails to publish
+            </label>
+        </div>
+        
+        <button onclick="savePreferences()">Save Preferences</button>
+        <button onclick="loadPreferences()">Load Current Settings</button>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('auth_token');
+        
+        async function savePreferences() {
+            const scheduled = document.getElementById('scheduled').checked;
+            const published = document.getElementById('published').checked;
+            const failed = document.getElementById('failed').checked;
+            
+            console.log('Saving:', { scheduled, published, failed });
+            document.getElementById('status').innerHTML = 'Saving...';
+            
+            try {
+                const response = await fetch('/api/slack/preferences', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': \`Bearer \${token}\`
+                    },
+                    body: JSON.stringify({
+                        slackScheduled: scheduled,
+                        slackPublished: published,
+                        slackFailed: failed
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('Result:', result);
+                
+                if (response.ok) {
+                    document.getElementById('status').innerHTML = '✅ Settings saved successfully!';
+                } else {
+                    document.getElementById('status').innerHTML = '❌ Error: ' + result.error;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('status').innerHTML = '❌ Network error';
+            }
+        }
+        
+        async function loadPreferences() {
+            document.getElementById('status').innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch('/api/slack/settings', {
+                    headers: {
+                        'Authorization': \`Bearer \${token}\`
+                    }
+                });
+                
+                const result = await response.json();
+                console.log('Current settings:', result);
+                
+                if (response.ok && result.configured) {
+                    document.getElementById('scheduled').checked = result.slackScheduled ?? true;
+                    document.getElementById('published').checked = result.slackPublished ?? true;
+                    document.getElementById('failed').checked = result.slackFailed ?? true;
+                    document.getElementById('status').innerHTML = '✅ Settings loaded';
+                } else {
+                    document.getElementById('status').innerHTML = '❌ No settings found';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('status').innerHTML = '❌ Network error';
+            }
+        }
+        
+        // Load settings on page load
+        if (token) {
+            loadPreferences();
+        } else {
+            document.getElementById('status').innerHTML = '❌ No auth token found. Please login first.';
+        }
+    </script>
+</body>
+</html>`);
+});
+
 // Start post scheduler
 startPostScheduler();
 

@@ -24,44 +24,64 @@ const Settings = () => {
   const [slackPostPublished, setSlackPostPublished] = useState(storedSettings.slackPostPublished !== undefined ? storedSettings.slackPostPublished : false);
   const [slackPostFailed, setSlackPostFailed] = useState(storedSettings.slackPostFailed !== undefined ? storedSettings.slackPostFailed : false);
   
-  // Load settings from server on component mount
+  // Load Slack notification preferences from our API
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchSlackSettings = async () => {
       try {
-        const serverSettings = await loadSettingsFromServer();
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('/api/slack/settings', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         
-        // Update state with server settings
-        setSlackPostScheduled(serverSettings.slackPostScheduled || false);
-        setSlackPostPublished(serverSettings.slackPostPublished || false);
-        setSlackPostFailed(serverSettings.slackPostFailed || false);
+        if (response.ok) {
+          const settings = await response.json();
+          console.log('🔧 Loaded Slack settings:', settings);
+          if (settings.configured) {
+            setSlackPostScheduled(Boolean(settings.slackScheduled));
+            setSlackPostPublished(Boolean(settings.slackPublished));
+            setSlackPostFailed(Boolean(settings.slackFailed));
+          }
+        }
       } catch (error) {
-        console.error('Failed to load settings from server', error);
-        // Already using localStorage values as fallback
+        console.error('Failed to load Slack settings:', error);
       }
     };
     
-    fetchSettings();
+    fetchSlackSettings();
   }, []);
 
   const handleSaveNotifications = async () => {
+    console.log('🔧 Saving Slack notification preferences:', { slackPostScheduled, slackPostPublished, slackPostFailed });
     setIsLoading(true);
     
     try {
-      // In a real app, this would call the API
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
-      
-      // Save to localStorage and server
-      await saveSettingsToServer({
-        slackPostScheduled,
-        slackPostPublished,
-        slackPostFailed
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/slack/preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          slackScheduled: slackPostScheduled,
+          slackPublished: slackPostPublished,
+          slackFailed: slackPostFailed
+        })
       });
       
-      toast({
-        title: "Notification Settings Saved",
-        description: "Your notification preferences have been updated successfully.",
-      });
+      const result = await response.json();
+      console.log('🔧 Save result:', result);
+      
+      if (response.ok) {
+        toast({
+          title: "Notification Settings Saved",
+          description: "Your Slack notification preferences have been updated successfully.",
+        });
+      } else {
+        throw new Error('Failed to save preferences');
+      }
     } catch (error) {
+      console.error('🔧 Save error:', error);
       toast({
         title: "Error",
         description: "Failed to save notification settings. Please try again.",

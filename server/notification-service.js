@@ -112,6 +112,14 @@ async function notifyPostPublished(userId, post) {
           'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
           [result.ts, post.id]
         );
+        
+        // Also store in slack_message_timestamps table for bidirectional sync
+        await db.run(
+          `INSERT OR REPLACE INTO slack_message_timestamps 
+           (postId, slackTimestamp, messageType) VALUES (?, ?, ?)`,
+          [post.id, result.ts, 'published']
+        );
+        
         console.log('📝 Updated Slack message timestamp for published post:', result.ts);
       }
     } else {

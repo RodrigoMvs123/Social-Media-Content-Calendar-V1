@@ -194,13 +194,21 @@ async function sendSlackNotification(userId, post) {
     console.log('Slack payload (truncated):', logPayload);
     const result = await slack.chat.postMessage(messagePayload);
     
-    // Store the Slack message timestamp for future deletion
+    // Store the Slack message timestamp for future deletion and bidirectional sync
     if (result.ok && result.ts) {
       // Store as scheduled timestamp (will be updated to published timestamp later)
       await db.run(
         'UPDATE posts SET slackScheduledTs = ? WHERE id = ?',
         [result.ts, post.id]
       );
+      
+      // Also store in slack_message_timestamps table for bidirectional sync
+      await db.run(
+        `INSERT OR REPLACE INTO slack_message_timestamps 
+         (postId, slackTimestamp, messageType) VALUES (?, ?, ?)`,
+        [post.id, result.ts, 'scheduled']
+      );
+      
       console.log('✅ Slack scheduled notification sent and timestamp stored:', result.ts);
     }
     

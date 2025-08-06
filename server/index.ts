@@ -84,6 +84,112 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
+// Slack Events API webhook endpoint
+app.post('/api/slack/events', async (req, res) => {
+  try {
+    console.log('🔔 Slack webhook called');
+    console.log('Event type:', req.body.type);
+    
+    const event = req.body;
+    
+    // Handle URL verification challenge
+    if (event.type === 'url_verification') {
+      console.log('✅ Slack URL verification challenge:', event.challenge);
+      return res.json({ challenge: event.challenge });
+    }
+    
+    // Log all event_callback events to see what we're getting
+    if (event.type === 'event_callback') {
+      console.log('📋 Event callback received:');
+      console.log('- Event type:', event.event?.type);
+      console.log('- Event subtype:', event.event?.subtype);
+      console.log('- Full event:', JSON.stringify(event.event, null, 2));
+    }
+    
+    // Verify Slack signature for actual events (not for challenge)
+    const signature = req.headers['x-slack-signature'];
+    const timestamp = req.headers['x-slack-request-timestamp'];
+    const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
+    
+    if (event.type === 'event_callback') {
+      if (!slackSigningSecret) {
+        console.error('❌ SLACK_SIGNING_SECRET not configured');
+        return res.status(500).json({ error: 'Slack signing secret not configured' });
+      }
+      
+      // Simple timestamp check (within 5 minutes)
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (Math.abs(currentTime - timestamp) > 300) {
+        console.log('❌ Slack event timestamp too old');
+        return res.status(400).json({ error: 'Request timestamp too old' });
+      }
+      
+      console.log('🔔 Slack event received:', event.type);
+      
+      // Handle message deletion events
+      if (event.event.type === 'message' && event.event.subtype === 'message_deleted') {
+        console.log('🗑️ Message deleted in Slack:', event.event.deleted_ts);
+        await handleSlackMessageDeletion(event.event);
+      } else if (event.event.type === 'message') {
+        console.log('📝 Other message event - subtype:', event.event.subtype || 'none');
+      }
+    }
+    
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('❌ Error handling Slack event:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Handle Slack message deletion
+async function handleSlackMessageDeletion(event) {
+  try {
+    const deletedTimestamp = event.deleted_ts;
+    console.log('🔍 Looking for post with Slack timestamp:', deletedTimestamp);
+    
+    // Get database connection
+    const sqlite3 = require('sqlite3');
+    const { open } = require('sqlite');
+    const dbPath = process.env.DB_PATH || './data.sqlite';
+    
+    const db = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
+    
+    // Find the post associated with this Slack message
+    const query = `
+      SELECT p.id, p.userId, p.content, p.platform 
+      FROM posts p 
+      JOIN slack_message_timestamps smt ON p.id = smt.postId 
+      WHERE smt.slackTimestamp = ?
+    `;
+    
+    const post = await db.get(query, [deletedTimestamp]);
+    
+    if (!post) {
+      console.log('⚠️ No post found for deleted Slack message:', deletedTimestamp);
+      await db.close();
+      return;
+    }
+    
+    console.log('🎯 Found post to delete:', post.id, post.content.substring(0, 50) + '...');
+    
+    // Delete the post from the database
+    await db.run('DELETE FROM posts WHERE id = ?', [post.id]);
+    console.log('✅ Post deleted from webapp due to Slack message deletion:', post.id);
+    
+    // Also clean up the slack_message_timestamps entry
+    await db.run('DELETE FROM slack_message_timestamps WHERE postId = ?', [post.id]);
+    console.log('🧹 Cleaned up Slack timestamp for post:', post.id);
+    
+    await db.close();
+  } catch (error) {
+    console.error('❌ Error in handleSlackMessageDeletion:', error);
+  }
+}
+
 // Serve test page
 app.get('/slack-test', (req, res) => {
   res.send(`<!DOCTYPE html>
@@ -213,6 +319,8 @@ async function startServer() {
     const availablePort = await findFreePort(port);
     app.listen(availablePort, () => {
       console.log(`Server running on port ${availablePort}`);
+      console.log(`\n🔗 For Slack Events Webhook, use: http://localhost:${availablePort}/api/slack/events`);
+      console.log(`📝 With ngrok: ngrok http ${availablePort}, then use the ngrok URL + /api/slack/events\n`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

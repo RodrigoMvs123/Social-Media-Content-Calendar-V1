@@ -72,6 +72,16 @@ export class SQLiteAdapter implements DatabaseAdapter {
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       );
+      
+      CREATE TABLE IF NOT EXISTS slack_message_timestamps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        postId INTEGER NOT NULL,
+        slackTimestamp TEXT NOT NULL,
+        messageType TEXT NOT NULL DEFAULT 'scheduled',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (postId) REFERENCES posts (id) ON DELETE CASCADE,
+        UNIQUE(postId, messageType)
+      );
     `);
   }
   

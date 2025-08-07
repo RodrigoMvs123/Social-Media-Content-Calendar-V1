@@ -15,6 +15,10 @@ const Reports = () => {
   const { data: analytics, isLoading, isError } = useQuery({
     queryKey: ['/api/analytics'],
     queryFn: fetchAnalyticsData,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache data
   });
 
   // Colors for pie chart
@@ -26,7 +30,7 @@ const Reports = () => {
     value: item.count
   })) || [];
 
-  // Transform data for status report - only show current valid statuses
+  // Transform data for status report - only show current valid statuses and filter out zero values for pie chart
   const validStatuses = ['draft', 'ready', 'published', 'failed'];
   const statusData = analytics?.postsByStatus
     ?.filter(item => validStatuses.includes(item.status))
@@ -34,6 +38,10 @@ const Reports = () => {
       name: item.status === 'ready' ? 'ready to publish' : item.status,
       value: item.count
     })) || [];
+  
+  // For pie chart, filter out zero values to prevent label overlap
+  const statusDataForPie = statusData.filter(item => item.value > 0);
+  const platformDataForPie = platformData.filter(item => item.value > 0);
 
   // Calculate total posts
   const totalPosts = analytics?.postsByPlatform?.reduce((sum, item) => sum + item.count, 0) || 0;
@@ -95,11 +103,13 @@ const Reports = () => {
                       <div className="text-center py-10">Loading data...</div>
                     ) : isError ? (
                       <div className="text-center py-10 text-red-500">Error loading data</div>
+                    ) : platformDataForPie.length === 0 ? (
+                      <div className="text-center py-10 text-gray-500">No posts available</div>
                     ) : (
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
-                            data={platformData}
+                            data={platformDataForPie}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
@@ -107,8 +117,9 @@ const Reports = () => {
                             outerRadius={80}
                             fill="#8884d8"
                             dataKey="value"
+                            minAngle={15}
                           >
-                            {platformData.map((entry, index) => (
+                            {platformDataForPie.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -160,11 +171,13 @@ const Reports = () => {
                       <div className="text-center py-10">Loading data...</div>
                     ) : isError ? (
                       <div className="text-center py-10 text-red-500">Error loading data</div>
+                    ) : statusDataForPie.length === 0 ? (
+                      <div className="text-center py-10 text-gray-500">No posts available</div>
                     ) : (
                       <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
-                            data={statusData}
+                            data={statusDataForPie}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
@@ -172,8 +185,9 @@ const Reports = () => {
                             outerRadius={80}
                             fill="#82ca9d"
                             dataKey="value"
+                            minAngle={15}
                           >
-                            {statusData.map((entry, index) => (
+                            {statusDataForPie.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>

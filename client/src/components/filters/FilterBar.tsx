@@ -102,10 +102,9 @@ const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="needs_approval">Needs Approval</SelectItem>
                 <SelectItem value="ready">Ready to Publish</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
           </div>

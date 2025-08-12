@@ -16,6 +16,7 @@ const AuthPage = () => {
   const [activeTab, setActiveTab] = useState("signup");
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+
   
   // Redirect if already authenticated (but not during registration)
   useEffect(() => {

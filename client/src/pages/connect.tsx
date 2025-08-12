@@ -5,12 +5,8 @@ import Footer from "@/components/layout/Footer";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Linkedin, Instagram, Facebook, ExternalLink } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Social Media Account interface
 interface SocialMediaAccount {
@@ -23,108 +19,12 @@ interface SocialMediaAccount {
   tokenExpiry?: string;
 }
 
-// Mock function to simulate connecting to social media
-const connectToSocialMedia = (platform: string, username: string, password: string) => {
-  // In a real app, this would make an API call to authenticate
-  return new Promise<SocialMediaAccount>((resolve) => {
-    setTimeout(() => {
-      resolve({
-        id: Math.floor(Math.random() * 1000),
-        platform,
-        username,
-        connected: true,
-        connectedAt: new Date().toISOString(),
-        accessToken: `mock_token_${Math.random().toString(36).substring(2)}`,
-        tokenExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-      });
-    }, 1000);
-  });
-};
 
-interface SocialMediaLoginDialogProps {
-  platform: string;
-  icon: React.ReactNode;
-  onConnect: (account: SocialMediaAccount) => void;
-}
-
-const SocialMediaLoginDialog = ({ platform, icon, onConnect }: SocialMediaLoginDialogProps) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const handleConnect = async () => {
-    if (!username || !password) return;
-    
-    setIsLoading(true);
-    try {
-      const account = await connectToSocialMedia(platform, username, password);
-      onConnect(account);
-      setOpen(false);
-      setUsername('');
-      setPassword('');
-    } catch (error) {
-      console.error('Failed to connect:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">Connect {platform}</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {icon}
-            Connect to {platform}
-          </DialogTitle>
-          <DialogDescription>
-            <p className="mb-2">This is a demo connection. In a real application, you would be redirected to {platform} to authorize access.</p>
-            <p>Enter any username/password to simulate the connection.</p>
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="username" className="text-right">
-              Username
-            </Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="password" className="text-right">
-              Password
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleConnect} disabled={isLoading}>
-            {isLoading ? 'Connecting...' : 'Connect'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
 const ConnectPage = () => {
   const [connectedAccounts, setConnectedAccounts] = useState<SocialMediaAccount[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState('demo');
+
 
   // Load accounts from localStorage on mount
   useEffect(() => {
@@ -267,21 +167,13 @@ const ConnectPage = () => {
               </Button>
             </>
           ) : (
-            activeTab === 'demo' ? (
-              <SocialMediaLoginDialog
-                platform={platform}
-                icon={icon}
-                onConnect={handleConnect}
-              />
-            ) : (
-              <Button 
-                variant="outline" 
-                onClick={() => handleOAuthConnect(platform)}
-                className="w-full"
-              >
-                Connect with {platform} <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
-            )
+            <Button 
+              variant="outline" 
+              onClick={() => handleOAuthConnect(platform)}
+              className="w-full"
+            >
+              Connect with {platform} <ExternalLink className="ml-2 h-4 w-4" />
+            </Button>
           )}
         </CardFooter>
       </Card>
@@ -305,39 +197,16 @@ const ConnectPage = () => {
           </div>
           
           <Alert className="mb-6">
-            <AlertTitle>About Social Media Integration</AlertTitle>
+            <AlertTitle>OAuth Social Media Integration</AlertTitle>
             <AlertDescription>
               <p className="mb-2">
-                This application supports two methods of connecting to social media platforms:
+                To connect your social media accounts, you need to register as a developer on each platform and configure OAuth credentials.
               </p>
-              <ul className="list-disc pl-5 mb-2 space-y-1">
-                <li><strong>Demo Mode:</strong> Simulates connections without real authentication</li>
-                <li><strong>OAuth Mode:</strong> For real integration, requires developer accounts and API credentials</li>
-              </ul>
               <p className="text-sm">
-                For real integration, you would need to register as a developer on each platform and obtain API credentials.
+                Click "Connect" to be redirected to the platform's developer portal to set up OAuth integration.
               </p>
             </AlertDescription>
           </Alert>
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-            <TabsList>
-              <TabsTrigger value="demo">Demo Mode</TabsTrigger>
-              <TabsTrigger value="oauth">OAuth Mode</TabsTrigger>
-            </TabsList>
-            <TabsContent value="demo">
-              <p className="text-sm text-gray-600 mb-4">
-                In demo mode, you can simulate connecting to social media platforms without real authentication.
-                Enter any username and password to connect.
-              </p>
-            </TabsContent>
-            <TabsContent value="oauth">
-              <p className="text-sm text-gray-600 mb-4">
-                In OAuth mode, you would be redirected to each platform to authorize access.
-                This requires registering as a developer and configuring OAuth credentials in your .env file.
-              </p>
-            </TabsContent>
-          </Tabs>
           
           {selectedPlatforms.length > 0 && (
             <div className="mb-6 p-4 bg-blue-50 rounded-lg">

@@ -270,17 +270,29 @@ router.get('/callback/twitter', async (req, res) => {
       const userData = await userResponse.json();
       
       // Save to database
-      const db = req.db;
-      await db.socialAccounts.upsert({
-        userId,
-        platform: 'X',
-        username: userData.data?.username || 'twitter_user',
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-        tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-        connected: true,
-        connectedAt: new Date().toISOString()
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      const db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
       });
+      
+      await db.run(`
+        INSERT OR REPLACE INTO social_accounts 
+        (userId, platform, username, accessToken, refreshToken, tokenExpiry, connected, connectedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        userId,
+        'X',
+        userData.data?.username || 'twitter_user',
+        tokenData.access_token,
+        tokenData.refresh_token,
+        new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        1,
+        new Date().toISOString()
+      ]);
+      
+      await db.close();
       
       res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/connect?success=twitter`);
     } else {
@@ -329,16 +341,28 @@ router.get('/callback/linkedin', async (req, res) => {
       const userData = await userResponse.json();
       
       // Save to database
-      const db = req.db;
-      await db.socialAccounts.upsert({
-        userId,
-        platform: 'LinkedIn',
-        username: userData.localizedFirstName || 'linkedin_user',
-        accessToken: tokenData.access_token,
-        tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-        connected: true,
-        connectedAt: new Date().toISOString()
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      const db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
       });
+      
+      await db.run(`
+        INSERT OR REPLACE INTO social_accounts 
+        (userId, platform, username, accessToken, tokenExpiry, connected, connectedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        userId,
+        'LinkedIn',
+        userData.localizedFirstName || 'linkedin_user',
+        tokenData.access_token,
+        new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        1,
+        new Date().toISOString()
+      ]);
+      
+      await db.close();
       
       res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/connect?success=linkedin`);
     } else {
@@ -370,16 +394,28 @@ router.get('/callback/facebook', async (req, res) => {
       const userData = await userResponse.json();
       
       // Save to database
-      const db = req.db;
-      await db.socialAccounts.upsert({
-        userId,
-        platform: 'Facebook',
-        username: userData.name || 'facebook_user',
-        accessToken: tokenData.access_token,
-        tokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
-        connected: true,
-        connectedAt: new Date().toISOString()
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      const db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
       });
+      
+      await db.run(`
+        INSERT OR REPLACE INTO social_accounts 
+        (userId, platform, username, accessToken, tokenExpiry, connected, connectedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [
+        userId,
+        'Facebook',
+        userData.name || 'facebook_user',
+        tokenData.access_token,
+        new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+        1,
+        new Date().toISOString()
+      ]);
+      
+      await db.close();
       
       res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/connect?success=facebook`);
     } else {
@@ -419,15 +455,27 @@ router.get('/callback/instagram', async (req, res) => {
     
     if (tokenData.access_token) {
       // Save to database
-      const db = req.db;
-      await db.socialAccounts.upsert({
-        userId,
-        platform: 'Instagram',
-        username: tokenData.user?.username || 'instagram_user',
-        accessToken: tokenData.access_token,
-        connected: true,
-        connectedAt: new Date().toISOString()
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      const db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
       });
+      
+      await db.run(`
+        INSERT OR REPLACE INTO social_accounts 
+        (userId, platform, username, accessToken, connected, connectedAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        userId,
+        'Instagram',
+        tokenData.user?.username || 'instagram_user',
+        tokenData.access_token,
+        1,
+        new Date().toISOString()
+      ]);
+      
+      await db.close();
       
       res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/connect?success=instagram`);
     } else {

@@ -15,6 +15,8 @@ import analyticsRoutesSqlite from './analytics-routes-sqlite';
 import slackRoutes from './slack-routes';
 import notificationRoutes from './notification-routes';
 const oauthRoutes = require('./oauth-routes');
+const SocialMediaAPI = require('./social-media-api');
+const { createSocialAccountsTable } = require('./create-social-accounts-table');
 
 // Load environment variables
 dotenv.config();
@@ -30,8 +32,10 @@ let dbAdapter;
 if (dbType === 'sqlite') {
   console.log('Using SQLite database adapter');
   dbAdapter = new SQLiteAdapter(process.env.DB_PATH || './data.sqlite');
-  dbAdapter.initialize().then(() => {
+  dbAdapter.initialize().then(async () => {
     console.log('SQLite database initialized successfully');
+    // Initialize social accounts table
+    await createSocialAccountsTable();
   }).catch(err => {
     console.error('Failed to initialize SQLite database:', err);
   });
@@ -84,6 +88,85 @@ app.use('/api/media', mediaRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
+});
+
+// Social media publishing endpoint
+app.post('/api/social/publish', async (req, res) => {
+  try {
+    const { postId, userId, platform, content, media } = req.body;
+    
+    if (!userId || !platform || !content) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Get database connection
+    const sqlite3 = require('sqlite3');
+    const { open } = require('sqlite');
+    const db = await open({
+      filename: process.env.DB_PATH || './data.sqlite',
+      driver: sqlite3.Database
+    });
+    
+    const socialAPI = new SocialMediaAPI(db);
+    const mediaUrls = media ? media.map(m => m.url) : [];
+    
+    console.log(`📤 Publishing post ${postId} to ${platform}`);
+    const result = await socialAPI.publishPost(userId, platform, content, mediaUrls);
+    
+    if (result.success) {
+      // Update post status to published
+      await db.run(
+        'UPDATE posts SET status = ?, publishedAt = ?, externalId = ? WHERE id = ?',
+        ['published', new Date().toISOString(), result.id, postId]
+      );
+      console.log(`✅ Post ${postId} published successfully to ${platform}`);
+    } else {
+      // Update post status to failed
+      await db.run(
+        'UPDATE posts SET status = ?, errorMessage = ? WHERE id = ?',
+        ['failed', result.error, postId]
+      );
+      console.log(`❌ Post ${postId} failed to publish to ${platform}: ${result.error}`);
+    }
+    
+    await db.close();
+    res.json(result);
+  } catch (error) {
+    console.error('Publishing error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get connected social media accounts
+app.get('/api/social/accounts', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId || decoded.id;
+    
+    const sqlite3 = require('sqlite3');
+    const { open } = require('sqlite');
+    const db = await open({
+      filename: process.env.DB_PATH || './data.sqlite',
+      driver: sqlite3.Database
+    });
+    
+    const accounts = await db.all(
+      'SELECT platform, username, connected, connectedAt FROM social_accounts WHERE userId = ? AND connected = 1',
+      [userId]
+    );
+    
+    await db.close();
+    res.json(accounts);
+  } catch (error) {
+    console.error('Error fetching social accounts:', error);
+    res.status(500).json({ error: 'Failed to fetch accounts' });
+  }
 });
 
 // Slack Events API webhook endpoint

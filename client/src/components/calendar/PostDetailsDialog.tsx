@@ -234,11 +234,7 @@ const PostDetailsDialog: React.FC<PostDetailsDialogProps> = ({
               </div>
             )}
             
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-gray-500 flex items-center">
-                <Hash className="mr-1 h-3 w-3" />
-                ID: {currentPost.id}
-              </div>
+            <div className="flex items-center justify-end">
               <Button
                 variant="outline"
                 size="sm"

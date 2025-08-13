@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { deletePost } from '@/lib/api';
+import { publishToSocialMedia } from '@/lib/socialMediaApi';
 import { useQueryClient } from '@tanstack/react-query';
 import EditPostDialog from '@/components/dialogs/EditPostDialog';
 import PostDetailsDialog from '@/components/dialogs/PostDetailsDialog';
@@ -83,6 +84,7 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const platformIconClass = getPlatformColor(post.platform);
   const formattedTime = format(new Date(post.scheduledTime), 'HH:mm');
   const { toast } = useToast();
@@ -116,6 +118,52 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   
   const handleShowDetails = () => {
     setIsDetailsDialogOpen(true);
+  };
+  
+  const handlePublish = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Get user ID from token
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload.userId || payload.id;
+      
+      const result = await publishToSocialMedia(
+        post.id,
+        userId,
+        post.platform,
+        post.content,
+        post.media
+      );
+      
+      if (result.success) {
+        toast({
+          title: "Post published!",
+          description: `Your post has been published to ${post.platform}.`,
+        });
+        
+        // Refresh posts data
+        queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Publishing error:', error);
+      toast({
+        title: "Publishing failed",
+        description: error.message || "Failed to publish post. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const hasMedia = post.media && post.media.length > 0;
@@ -185,6 +233,20 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
                 {getStatusBadge(post.status)}
               </div>
               <div className="flex space-x-2">
+                {(post.status === 'ready' || post.status === 'draft') && (
+                  <button 
+                    className="text-green-600 hover:text-green-700 disabled:opacity-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePublish();
+                    }}
+                    aria-label="Publish post"
+                    disabled={isLoading}
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                )}
+                
                 <button 
                   className="text-gray-400 hover:text-gray-500"
                   onClick={handleEdit}
@@ -269,6 +331,20 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
                 <span className="ml-2 text-sm text-gray-500">{formattedTime}</span>
               </div>
               <div className="flex">
+                {(post.status === 'ready' || post.status === 'draft') && (
+                  <button 
+                    className="text-green-600 hover:text-green-700 mr-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePublish();
+                    }}
+                    aria-label="Publish post"
+                    disabled={isLoading}
+                  >
+                    <Send className="h-5 w-5" />
+                  </button>
+                )}
+                
                 <button 
                   className="text-gray-400 hover:text-gray-500 mr-2"
                   onClick={handleEdit}

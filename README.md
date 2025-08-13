@@ -28,12 +28,18 @@ A modern web application for planning and scheduling social media content across
    ```
 
 3. Configure environment variables:
-   ```
-   # Copy the example files to both root and server directories
+   
+   **Step 1:** Copy the example files to create your environment files (run in PowerShell/Bash):
+   ```bash
    cp .env.example .env
    cp .env.example server/.env
    ```
-   Then edit both `.env` files with your credentials and preferred database option.
+   
+   **Step 2:** Edit both `.env` files and replace the placeholders with your actual credentials:
+   - Database settings (PostgreSQL or SQLite)
+   - OpenAI API key (for AI content generation)
+   - Social media OAuth credentials (for platform integration)
+   - Slack settings (optional)
 
 4. Start the application:
    ```

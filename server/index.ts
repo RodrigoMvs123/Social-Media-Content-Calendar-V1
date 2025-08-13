@@ -100,12 +100,9 @@ app.post('/api/slack/events', async (req, res) => {
       return res.json({ challenge: event.challenge });
     }
     
-    // Log all event_callback events to see what we're getting
+    // Log event_callback events (minimal logging)
     if (event.type === 'event_callback') {
-      console.log('📋 Event callback received:');
-      console.log('- Event type:', event.event?.type);
-      console.log('- Event subtype:', event.event?.subtype);
-      console.log('- Full event:', JSON.stringify(event.event, null, 2));
+      console.log('📋 Event callback:', event.event?.type, event.event?.subtype || 'no-subtype');
     }
     
     // Verify Slack signature for actual events (not for challenge)

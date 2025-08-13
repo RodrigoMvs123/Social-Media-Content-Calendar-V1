@@ -37,7 +37,7 @@ A modern web application for planning and scheduling social media content across
    
    **Step 2:** Edit both `.env` files and replace the placeholders with your actual credentials:
    - Database settings (PostgreSQL or SQLite)
-   - OpenAI API key (for AI content generation)
+   - OpenAI API key OR Claude API key (for AI content generation)
    - Social media OAuth credentials (for platform integration)
    - Slack settings (optional)
 
@@ -68,11 +68,11 @@ The application will automatically use the database specified in your environmen
 
 ## AI Content Generation
 
-The application uses OpenAI's API to generate social media content:
+The application supports both OpenAI and Claude APIs for generating social media content:
 
-1. **Setup**:
-   - Get an API key from [OpenAI](https://platform.openai.com/)
-   - Add your API key to both `.env` files: `OPENAI_API_KEY=your_api_key_here`
+1. **Setup** (choose one):
+   - **OpenAI**: Get an API key from [OpenAI](https://platform.openai.com/) and add: `OPENAI_API_KEY=your_api_key_here`
+   - **Claude**: Get an API key from [Anthropic](https://console.anthropic.com/) and add: `CLAUDE_API_KEY=your_api_key_here`
 
 2. **Usage**:
    - Click "Generate AI Content" on the dashboard

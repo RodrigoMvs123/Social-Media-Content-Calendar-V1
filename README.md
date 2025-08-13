@@ -81,16 +81,9 @@ The application uses OpenAI's API to generate social media content:
 
 ## Social Media Integration
 
-This application supports two modes for social media integration:
+This application uses OAuth for real social media integration.
 
-### Demo Mode
-- Simulates connections without real authentication
-- Enter any username/password to connect
-- Perfect for testing and development
-- No developer accounts or API credentials required
-
-### OAuth Mode (For Real Integration)
-To use real social media integration:
+To connect your social media accounts:
 
 1. Register as a developer on each platform:
    - X (formerly Twitter): [X Developer Portal](https://developer.twitter.com/)
@@ -99,8 +92,19 @@ To use real social media integration:
 
 2. Create an application in their developer portals
 
-3. Configure the redirect URLs to point to your application:
-   - Example: `http://localhost:3001/oauth/callback/twitter`
+3. Configure the redirect URLs in each platform's developer portal:
+   
+   **For Development (localhost):**
+   - **X (Twitter)**: `http://localhost:3001/api/oauth/callback/twitter`
+   - **LinkedIn**: `http://localhost:3001/api/oauth/callback/linkedin`
+   - **Facebook**: `http://localhost:3001/api/oauth/callback/facebook`
+   - **Instagram**: `http://localhost:3001/api/oauth/callback/instagram`
+   
+   **For Production:**
+   - **X (Twitter)**: `https://yourdomain.com/api/oauth/callback/twitter`
+   - **LinkedIn**: `https://yourdomain.com/api/oauth/callback/linkedin`
+   - **Facebook**: `https://yourdomain.com/api/oauth/callback/facebook`
+   - **Instagram**: `https://yourdomain.com/api/oauth/callback/instagram`
 
 4. Copy the client ID and secret to **both** `.env` files (root and server directory):
    ```
@@ -121,17 +125,13 @@ To use real social media integration:
    INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
    ```
 
+5. Set the client URL in both `.env` files:
+   ```
+   CLIENT_URL=http://localhost:3000  # For development
+   CLIENT_URL=https://yourdomain.com  # For production
+   ```
+
    > **Important**: You must add these credentials to both the root `.env` file AND the `server/.env` file, as Node.js sometimes only checks for the nearest environment file.
-
-5. Set `OAUTH_REDIRECT_URI` in both `.env` files:
-   ```
-   OAUTH_REDIRECT_URI=http://localhost:3001/oauth/callback
-   ```
-
-6. Set `CLIENT_URL` in both `.env` files:
-   ```
-   CLIENT_URL=http://localhost:3000
-   ```
 
 The application is already configured to use these credentials when available.
 
@@ -240,7 +240,7 @@ The application supports bidirectional synchronization with Slack - when you del
 
 1. **Slack App Configuration**:
    - Create a Slack App at [api.slack.com](https://api.slack.com/apps)
-   - Add your `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` to `.env` files
+   - Add your `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_WEBHOOK_URL`, and `SLACK_CHANNEL_ID` to `.env` files
    - Configure Event Subscriptions (see below)
 
 ### Event Subscriptions Setup

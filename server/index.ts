@@ -14,6 +14,7 @@ import postsRoutesSqlite from './posts-routes-sqlite';
 import analyticsRoutesSqlite from './analytics-routes-sqlite';
 import slackRoutes from './slack-routes';
 import notificationRoutes from './notification-routes';
+const oauthRoutes = require('./oauth-routes');
 
 // Load environment variables
 dotenv.config();
@@ -71,6 +72,7 @@ if (dbType === 'sqlite') {
   app.use('/api/analytics', analyticsRoutesSqlite);
   app.use('/api/slack', slackRoutes);
   app.use('/api/notifications', notificationRoutes);
+  app.use('/api/oauth', oauthRoutes);
 } else {
   const authRoutesPostgres = require('./auth-routes');
   const postsRoutes = require('./posts-routes');

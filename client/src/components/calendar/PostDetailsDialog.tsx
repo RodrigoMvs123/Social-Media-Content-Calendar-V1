@@ -126,32 +126,33 @@ const PostDetailsDialog: React.FC<PostDetailsDialogProps> = ({
             <Calendar className="mr-2 h-5 w-5 text-blue-600" />
             Posts for {formattedDate}
           </DialogTitle>
-          {totalPosts > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <div className="flex items-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToPrevPost}
-                  disabled={totalPosts <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToNextPost}
-                  disabled={totalPosts <= 1}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <span className="text-sm text-gray-500">
-                {currentPostIndex + 1} of {totalPosts}
-              </span>
-            </div>
-          )}
         </DialogHeader>
+        
+        {totalPosts > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-4 mb-4">
+            <div className="flex items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPrevPost}
+                disabled={totalPosts <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextPost}
+                disabled={totalPosts <= 1}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <span className="text-sm text-gray-500">
+              {currentPostIndex + 1} of {totalPosts}
+            </span>
+          </div>
+        )}
         
         <div className="mt-8">
           <div className="border rounded-lg p-4 bg-white">
@@ -170,7 +171,8 @@ const PostDetailsDialog: React.FC<PostDetailsDialogProps> = ({
                 variant="outline" 
                 className={`
                   ${currentPost.status === 'draft' ? 'bg-gray-100 text-gray-800 border-gray-200' : ''}
-                  ${currentPost.status === 'scheduled' ? 'bg-green-100 text-green-800 border-green-200' : ''}
+                  ${currentPost.status === 'scheduled' ? 'bg-blue-100 text-blue-800 border-blue-200' : ''}
+                  ${currentPost.status === 'published' ? 'bg-green-100 text-green-800 border-green-200' : ''}
                   ${currentPost.status === 'ready' ? 'bg-amber-100 text-amber-800 border-amber-200' : ''}
                   ${currentPost.status === 'needs_approval' ? 'bg-orange-100 text-orange-800 border-orange-200' : ''}
                 `}

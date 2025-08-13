@@ -28,9 +28,24 @@ const ConnectPage = () => {
 
   // Load accounts from localStorage on mount
   useEffect(() => {
+    // Clear any old mock data on first load
     const savedAccounts = localStorage.getItem('socialMediaAccounts');
     if (savedAccounts) {
-      setConnectedAccounts(JSON.parse(savedAccounts));
+      try {
+        const accounts = JSON.parse(savedAccounts);
+        // Only keep accounts that have real OAuth tokens (not mock tokens)
+        const realAccounts = accounts.filter((account: SocialMediaAccount) => 
+          account.accessToken && !account.accessToken.startsWith('mock_token_') && !account.accessToken.startsWith('oauth_token_')
+        );
+        setConnectedAccounts(realAccounts);
+        if (realAccounts.length !== accounts.length) {
+          // Update localStorage to remove mock accounts
+          localStorage.setItem('socialMediaAccounts', JSON.stringify(realAccounts));
+        }
+      } catch (error) {
+        // Clear corrupted data
+        localStorage.removeItem('socialMediaAccounts');
+      }
     }
   }, []);
 
@@ -74,40 +89,19 @@ const ConnectPage = () => {
   };
 
   const handleOAuthConnect = (platform: string) => {
-    // Redirect to the appropriate developer portal based on the platform
-    let developerUrl = '';
-    
-    switch(platform) {
-      case 'X':
-        developerUrl = 'https://developer.twitter.com/';
-        break;
-      case 'LinkedIn':
-        developerUrl = 'https://developer.linkedin.com/';
-        break;
-      case 'Facebook':
-      case 'Instagram':
-        developerUrl = 'https://developers.facebook.com/';
-        break;
-      default:
-        developerUrl = '';
-    }
-    
-    if (developerUrl) {
-      window.open(developerUrl, '_blank');
-    }
-    
-    // For demo purposes, we'll simulate a successful OAuth connection
-    const mockAccount: SocialMediaAccount = {
-      id: Math.floor(Math.random() * 1000),
-      platform,
-      username: `${platform.toLowerCase()}_user${Math.floor(Math.random() * 1000)}`,
-      connected: true,
-      connectedAt: new Date().toISOString(),
-      accessToken: `oauth_token_${Math.random().toString(36).substring(2)}`,
-      tokenExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    // Redirect to our OAuth initiation endpoint
+    const platformMap: { [key: string]: string } = {
+      'X': 'twitter',
+      'LinkedIn': 'linkedin', 
+      'Facebook': 'facebook',
+      'Instagram': 'instagram'
     };
     
-    handleConnect(mockAccount);
+    const oauthPlatform = platformMap[platform];
+    if (oauthPlatform) {
+      // Redirect to our OAuth endpoint which will handle the flow
+      window.location.href = `/api/oauth/${oauthPlatform}`;
+    }
   };
 
   const renderSocialMediaCard = (
@@ -170,7 +164,7 @@ const ConnectPage = () => {
             <Button 
               variant="outline" 
               onClick={() => handleOAuthConnect(platform)}
-              className="w-full"
+              className="w-full py-3 px-4 text-sm"
             >
               Connect with {platform} <ExternalLink className="ml-2 h-4 w-4" />
             </Button>
@@ -200,10 +194,10 @@ const ConnectPage = () => {
             <AlertTitle>OAuth Social Media Integration</AlertTitle>
             <AlertDescription>
               <p className="mb-2">
-                To connect your social media accounts, you need to register as a developer on each platform and configure OAuth credentials.
+                Connect your social media accounts using OAuth authentication.
               </p>
               <p className="text-sm">
-                Click "Connect" to be redirected to the platform's developer portal to set up OAuth integration.
+                Click "Connect" to authenticate with each platform. Make sure you have configured your OAuth credentials in the .env file.
               </p>
             </AlertDescription>
           </Alert>
@@ -233,7 +227,7 @@ const ConnectPage = () => {
             
             {renderSocialMediaCard(
               "LinkedIn",
-              <Linkedin className="h-5 w-5 text-blue-700" />,
+              <svg className="h-5 w-5 text-blue-700" fill="#0077B5" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>,
               "Share professional updates"
             )}
             
@@ -245,7 +239,7 @@ const ConnectPage = () => {
             
             {renderSocialMediaCard(
               "Facebook",
-              <Facebook className="h-5 w-5 text-blue-600" />,
+              <svg className="h-5 w-5 text-blue-600" fill="#1877F2" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
               "Manage page posts and updates"
             )}
           </div>

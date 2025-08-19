@@ -68,6 +68,21 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve static files from the client build directory (PRODUCTION ONLY)
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from client/dist
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+  
+  // Catch-all handler: send back React's index.html file for any non-API routes
+  app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  });
+}
+
 // Routes
 if (dbType === 'sqlite') {
   console.log('Using SQLite with JWT authentication');

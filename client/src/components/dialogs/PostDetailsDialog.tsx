@@ -101,7 +101,7 @@ const PostDetailsDialog = ({ post, open, onOpenChange }: PostDetailsDialogProps)
       });
       
       // Refresh the data
-      queryClient.invalidateQueries(['/api/calendar']);
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
       
       toast({
         title: "Media removed",

@@ -63,7 +63,7 @@ export const PostProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Function to refresh posts data
   const refreshPosts = () => {
     // Invalidate and refetch the posts query
-    queryClient.invalidateQueries(['/api/calendar']);
+    queryClient.invalidateQueries({ queryKey: ['/api/calendar'] });
   };
 
   // Function to navigate to dashboard after post creation from calendar

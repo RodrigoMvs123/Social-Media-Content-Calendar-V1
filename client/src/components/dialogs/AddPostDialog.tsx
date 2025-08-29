@@ -212,8 +212,12 @@ const AddPostDialog = () => {
             }
           }
         }
-      } catch (error) {
-        console.log('Browser notification failed:', error);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log('Browser notification failed:', err.message);
+        } else {
+          console.log('An unknown error occurred during notification.');
+        }
       }
       
       // Reset form and context

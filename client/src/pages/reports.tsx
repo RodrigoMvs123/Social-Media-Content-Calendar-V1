@@ -17,8 +17,8 @@ const Reports = () => {
     queryFn: fetchAnalyticsData,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
-    staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache data
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Colors for pie chart

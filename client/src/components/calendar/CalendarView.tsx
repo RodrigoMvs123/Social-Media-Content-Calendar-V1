@@ -15,7 +15,7 @@ interface CalendarViewProps {
 const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarViewProps) => {
   // Check if we're in the calendar view or dashboard view
   const isCalendarView = window.location.pathname.includes('/calendar');
-  const { openAddPostDialog, openAIContentDialog } = usePostContext();
+  const { openAddPostDialog, openAIDialog } = usePostContext();
   
   // Check if any filters are active
   const hasActiveFilters = (filters?.platform && filters.platform !== 'all') || 
@@ -183,7 +183,7 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
         ) : (
           <EmptyState 
             onCreatePost={openAddPostDialog}
-            onGenerateWithAI={openAIContentDialog}
+            onGenerateWithAI={openAIDialog}
           />
         )
       )}

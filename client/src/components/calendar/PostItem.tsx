@@ -156,9 +156,10 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
       }
     } catch (error) {
       console.error('Publishing error:', error);
+      const message = error instanceof Error ? error.message : "Failed to publish post. Please try again.";
       toast({
         title: "Publishing failed",
-        description: error.message || "Failed to publish post. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {

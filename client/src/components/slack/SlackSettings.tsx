@@ -37,14 +37,6 @@ const SlackSettings = () => {
   const [channels, setChannels] = useState<SlackChannel[]>([]);
   const [validationResult, setValidationResult] = useState<any>(null);
 
-  // Load existing settings when component mounts
-  useEffect(() => {
-    if (slackSettings?.configured) {
-      setSelectedChannelId(slackSettings.channelId || '');
-      // Don't load bot token for security reasons
-    }
-  }, [slackSettings]);
-
   const { data: slackSettings, isLoading, refetch } = useQuery({
     queryKey: ['/api/slack/settings'],
     queryFn: async () => {
@@ -67,6 +59,14 @@ const SlackSettings = () => {
     },
     retry: false
   });
+
+  // Load existing settings when component mounts
+  useEffect(() => {
+    if (slackSettings?.configured) {
+      setSelectedChannelId(slackSettings.channelId || '');
+      // Don't load bot token for security reasons
+    }
+  }, [slackSettings]);
 
   // Validate bot token
   const validateBotToken = async (token: string) => {

@@ -111,9 +111,10 @@ const SlackSettings = () => {
     } catch (error) {
       console.error('Validation error:', error);
       setValidationResult({ valid: false, error: 'Network error' });
+      const message = error instanceof Error ? error.message : "An unknown error occurred";
       toast({
         title: "Error",
-        description: `Failed to validate bot token: ${error.message}`,
+        description: `Failed to validate bot token: ${message}`,
         variant: "destructive",
       });
     } finally {

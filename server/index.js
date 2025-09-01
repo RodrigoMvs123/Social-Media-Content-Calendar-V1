@@ -305,11 +305,18 @@ app.post('/api/posts', (req, res) => {
     return res.status(400).json({ error: 'Content, platform, and scheduled time required' });
   }
   
-  res.json({ 
-    success: true, 
+  // Return the created post object that frontend expects
+  const newPost = {
     id: Date.now(),
-    message: 'Post created successfully'
-  });
+    content,
+    platform,
+    scheduledTime,
+    status: 'scheduled',
+    createdAt: new Date().toISOString()
+  };
+  
+  console.log('Sending response:', newPost);
+  res.status(201).json(newPost);
 });
 
 // Social accounts endpoint

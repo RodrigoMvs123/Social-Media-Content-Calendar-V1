@@ -428,6 +428,28 @@ app.get('/api/me', (req, res) => {
   });
 });
 
+// Add missing API routes to prevent 404s
+app.get('/api/auth/me', (req, res) => {
+  console.log('GET /api/auth/me called');
+  res.status(200).json({
+    success: true,
+    id: 1,
+    name: 'Demo User',
+    email: 'demo@example.com',
+    authenticated: true
+  });
+});
+
+app.get('/api/social-accounts', (req, res) => {
+  console.log('GET /api/social-accounts called');
+  res.json([]);
+});
+
+app.get('/api/notifications', (req, res) => {
+  console.log('GET /api/notifications called');
+  res.json([]);
+});
+
 // Calendar/Posts routes
 app.get('/api/calendar', (req, res) => {
   console.log('GET /api/calendar called');

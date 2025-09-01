@@ -261,16 +261,22 @@ app.get('/api/test-user', (req, res) => {
   });
 });
 
-// Frontend calls /auth/me - add this endpoint
+// Frontend calls /auth/me - add this endpoint with rate limiting
+let authMeCallCount = 0;
 app.get('/auth/me', (req, res) => {
-  console.log('GET /auth/me called (frontend endpoint)');
-  res.status(200).json({
-    success: true,
-    id: 1,
-    name: 'Demo User',
-    email: 'rodrigomvsrodrigo@gmail.com',
-    authenticated: true
-  });
+  authMeCallCount++;
+  console.log(`GET /auth/me called (frontend endpoint) - Call #${authMeCallCount}`);
+  
+  // Add small delay to prevent rapid loops
+  setTimeout(() => {
+    res.status(200).json({
+      success: true,
+      id: 1,
+      name: 'Demo User',
+      email: 'rodrigomvsrodrigo@gmail.com',
+      authenticated: true
+    });
+  }, 100);
 });
 
 // Get current user info - return format that frontend expects
@@ -292,9 +298,15 @@ app.get('/api/calendar', (req, res) => {
   res.json([]);
 });
 
+let postsCallCount = 0;
 app.get('/api/posts', (req, res) => {
-  console.log('GET /api/posts called');
-  res.json([]);
+  postsCallCount++;
+  console.log(`GET /api/posts called - Call #${postsCallCount}`);
+  
+  // Return empty array but add delay to prevent rapid loops
+  setTimeout(() => {
+    res.json([]);
+  }, 50);
 });
 
 app.post('/api/posts', (req, res) => {

@@ -234,14 +234,29 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Get current user info - simplified to prevent hanging
+// Simple test endpoint
+app.get('/api/test-user', (req, res) => {
+  console.log('GET /api/test-user called');
+  res.json({
+    success: true,
+    user: {
+      id: 1,
+      name: 'Demo User',
+      email: 'demo@example.com'
+    }
+  });
+});
+
+// Get current user info - return format that frontend expects
 app.get('/api/me', (req, res) => {
   console.log('GET /api/me called');
-  // Always return a valid user to prevent frontend hanging
-  res.json({
+  // Return user in the format the frontend expects
+  res.status(200).json({
+    success: true,
     id: 1,
     name: 'Demo User',
-    email: 'demo@example.com'
+    email: 'demo@example.com',
+    authenticated: true
   });
 });
 

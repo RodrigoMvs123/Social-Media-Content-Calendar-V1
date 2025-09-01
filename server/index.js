@@ -533,13 +533,15 @@ app.get('/api/slack/channels', async (req, res) => {
     return res.status(400).json({ error: 'Bot token is required' });
   }
   
-  // Mock Slack channels that would be returned by real Slack API
+  // Mock Slack channels including your actual workspace channels
   const mockChannels = [
     { id: 'DM_PLACEHOLDER', name: 'Direct Messages', type: 'dm' },
     { id: 'C08PUPJ15LJ', name: '#general', type: 'channel' },
     { id: 'C123456789', name: '#random', type: 'channel' },
-    { id: 'C987654321', name: '#social-media (invite bot first)', type: 'channel' },
-    { id: 'C456789123', name: '#marketing', type: 'channel' }
+    { id: 'C08SOCIAL01', name: '#social', type: 'channel' },
+    { id: 'C987654321', name: '#social-media', type: 'channel' },
+    { id: 'C456789123', name: '#marketing', type: 'channel' },
+    { id: 'C789012345', name: '#announcements', type: 'channel' }
   ];
   
   let channels = mockChannels;
@@ -555,20 +557,15 @@ app.get('/api/slack/channels', async (req, res) => {
   });
 });
 
-// Get Slack status/configuration
+// Get Slack status/configuration - don't show connected until user validates
 app.get('/api/slack/status', (req, res) => {
   console.log('GET /api/slack/status called');
   
-  // Return current Slack configuration status (restored original)
+  // Return disconnected status until user validates through UI
   res.json({
-    connected: true,
-    token: process.env.SLACK_BOT_TOKEN ? '***' + process.env.SLACK_BOT_TOKEN.slice(-4) : null,
-    channelId: process.env.SLACK_CHANNEL_ID || null,
-    webhookUrl: process.env.SLACK_WEBHOOK_URL ? '***' + process.env.SLACK_WEBHOOK_URL.slice(-10) : null,
-    team: {
-      name: 'Your Workspace',
-      id: 'T08PUPHNGUS'
-    },
+    connected: false,
+    tokenConfigured: false,
+    channelConfigured: false,
     lastChecked: new Date().toISOString()
   });
 });

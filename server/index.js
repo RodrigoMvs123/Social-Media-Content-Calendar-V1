@@ -320,9 +320,20 @@ let postsCallCount = 0;
 
 app.get('/api/posts', (req, res) => {
   postsCallCount++;
+  
+  // Update post statuses based on scheduled time
+  const now = new Date();
+  posts.forEach(post => {
+    if (post.status === 'scheduled' && new Date(post.scheduledTime) <= now) {
+      post.status = 'published';
+      post.publishedAt = now.toISOString();
+      console.log(`Post ${post.id} auto-published at ${post.publishedAt}`);
+    }
+  });
+  
   console.log(`GET /api/posts called - Call #${postsCallCount} - Returning ${posts.length} posts`);
   
-  // Return actual posts with longer delay to reduce rapid calls
+  // Return actual posts with status updates
   setTimeout(() => {
     res.json(posts);
   }, 200);
@@ -330,28 +341,51 @@ app.get('/api/posts', (req, res) => {
 
 app.post('/api/posts', (req, res) => {
   console.log('POST /api/posts called with body:', req.body);
-  const { content, platform, scheduledTime } = req.body;
+  const { content, platform, scheduledTime, media, images, videos } = req.body;
   
   if (!content || !platform || !scheduledTime) {
     return res.status(400).json({ error: 'Content, platform, and scheduled time required' });
   }
   
-  // Create and store the post
+  // Create and store the post with media support
   const newPost = {
     id: Date.now(),
     content,
     platform,
     scheduledTime,
     status: 'scheduled',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    media: media || [],
+    images: images || [],
+    videos: videos || [],
+    publishedAt: null
   };
   
   // Add to posts array
   posts.push(newPost);
   
-  console.log('Post created and stored. Total posts:', posts.length);
-  console.log('Sending response:', newPost);
+  console.log('Post created with media. Total posts:', posts.length);
+  console.log('Media attached:', { media: media?.length || 0, images: images?.length || 0, videos: videos?.length || 0 });
   res.status(201).json(newPost);
+});
+
+// Media upload endpoint
+app.post('/api/upload', (req, res) => {
+  console.log('POST /api/upload called');
+  // Simulate file upload - in real app would handle actual files
+  const { fileName, fileType, fileSize } = req.body;
+  
+  const uploadedFile = {
+    id: Date.now(),
+    fileName: fileName || 'uploaded-file',
+    fileType: fileType || 'image/jpeg',
+    fileSize: fileSize || 1024,
+    url: `https://via.placeholder.com/400x300?text=${fileName || 'Media'}`,
+    uploadedAt: new Date().toISOString()
+  };
+  
+  console.log('File uploaded:', uploadedFile);
+  res.json(uploadedFile);
 });
 
 // Social accounts endpoint

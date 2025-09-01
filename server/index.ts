@@ -213,7 +213,8 @@ app.post('/api/slack/events', async (req, res) => {
       
       // Simple timestamp check (within 5 minutes)
       const currentTime = Math.floor(Date.now() / 1000);
-      if (Math.abs(currentTime - timestamp) > 300) {
+      const timestampNum = parseInt(timestamp as string, 10);
+      if (Math.abs(currentTime - timestampNum) > 300) {
         console.log('❌ Slack event timestamp too old');
         return res.status(400).json({ error: 'Request timestamp too old' });
       }

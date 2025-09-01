@@ -78,7 +78,10 @@ if (dbType === 'sqlite') {
       }
       
       try {
-        await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
+        // Drop existing table if it exists with wrong column names
+        await db.query('DROP TABLE IF EXISTS slack_settings');
+        
+        await db.query(`CREATE TABLE slack_settings (
           id SERIAL PRIMARY KEY,
           userid INTEGER NOT NULL UNIQUE,
           bottoken TEXT,
@@ -91,9 +94,9 @@ if (dbType === 'sqlite') {
           slackpublished BOOLEAN DEFAULT true,
           slackfailed BOOLEAN DEFAULT true
         )`);
-        console.log('✅ Slack settings table created');
+        console.log('✅ Slack settings table recreated with correct column names');
       } catch (err) {
-        console.log('Slack settings table already exists or error:', err.message);
+        console.log('Slack settings table error:', err.message);
       }
       
       console.log('✅ PostgreSQL database initialized');

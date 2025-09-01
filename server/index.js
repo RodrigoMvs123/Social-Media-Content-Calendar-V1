@@ -312,6 +312,18 @@ app.post('/api/posts', (req, res) => {
   });
 });
 
+// Social accounts endpoint
+app.get('/social-accounts', (req, res) => {
+  console.log('GET /social-accounts called');
+  res.json([]);
+});
+
+// Notifications endpoint
+app.get('/notifications', (req, res) => {
+  console.log('GET /notifications called');
+  res.json([]);
+});
+
 // Handle React Router (return index.html for non-API routes)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {

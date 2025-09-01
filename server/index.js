@@ -446,50 +446,49 @@ app.post('/api/upload', (req, res) => {
   res.json(uploadedFile);
 });
 
-// Slack token validation endpoint
+// Slack token validation endpoint - matches original TypeScript implementation
 app.post('/api/slack/validate', async (req, res) => {
   console.log('POST /api/slack/validate called');
   console.log('Request body:', req.body);
-  console.log('Request headers:', req.headers);
   
-  // Try to get token from different possible locations
-  const token = req.body.token || req.body.slackToken || req.query.token;
+  const { botToken } = req.body;
   
-  console.log('Extracted token:', token ? `${token.substring(0, 10)}...` : 'null');
+  console.log('Extracted botToken:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
   
-  if (!token) {
-    console.log('No token found in request');
+  if (!botToken || typeof botToken !== 'string') {
     return res.status(400).json({ 
-      error: 'Token is required',
-      debug: {
-        bodyKeys: Object.keys(req.body),
-        hasToken: !!req.body.token,
-        hasSlackToken: !!req.body.slackToken
-      }
+      valid: false,
+      error: 'Bot token is required and must be a string'
+    });
+  }
+  
+  // Check if token starts with xoxb-
+  if (!botToken.startsWith('xoxb-')) {
+    return res.status(400).json({ 
+      valid: false,
+      error: 'Bot token must start with "xoxb-"'
     });
   }
   
   try {
-    // Simulate Slack API validation
-    if (token.startsWith('xoxb-')) {
-      res.json({
-        success: true,
-        valid: true,
-        team: {
-          name: 'Your Workspace',
-          id: 'T08PUPHNGUS'
-        },
-        user: {
-          name: 'Social Media Bot',
-          id: 'U123456789'
-        }
-      });
-    } else {
-      res.status(400).json({ error: 'Invalid token format' });
-    }
+    // Simulate successful Slack API validation
+    console.log('Bot token validation successful');
+    res.json({
+      valid: true,
+      botInfo: {
+        user: 'Social Media Bot',
+        user_id: 'U123456789',
+        team: 'Your Workspace',
+        team_id: 'T08PUPHNGUS',
+        url: 'https://yourworkspace.slack.com/'
+      }
+    });
   } catch (error) {
     console.error('Slack validation error:', error);
-    res.status(500).json({ error: 'Failed to validate token' });
+    res.status(400).json({ 
+      valid: false,
+      error: 'Invalid bot token'
+    });
   }
 });
 
@@ -525,17 +524,22 @@ app.get('/api/slack/validate', async (req, res) => {
   }
 });
 
-// Slack channels search endpoint
+// Slack channels search endpoint - matches original implementation
 app.get('/api/slack/channels', async (req, res) => {
   console.log('GET /api/slack/channels called');
-  const { search } = req.query;
+  const { botToken, search } = req.query;
   
-  // Mock Slack channels
+  if (!botToken) {
+    return res.status(400).json({ error: 'Bot token is required' });
+  }
+  
+  // Mock Slack channels that would be returned by real Slack API
   const mockChannels = [
-    { id: 'C08PUPJ15LJ', name: 'general', is_member: true },
-    { id: 'C123456789', name: 'random', is_member: true },
-    { id: 'C987654321', name: 'social-media', is_member: false },
-    { id: 'C456789123', name: 'marketing', is_member: true }
+    { id: 'DM_PLACEHOLDER', name: 'Direct Messages', type: 'dm' },
+    { id: 'C08PUPJ15LJ', name: '#general', type: 'channel' },
+    { id: 'C123456789', name: '#random', type: 'channel' },
+    { id: 'C987654321', name: '#social-media (invite bot first)', type: 'channel' },
+    { id: 'C456789123', name: '#marketing', type: 'channel' }
   ];
   
   let channels = mockChannels;
@@ -545,7 +549,10 @@ app.get('/api/slack/channels', async (req, res) => {
     );
   }
   
-  res.json({ channels });
+  res.json({ 
+    channels,
+    message: `Found ${channels.length} available destinations.`
+  });
 });
 
 // Get Slack status/configuration

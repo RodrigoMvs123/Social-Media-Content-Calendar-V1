@@ -42,6 +42,57 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is running!' });
 });
 
+// Authentication routes
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  
+  // Simple mock authentication for now
+  if (email && password) {
+    res.json({
+      success: true,
+      user: {
+        id: 1,
+        email: email,
+        name: 'Demo User'
+      },
+      token: 'demo-jwt-token'
+    });
+  } else {
+    res.status(400).json({ error: 'Email and password required' });
+  }
+});
+
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password } = req.body;
+  
+  if (name && email && password) {
+    res.json({
+      success: true,
+      user: {
+        id: 1,
+        email: email,
+        name: name
+      },
+      token: 'demo-jwt-token'
+    });
+  } else {
+    res.status(400).json({ error: 'Name, email and password required' });
+  }
+});
+
+// Calendar/Posts routes
+app.get('/api/calendar', (req, res) => {
+  res.json([]);
+});
+
+app.get('/api/posts', (req, res) => {
+  res.json([]);
+});
+
+app.post('/api/posts', (req, res) => {
+  res.json({ success: true, id: Date.now() });
+});
+
 // Handle React Router (return index.html for non-API routes)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {

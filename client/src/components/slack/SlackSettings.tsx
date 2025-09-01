@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ExternalLink, TestTube } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { slackEvents } from '@/lib/slackEvents';
 
@@ -28,7 +28,7 @@ const SlackSettings = () => {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
+
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   

@@ -149,6 +149,16 @@ router.post('/', async (req, res) => {
       updatedAt: result.rows[0].updatedat
     };
     
+    // Send scheduled notification if post is scheduled
+    if (status === 'scheduled') {
+      try {
+        const { notifyPostScheduled } = require('./notification-service');
+        await notifyPostScheduled(userId, post);
+      } catch (notifyError) {
+        console.error('Error sending scheduled notification:', notifyError);
+      }
+    }
+    
     res.status(201).json(post);
   } catch (error) {
     console.error('Error creating post:', error);

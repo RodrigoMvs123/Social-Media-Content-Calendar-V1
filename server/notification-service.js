@@ -98,9 +98,8 @@ async function sendSlackNotification(slackSettings, message) {
       mrkdwn: true
     });
     
-    return result;
-    
     console.log('✅ Slack notification sent');
+    return result;
   } catch (error) {
     console.error('❌ Slack notification failed:', error.message);
   }
@@ -202,8 +201,69 @@ async function notifyPostFailed(userId, post, errorMessage) {
   }
 }
 
+// Notify when post is scheduled
+async function notifyPostScheduled(userId, post) {
+  try {
+    const settings = await getUserNotificationSettings(userId);
+    
+    // Slack notification - only if enabled
+    console.log('🔔 Checking scheduled notification preference:', {
+      hasSlackSettings: !!settings.slackSettings,
+      slackScheduled: settings.slackSettings?.slackScheduled,
+      willSend: !!(settings.slackSettings && settings.slackSettings.slackScheduled)
+    });
+    
+    if (settings.slackSettings && settings.slackSettings.slackScheduled) {
+      const createdDate = new Date(post.createdAt);
+      const scheduledDate = new Date(post.scheduledTime);
+      
+      const formattedCreatedTime = createdDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Sao_Paulo'
+      }) + ' at ' + createdDate.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Sao_Paulo'
+      });
+      
+      const formattedScheduledTime = scheduledDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone: 'America/Sao_Paulo'
+      }) + ' at ' + scheduledDate.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Sao_Paulo'
+      });
+      
+      const message = `📅 *New post scheduled*\n\n` +
+        `*Platform:* ${post.platform}\n` +
+        `*Created at:* ${formattedCreatedTime}\n` +
+        `*Scheduled for:* ${formattedScheduledTime}\n` +
+        `*Content:* ${post.content}\n` +
+        `*Status:* Ready to Publish`;
+      
+      await sendSlackNotification(settings.slackSettings, message);
+    } else {
+      console.log('❌ Skipping scheduled notification (disabled)');
+    }
+    
+    console.log('✅ Post scheduled notifications sent for user:', userId);
+  } catch (error) {
+    console.error('❌ Failed to send post scheduled notifications:', error);
+  }
+}
+
 module.exports = {
   notifyPostPublished,
   notifyPostFailed,
+  notifyPostScheduled,
   getUserNotificationSettings
 };

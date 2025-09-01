@@ -246,15 +246,18 @@ app.get('/api/me', (req, res) => {
 });
 
 // Calendar/Posts routes
-app.get('/api/calendar', authenticateToken, (req, res) => {
+app.get('/api/calendar', (req, res) => {
+  console.log('GET /api/calendar called');
   res.json([]);
 });
 
-app.get('/api/posts', authenticateToken, (req, res) => {
+app.get('/api/posts', (req, res) => {
+  console.log('GET /api/posts called');
   res.json([]);
 });
 
-app.post('/api/posts', authenticateToken, (req, res) => {
+app.post('/api/posts', (req, res) => {
+  console.log('POST /api/posts called with body:', req.body);
   const { content, platform, scheduledTime } = req.body;
   
   if (!content || !platform || !scheduledTime) {

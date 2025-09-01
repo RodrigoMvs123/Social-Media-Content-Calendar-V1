@@ -156,6 +156,79 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// GET /api/slack/channels - MOVED TO TOP TO PREVENT ROUTE CONFLICTS
+app.get('/api/slack/channels', async (req, res) => {
+  console.log('🔍 GET /api/slack/channels called');
+  console.log('🔍 Query params:', req.query);
+  console.log('🔍 Headers:', req.headers.authorization ? 'Auth header present' : 'No auth header');
+  
+  try {
+    const { botToken } = req.query;
+    
+    console.log('🔍 Extracted botToken:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
+    
+    if (!botToken) {
+      console.log('❌ No bot token provided');
+      return res.status(400).json({ error: 'Bot token is required' });
+    }
+
+    console.log('✅ Bot token provided for channels:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
+    
+    // Validate token format
+    if (!botToken.startsWith('xoxb-')) {
+      console.log('❌ Invalid token format');
+      return res.status(400).json({ error: 'Invalid bot token format' });
+    }
+    
+    console.log('✅ Token format valid');
+    
+    const availableChannels = [
+      {
+        id: 'DM_PLACEHOLDER',
+        name: 'Direct Messages',
+        type: 'dm'
+      },
+      {
+        id: 'C08PUPJ15LJ',
+        name: '#general',
+        type: 'channel'
+      },
+      {
+        id: 'C123456789',
+        name: '#random',
+        type: 'channel'
+      },
+      {
+        id: 'C08SOCIAL01',
+        name: '#social',
+        type: 'channel'
+      },
+      {
+        id: 'C987654321',
+        name: '#social-media',
+        type: 'channel'
+      }
+    ];
+
+    console.log(`✅ Total available channels: ${availableChannels.length}`);
+    console.log('✅ Channels:', availableChannels.map(c => c.name));
+    
+    const response = { 
+      channels: availableChannels,
+      message: `Found ${availableChannels.length} available destinations.`
+    };
+    
+    console.log('✅ Sending channels response:', JSON.stringify(response, null, 2));
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching Slack channels:', error);
+    res.status(400).json({ 
+      error: 'Invalid bot token or Slack API error',
+      details: error.message
+    });
+  }
+});
+
 // Authentication routes
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -576,78 +649,7 @@ app.post('/api/slack/validate', getUserId, async (req, res) => {
   }
 });
 
-// GET /api/slack/channels - Get available channels (original logic)
-app.get('/api/slack/channels', async (req, res) => {
-  console.log('🔍 GET /api/slack/channels called');
-  console.log('🔍 Query params:', req.query);
-  console.log('🔍 Headers:', req.headers.authorization ? 'Auth header present' : 'No auth header');
-  
-  try {
-    const { botToken } = req.query;
-    
-    console.log('🔍 Extracted botToken:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
-    
-    if (!botToken) {
-      console.log('❌ No bot token provided');
-      return res.status(400).json({ error: 'Bot token is required' });
-    }
-
-    console.log('✅ Bot token provided for channels:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
-    
-    // Validate token format
-    if (!botToken.startsWith('xoxb-')) {
-      console.log('❌ Invalid token format');
-      return res.status(400).json({ error: 'Invalid bot token format' });
-    }
-    
-    console.log('✅ Token format valid');
-    
-    const availableChannels = [
-      {
-        id: 'DM_PLACEHOLDER',
-        name: 'Direct Messages',
-        type: 'dm'
-      },
-      {
-        id: 'C08PUPJ15LJ',
-        name: '#general',
-        type: 'channel'
-      },
-      {
-        id: 'C123456789',
-        name: '#random',
-        type: 'channel'
-      },
-      {
-        id: 'C08SOCIAL01',
-        name: '#social',
-        type: 'channel'
-      },
-      {
-        id: 'C987654321',
-        name: '#social-media',
-        type: 'channel'
-      }
-    ];
-
-    console.log(`✅ Total available channels: ${availableChannels.length}`);
-    console.log('✅ Channels:', availableChannels.map(c => c.name));
-    
-    const response = { 
-      channels: availableChannels,
-      message: `Found ${availableChannels.length} available destinations.`
-    };
-    
-    console.log('✅ Sending channels response:', JSON.stringify(response, null, 2));
-    res.json(response);
-  } catch (error) {
-    console.error('Error fetching Slack channels:', error);
-    res.status(400).json({ 
-      error: 'Invalid bot token or Slack API error',
-      details: error.message
-    });
-  }
-});
+// Channels route moved to top of file to prevent conflicts
 
 // GET /api/slack/settings - Get user's Slack settings (original logic)
 app.get('/api/slack/settings', getUserId, async (req, res) => {

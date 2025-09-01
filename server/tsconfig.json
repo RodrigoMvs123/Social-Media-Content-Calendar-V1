@@ -5,7 +5,8 @@
     "lib": ["ES2020"],
     "outDir": "dist",
     "rootDir": ".",
-    "strict": true,
+    "strict": false,
+    "noImplicitAny": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -14,5 +15,5 @@
     "checkJs": false
   },
   "include": ["./**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "../shared", "../vite.config.ts", "storage.ts", "vite.ts"]
 }

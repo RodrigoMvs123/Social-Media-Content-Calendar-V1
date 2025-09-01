@@ -56,33 +56,67 @@ if (dbType === 'sqlite') {
       
       await db.query(`CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
-        content TEXT NOT NULL,
+        "userId" INTEGER DEFAULT 1,
         platform VARCHAR(50) NOT NULL,
+        content TEXT NOT NULL,
         "scheduledTime" TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'scheduled',
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "publishedAt" TIMESTAMP,
-        media JSONB DEFAULT '[]',
-        images JSONB DEFAULT '[]',
-        videos JSONB DEFAULT '[]'
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        media TEXT,
+        "slackMessageTs" TEXT,
+        "slackScheduledTs" TEXT
       )`);
       
       await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
         id SERIAL PRIMARY KEY,
-        "userId" INTEGER DEFAULT 1,
-        "botToken" VARCHAR(255),
-        "channelId" VARCHAR(50),
-        "channelName" VARCHAR(100),
+        "userId" INTEGER NOT NULL,
+        "botToken" TEXT,
+        "channelId" TEXT,
+        "channelName" TEXT,
         "isActive" BOOLEAN DEFAULT true,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         "slackScheduled" BOOLEAN DEFAULT true,
         "slackPublished" BOOLEAN DEFAULT true,
         "slackFailed" BOOLEAN DEFAULT true,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE("userId")
       )`);
       
-      console.log('✅ PostgreSQL database initialized with posts and slack_settings tables');
+      await db.query(`CREATE TABLE IF NOT EXISTS social_accounts (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER NOT NULL,
+        platform VARCHAR(50) NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        "accessToken" TEXT NOT NULL,
+        "refreshToken" TEXT,
+        "tokenExpiry" TIMESTAMP,
+        connected BOOLEAN DEFAULT true,
+        "connectedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "profileData" TEXT,
+        UNIQUE("userId", platform)
+      )`);
+      
+      await db.query(`CREATE TABLE IF NOT EXISTS notification_preferences (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER NOT NULL UNIQUE,
+        "emailDigest" BOOLEAN DEFAULT false,
+        "emailPostPublished" BOOLEAN DEFAULT false,
+        "emailPostFailed" BOOLEAN DEFAULT false,
+        "browserNotifications" BOOLEAN DEFAULT true,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      
+      await db.query(`CREATE TABLE IF NOT EXISTS slack_message_timestamps (
+        id SERIAL PRIMARY KEY,
+        "postId" INTEGER NOT NULL,
+        "slackTimestamp" TEXT NOT NULL,
+        "messageType" VARCHAR(20) DEFAULT 'scheduled',
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE("postId", "messageType")
+      )`);
+      
+      console.log('✅ PostgreSQL database initialized with all tables matching SQLite schema');
     } catch (err) {
       console.error('❌ PostgreSQL initialization error:', err);
     }
@@ -391,18 +425,18 @@ app.post('/api/posts', async (req, res) => {
   try {
     if (dbType === 'postgres') {
       const result = await db.query(`
-        INSERT INTO posts (content, platform, "scheduledTime", status, "createdAt", media, images, videos)
+        INSERT INTO posts ("userId", content, platform, "scheduledTime", status, "createdAt", "updatedAt", media)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `, [
+        1, // userId
         content,
         platform, 
         scheduledTime,
         'scheduled',
         new Date().toISOString(),
-        JSON.stringify(media || []),
-        JSON.stringify(images || []),
-        JSON.stringify(videos || [])
+        new Date().toISOString(),
+        JSON.stringify(media || [])
       ]);
       
       const newPost = result.rows[0];

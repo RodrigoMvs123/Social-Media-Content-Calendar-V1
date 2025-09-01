@@ -465,19 +465,34 @@ app.get('/api/posts', async (req, res) => {
     let result;
     if (dbType === 'postgres') {
       result = await db.query('SELECT * FROM posts ORDER BY createdat DESC');
-      const posts = result.rows;
+      const rawPosts = result.rows;
+      
+      // Map PostgreSQL columns to camelCase for frontend
+      const posts = rawPosts.map(post => ({
+        id: post.id,
+        userid: post.userid,
+        content: post.content,
+        platform: post.platform,
+        scheduledTime: post.scheduledtime, // Map to camelCase
+        status: post.status,
+        createdAt: post.createdat, // Map to camelCase
+        updatedAt: post.updatedat, // Map to camelCase
+        publishedAt: post.publishedat, // Map to camelCase
+        media: post.media
+      }));
       
       // Update post statuses based on scheduled time
       const now = new Date();
-      for (const post of posts) {
-        if (post.status === 'scheduled' && new Date(post.scheduledtime) <= now) {
+      for (let i = 0; i < posts.length; i++) {
+        const post = posts[i];
+        if (post.status === 'scheduled' && new Date(post.scheduledTime) <= now) {
           await db.query(
             'UPDATE posts SET status = $1, publishedat = $2 WHERE id = $3',
             ['published', now.toISOString(), post.id]
           );
-          post.status = 'published';
-          post.publishedAt = now.toISOString();
-          console.log(`Post ${post.id} auto-published at ${post.publishedAt}`);
+          posts[i].status = 'published';
+          posts[i].publishedAt = now.toISOString();
+          console.log(`Post ${post.id} auto-published at ${posts[i].publishedAt}`);
         }
       }
       

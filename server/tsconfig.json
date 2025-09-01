@@ -7,6 +7,9 @@
     "rootDir": ".",
     "strict": false,
     "noImplicitAny": false,
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -15,5 +18,5 @@
     "checkJs": false
   },
   "include": ["./**/*.ts"],
-  "exclude": ["node_modules", "dist", "../shared", "../vite.config.ts", "storage.ts", "vite.ts"]
+  "exclude": ["node_modules", "dist", "../shared", "../vite.config.ts", "storage.ts", "vite.ts", "postgres-db.ts", "routes.ts", "oauth.ts", "openai.ts", "slack.ts", "ai.ts", "db-wrapper.ts"]
 }

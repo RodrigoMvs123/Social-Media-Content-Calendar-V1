@@ -64,7 +64,15 @@ const SlackSettings = () => {
   useEffect(() => {
     if (slackSettings?.configured) {
       setSelectedChannelId(slackSettings.channelId || '');
-      // Don't load bot token for security reasons
+      // Load token from environment if configured (for persistence)
+      if (slackSettings.hasToken) {
+        const envToken = process.env.SLACK_BOT_TOKEN || localStorage.getItem('slack_bot_token');
+        if (envToken) {
+          setBotToken(envToken);
+          setValidationResult({ valid: true, botInfo: { team: 'Your Workspace', user: 'Bot' } });
+          loadChannels(envToken);
+        }
+      }
     }
   }, [slackSettings]);
 
@@ -93,6 +101,9 @@ const SlackSettings = () => {
       setValidationResult(data);
       
       if (data.valid) {
+        // Save token to localStorage for persistence
+        localStorage.setItem('slack_bot_token', cleanToken);
+        
         toast({
           title: "Bot Token Valid!",
           description: `Connected to ${data.botInfo.team} as ${data.botInfo.user}`,
@@ -132,10 +143,13 @@ const SlackSettings = () => {
     setIsLoadingChannels(true);
     try {
       const authToken = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/slack/channels?botToken=${encodeURIComponent(token)}`, {
+      const response = await fetch('/api/slack/channels', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
-        }
+        },
+        body: JSON.stringify({ botToken: token })
       });
       
       if (response.ok) {

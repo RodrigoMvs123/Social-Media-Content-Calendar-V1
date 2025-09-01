@@ -80,7 +80,23 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static files from client build in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
+  const staticPath = path.join(__dirname, '../client/dist');
+  console.log('Serving static files from:', staticPath);
+  app.use(express.static(staticPath, {
+    maxAge: '1d',
+    etag: false
+  }));
+  
+  // Serve CSS and JS files with correct MIME types
+  app.use('/assets', express.static(path.join(staticPath, 'assets'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
 }
 
 // Health check endpoint
@@ -346,9 +362,15 @@ app.get('/notifications', (req, res) => {
 // Handle React Router (return index.html for non-API routes)
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    // Don't serve index.html for API routes, static assets, or specific files
+    if (req.path.startsWith('/api') || 
+        req.path.startsWith('/assets') || 
+        req.path.includes('.') && !req.path.endsWith('/')) {
+      return res.status(404).send('Not found');
     }
+    
+    console.log('Serving index.html for path:', req.path);
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 }
 

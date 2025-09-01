@@ -573,7 +573,7 @@ app.post('/api/slack/validate', getUserId, async (req, res) => {
 });
 
 // GET /api/slack/channels - Get available channels (original logic)
-app.get('/api/slack/channels', getUserId, async (req, res) => {
+app.get('/api/slack/channels', async (req, res) => {
   try {
     const { botToken } = req.query;
     
@@ -581,7 +581,12 @@ app.get('/api/slack/channels', getUserId, async (req, res) => {
       return res.status(400).json({ error: 'Bot token is required' });
     }
 
-    console.log('Bot token provided for channels');
+    console.log('Bot token provided for channels:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
+    
+    // Validate token format
+    if (!botToken.startsWith('xoxb-')) {
+      return res.status(400).json({ error: 'Invalid bot token format' });
+    }
     
     const availableChannels = [
       {

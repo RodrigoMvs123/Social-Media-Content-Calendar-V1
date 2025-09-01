@@ -261,6 +261,18 @@ app.get('/api/test-user', (req, res) => {
   });
 });
 
+// Frontend calls /auth/me - add this endpoint
+app.get('/auth/me', (req, res) => {
+  console.log('GET /auth/me called (frontend endpoint)');
+  res.status(200).json({
+    success: true,
+    id: 1,
+    name: 'Demo User',
+    email: 'rodrigomvsrodrigo@gmail.com',
+    authenticated: true
+  });
+});
+
 // Get current user info - return format that frontend expects
 app.get('/api/me', (req, res) => {
   console.log('GET /api/me called');

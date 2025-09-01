@@ -2,27 +2,65 @@ const { WebClient } = require('@slack/web-api');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 
-const dbPath = process.env.DB_PATH || './data.sqlite';
+// Database setup - hybrid approach
+const dbType = process.env.DB_TYPE || 'sqlite';
 let db;
 
-// Initialize database
-(async () => {
-  try {
-    db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database
-    });
-  } catch (error) {
-    console.error('Error setting up notification service DB:', error);
-  }
-})();
+if (dbType === 'sqlite') {
+  const dbPath = process.env.DB_PATH || './data.sqlite';
+  // Initialize SQLite database
+  (async () => {
+    try {
+      db = await open({
+        filename: dbPath,
+        driver: sqlite3.Database
+      });
+    } catch (error) {
+      console.error('Error setting up notification service SQLite DB:', error);
+    }
+  })();
+} else {
+  // PostgreSQL connection
+  const { Pool } = require('pg');
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+}
 
 // Get user preferences and email
 async function getUserNotificationSettings(userId) {
   try {
-    const user = await db.get('SELECT email FROM users WHERE id = ?', [userId]);
-    const preferences = await db.get('SELECT * FROM notification_preferences WHERE userId = ?', [userId]);
-    const slackSettings = await db.get('SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1', [userId]);
+    let user, preferences, slackSettings;
+    
+    if (dbType === 'sqlite') {
+      user = await db.get('SELECT email FROM users WHERE id = ?', [userId]);
+      preferences = await db.get('SELECT * FROM notification_preferences WHERE userId = ?', [userId]);
+      slackSettings = await db.get('SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1', [userId]);
+    } else {
+      // PostgreSQL queries
+      const userResult = await db.query('SELECT email FROM users WHERE id = $1', [userId]);
+      user = userResult.rows[0];
+      
+      const prefsResult = await db.query('SELECT * FROM notification_preferences WHERE userid = $1', [userId]);
+      preferences = prefsResult.rows[0];
+      
+      const slackResult = await db.query('SELECT * FROM slack_settings WHERE userid = $1 AND isactive = true', [userId]);
+      const rawSlackSettings = slackResult.rows[0];
+      
+      // Map PostgreSQL lowercase columns to camelCase
+      if (rawSlackSettings) {
+        slackSettings = {
+          botToken: rawSlackSettings.bottoken,
+          channelId: rawSlackSettings.channelid,
+          channelName: rawSlackSettings.channelname,
+          isActive: rawSlackSettings.isactive,
+          slackScheduled: rawSlackSettings.slackscheduled,
+          slackPublished: rawSlackSettings.slackpublished,
+          slackFailed: rawSlackSettings.slackfailed
+        };
+      }
+    }
     
     console.log('🔍 Slack settings for notifications:', {
       userId,

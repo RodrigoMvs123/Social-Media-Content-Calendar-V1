@@ -394,19 +394,7 @@ const SlackSettings = () => {
           </a>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        <div className="flex gap-2">
-          {slackSettings?.configured && (
-            <Button 
-              variant="outline" 
-              onClick={handleTestConnection} 
-              disabled={isTesting}
-            >
-              <TestTube className="mr-2 h-4 w-4" />
-              {isTesting ? 'Testing...' : 'Test Connection'}
-            </Button>
-          )}
-        </div>
+      <CardFooter className="flex justify-end items-center">
         <Button 
           onClick={handleSaveSettings} 
           disabled={isSaving || !botToken || !selectedChannelId}

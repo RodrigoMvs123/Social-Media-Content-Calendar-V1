@@ -799,10 +799,11 @@ app.get('/notifications', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     // Don't serve index.html for API routes, static assets, or specific files
-    if (req.path.startsWith('/api') || 
-        req.path.startsWith('/assets') || 
+    if (req.path.startsWith('/api/') || 
+        req.path.startsWith('/assets/') || 
         req.path.includes('.') && !req.path.endsWith('/')) {
-      return res.status(404).send('Not found');
+      console.log('API route not found:', req.path);
+      return res.status(404).json({ error: 'API endpoint not found' });
     }
     
     console.log('Serving index.html for path:', req.path);

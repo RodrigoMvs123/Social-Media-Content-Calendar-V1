@@ -80,16 +80,16 @@ if (dbType === 'sqlite') {
       try {
         await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
           id SERIAL PRIMARY KEY,
-          "userId" INTEGER NOT NULL UNIQUE,
-          "botToken" TEXT,
-          "channelId" TEXT,
-          "channelName" TEXT,
-          "isActive" BOOLEAN DEFAULT true,
-          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          "slackScheduled" BOOLEAN DEFAULT true,
-          "slackPublished" BOOLEAN DEFAULT true,
-          "slackFailed" BOOLEAN DEFAULT true
+          userid INTEGER NOT NULL UNIQUE,
+          bottoken TEXT,
+          channelid TEXT,
+          channelname TEXT,
+          isactive BOOLEAN DEFAULT true,
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          slackscheduled BOOLEAN DEFAULT true,
+          slackpublished BOOLEAN DEFAULT true,
+          slackfailed BOOLEAN DEFAULT true
         )`);
         console.log('✅ Slack settings table created');
       } catch (err) {
@@ -627,7 +627,7 @@ app.get('/api/slack/settings', getUserId, async (req, res) => {
   try {
     if (dbType === 'postgres') {
       const result = await db.query(
-        'SELECT "botToken", "channelId", "channelName", "isActive", "slackScheduled", "slackPublished", "slackFailed" FROM slack_settings WHERE "userId" = $1',
+        'SELECT bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed FROM slack_settings WHERE userid = $1',
         [req.userId]
       );
       
@@ -639,13 +639,13 @@ app.get('/api/slack/settings', getUserId, async (req, res) => {
 
       res.json({
         configured: true,
-        channelId: settings.channelId,
-        channelName: settings.channelName,
-        isActive: settings.isActive,
-        hasToken: !!settings.botToken,
-        slackScheduled: settings.slackScheduled ?? true,
-        slackPublished: settings.slackPublished ?? true,
-        slackFailed: settings.slackFailed ?? true
+        channelId: settings.channelid,
+        channelName: settings.channelname,
+        isActive: settings.isactive,
+        hasToken: !!settings.bottoken,
+        slackScheduled: settings.slackscheduled ?? true,
+        slackPublished: settings.slackpublished ?? true,
+        slackFailed: settings.slackfailed ?? true
       });
     } else {
       res.json({ configured: false });
@@ -671,15 +671,15 @@ app.post('/api/slack/settings', getUserId, async (req, res) => {
       // First try to update existing record
       const updateResult = await db.query(`
         UPDATE slack_settings 
-        SET "botToken" = $2, "channelId" = $3, "channelName" = $4, "isActive" = $5, "updatedAt" = $6
-        WHERE "userId" = $1
+        SET bottoken = $2, channelid = $3, channelname = $4, isactive = $5, updatedat = $6
+        WHERE userid = $1
       `, [req.userId, botToken, channelId, channelName, true, now]);
       
       // If no rows updated, insert new record
       if (updateResult.rowCount === 0) {
         await db.query(`
           INSERT INTO slack_settings 
-          ("userId", "botToken", "channelId", "channelName", "isActive", "slackScheduled", "slackPublished", "slackFailed", "createdAt", "updatedAt")
+          (userid, bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         `, [req.userId, botToken, channelId, channelName, true, true, true, true, now, now]);
       }
@@ -704,7 +704,7 @@ app.get('/api/slack/status', getUserId, async (req, res) => {
     
     if (dbType === 'postgres') {
       const result = await db.query(
-        'SELECT "botToken", "channelId", "isActive" FROM slack_settings WHERE "userId" = $1',
+        'SELECT bottoken, channelid, isactive FROM slack_settings WHERE userid = $1',
         [req.userId]
       );
       
@@ -720,9 +720,9 @@ app.get('/api/slack/status', getUserId, async (req, res) => {
       }
 
       const status = {
-        connected: settings.isActive && !!settings.botToken && !!settings.channelId,
-        tokenConfigured: !!settings.botToken,
-        channelConfigured: !!settings.channelId
+        connected: settings.isactive && !!settings.bottoken && !!settings.channelid,
+        tokenConfigured: !!settings.bottoken,
+        channelConfigured: !!settings.channelid
       };
       
       console.log(`Slack status for user ${req.userId}:`, status);

@@ -369,6 +369,64 @@ app.post('/api/posts', (req, res) => {
   res.status(201).json(newPost);
 });
 
+// Get single post by ID
+app.get('/api/posts/:id', (req, res) => {
+  const postId = parseInt(req.params.id);
+  const post = posts.find(p => p.id === postId);
+  
+  if (!post) {
+    return res.status(404).json({ error: 'Post not found' });
+  }
+  
+  console.log(`GET /api/posts/${postId} - Post found`);
+  res.json(post);
+});
+
+// Update post by ID
+app.put('/api/posts/:id', (req, res) => {
+  const postId = parseInt(req.params.id);
+  const postIndex = posts.findIndex(p => p.id === postId);
+  
+  if (postIndex === -1) {
+    return res.status(404).json({ error: 'Post not found' });
+  }
+  
+  const { content, platform, scheduledTime, media, images, videos, status } = req.body;
+  
+  // Update the post
+  const updatedPost = {
+    ...posts[postIndex],
+    content: content || posts[postIndex].content,
+    platform: platform || posts[postIndex].platform,
+    scheduledTime: scheduledTime || posts[postIndex].scheduledTime,
+    media: media || posts[postIndex].media,
+    images: images || posts[postIndex].images,
+    videos: videos || posts[postIndex].videos,
+    status: status || posts[postIndex].status,
+    updatedAt: new Date().toISOString()
+  };
+  
+  posts[postIndex] = updatedPost;
+  
+  console.log(`PUT /api/posts/${postId} - Post updated`);
+  res.json(updatedPost);
+});
+
+// Delete post by ID
+app.delete('/api/posts/:id', (req, res) => {
+  const postId = parseInt(req.params.id);
+  const postIndex = posts.findIndex(p => p.id === postId);
+  
+  if (postIndex === -1) {
+    return res.status(404).json({ error: 'Post not found' });
+  }
+  
+  const deletedPost = posts.splice(postIndex, 1)[0];
+  
+  console.log(`DELETE /api/posts/${postId} - Post deleted`);
+  res.json({ message: 'Post deleted successfully', post: deletedPost });
+});
+
 // Media upload endpoint
 app.post('/api/upload', (req, res) => {
   console.log('POST /api/upload called');

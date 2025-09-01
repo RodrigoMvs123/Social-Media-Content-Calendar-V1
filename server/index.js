@@ -198,17 +198,77 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Auth middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+  
+  jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret', (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Get current user info
+app.get('/api/me', authenticateToken, async (req, res) => {
+  try {
+    let user;
+    
+    if (dbType === 'sqlite') {
+      user = await new Promise((resolve, reject) => {
+        db.get('SELECT id, name, email FROM users WHERE id = ?', [req.user.userId], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+    } else {
+      const result = await db.query('SELECT id, name, email FROM users WHERE id = $1', [req.user.userId]);
+      user = result.rows[0];
+    }
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Calendar/Posts routes
-app.get('/api/calendar', (req, res) => {
+app.get('/api/calendar', authenticateToken, (req, res) => {
   res.json([]);
 });
 
-app.get('/api/posts', (req, res) => {
+app.get('/api/posts', authenticateToken, (req, res) => {
   res.json([]);
 });
 
-app.post('/api/posts', (req, res) => {
-  res.json({ success: true, id: Date.now() });
+app.post('/api/posts', authenticateToken, (req, res) => {
+  const { content, platform, scheduledTime } = req.body;
+  
+  if (!content || !platform || !scheduledTime) {
+    return res.status(400).json({ error: 'Content, platform, and scheduled time required' });
+  }
+  
+  res.json({ 
+    success: true, 
+    id: Date.now(),
+    message: 'Post created successfully'
+  });
 });
 
 // Handle React Router (return index.html for non-API routes)

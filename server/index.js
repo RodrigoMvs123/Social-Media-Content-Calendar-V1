@@ -234,6 +234,20 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
+// Bypass authentication completely - always return logged in user
+app.get('/api/auth/bypass', (req, res) => {
+  console.log('GET /api/auth/bypass called');
+  res.json({
+    success: true,
+    user: {
+      id: 1,
+      name: 'Demo User',
+      email: 'demo@example.com'
+    },
+    token: 'demo-token-12345'
+  });
+});
+
 // Simple test endpoint
 app.get('/api/test-user', (req, res) => {
   console.log('GET /api/test-user called');

@@ -69,7 +69,7 @@ if (dbType === 'sqlite') {
       
       await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
         id SERIAL PRIMARY KEY,
-        "userId" INTEGER DEFAULT 1,
+        "userId" INTEGER DEFAULT 1 UNIQUE,
         "botToken" VARCHAR(255),
         "channelId" VARCHAR(50),
         "channelName" VARCHAR(100),
@@ -653,14 +653,21 @@ app.post('/api/slack/settings', getUserId, async (req, res) => {
     if (dbType === 'postgres') {
       const now = new Date().toISOString();
 
-      // Upsert settings with default notification preferences
-      await db.query(`
-        INSERT INTO slack_settings 
-        ("userId", "botToken", "channelId", "channelName", "isActive", "slackScheduled", "slackPublished", "slackFailed", "createdAt", "updatedAt")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT ("userId") DO UPDATE SET
-        "botToken" = $2, "channelId" = $3, "channelName" = $4, "isActive" = $5, "updatedAt" = $10
-      `, [req.userId, botToken, channelId, channelName, true, true, true, true, now, now]);
+      // First try to update existing record
+      const updateResult = await db.query(`
+        UPDATE slack_settings 
+        SET "botToken" = $2, "channelId" = $3, "channelName" = $4, "isActive" = $5, "updatedAt" = $6
+        WHERE "userId" = $1
+      `, [req.userId, botToken, channelId, channelName, true, now]);
+      
+      // If no rows updated, insert new record
+      if (updateResult.rowCount === 0) {
+        await db.query(`
+          INSERT INTO slack_settings 
+          ("userId", "botToken", "channelId", "channelName", "isActive", "slackScheduled", "slackPublished", "slackFailed", "createdAt", "updatedAt")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [req.userId, botToken, channelId, channelName, true, true, true, true, now, now]);
+      }
     }
 
     res.json({ success: true, message: 'Slack settings saved successfully' });

@@ -68,6 +68,18 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Serve static files from the uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve static files from client build in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+  
+  // Handle React Router (return `index.html` for non-API routes)
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    }
+  });
+}
+
 // Routes
 if (dbType === 'sqlite') {
   console.log('Using SQLite with JWT authentication');

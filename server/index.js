@@ -53,7 +53,35 @@ if (dbType === 'sqlite') {
         password VARCHAR(255) NOT NULL,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
-      console.log('✅ PostgreSQL database initialized');
+      
+      await db.query(`CREATE TABLE IF NOT EXISTS posts (
+        id SERIAL PRIMARY KEY,
+        content TEXT NOT NULL,
+        platform VARCHAR(50) NOT NULL,
+        "scheduledTime" TIMESTAMP NOT NULL,
+        status VARCHAR(20) DEFAULT 'scheduled',
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "publishedAt" TIMESTAMP,
+        media JSONB DEFAULT '[]',
+        images JSONB DEFAULT '[]',
+        videos JSONB DEFAULT '[]'
+      )`);
+      
+      await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER DEFAULT 1,
+        "botToken" VARCHAR(255),
+        "channelId" VARCHAR(50),
+        "channelName" VARCHAR(100),
+        "isActive" BOOLEAN DEFAULT true,
+        "slackScheduled" BOOLEAN DEFAULT true,
+        "slackPublished" BOOLEAN DEFAULT true,
+        "slackFailed" BOOLEAN DEFAULT true,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+      
+      console.log('✅ PostgreSQL database initialized with posts and slack_settings tables');
     } catch (err) {
       console.error('❌ PostgreSQL initialization error:', err);
     }
@@ -314,32 +342,44 @@ app.get('/api/calendar', (req, res) => {
   res.json([]);
 });
 
-// In-memory storage for posts
-let posts = [];
 let postsCallCount = 0;
 
-app.get('/api/posts', (req, res) => {
+app.get('/api/posts', async (req, res) => {
   postsCallCount++;
   
-  // Update post statuses based on scheduled time
-  const now = new Date();
-  posts.forEach(post => {
-    if (post.status === 'scheduled' && new Date(post.scheduledTime) <= now) {
-      post.status = 'published';
-      post.publishedAt = now.toISOString();
-      console.log(`Post ${post.id} auto-published at ${post.publishedAt}`);
+  try {
+    let result;
+    if (dbType === 'postgres') {
+      result = await db.query('SELECT * FROM posts ORDER BY "createdAt" DESC');
+      const posts = result.rows;
+      
+      // Update post statuses based on scheduled time
+      const now = new Date();
+      for (const post of posts) {
+        if (post.status === 'scheduled' && new Date(post.scheduledTime) <= now) {
+          await db.query(
+            'UPDATE posts SET status = $1, "publishedAt" = $2 WHERE id = $3',
+            ['published', now.toISOString(), post.id]
+          );
+          post.status = 'published';
+          post.publishedAt = now.toISOString();
+          console.log(`Post ${post.id} auto-published at ${post.publishedAt}`);
+        }
+      }
+      
+      console.log(`GET /api/posts called - Call #${postsCallCount} - Returning ${posts.length} posts`);
+      res.json(posts);
+    } else {
+      // SQLite fallback
+      res.json([]);
     }
-  });
-  
-  console.log(`GET /api/posts called - Call #${postsCallCount} - Returning ${posts.length} posts`);
-  
-  // Return actual posts with status updates
-  setTimeout(() => {
-    res.json(posts);
-  }, 200);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    res.status(500).json({ error: 'Failed to fetch posts' });
+  }
 });
 
-app.post('/api/posts', (req, res) => {
+app.post('/api/posts', async (req, res) => {
   console.log('POST /api/posts called with body:', req.body);
   const { content, platform, scheduledTime, media, images, videos } = req.body;
   
@@ -347,26 +387,42 @@ app.post('/api/posts', (req, res) => {
     return res.status(400).json({ error: 'Content, platform, and scheduled time required' });
   }
   
-  // Create and store the post with media support
-  const newPost = {
-    id: Date.now(),
-    content,
-    platform,
-    scheduledTime,
-    status: 'scheduled',
-    createdAt: new Date().toISOString(),
-    media: media || [],
-    images: images || [],
-    videos: videos || [],
-    publishedAt: null
-  };
-  
-  // Add to posts array
-  posts.push(newPost);
-  
-  console.log('Post created with media. Total posts:', posts.length);
-  console.log('Media attached:', { media: media?.length || 0, images: images?.length || 0, videos: videos?.length || 0 });
-  res.status(201).json(newPost);
+  try {
+    if (dbType === 'postgres') {
+      const result = await db.query(`
+        INSERT INTO posts (content, platform, "scheduledTime", status, "createdAt", media, images, videos)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `, [
+        content,
+        platform, 
+        scheduledTime,
+        'scheduled',
+        new Date().toISOString(),
+        JSON.stringify(media || []),
+        JSON.stringify(images || []),
+        JSON.stringify(videos || [])
+      ]);
+      
+      const newPost = result.rows[0];
+      console.log('Post created and saved to PostgreSQL:', newPost.id);
+      res.status(201).json(newPost);
+    } else {
+      // SQLite fallback
+      const newPost = {
+        id: Date.now(),
+        content,
+        platform,
+        scheduledTime,
+        status: 'scheduled',
+        createdAt: new Date().toISOString()
+      };
+      res.status(201).json(newPost);
+    }
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ error: 'Failed to create post' });
+  }
 });
 
 // Get single post by ID
@@ -452,9 +508,6 @@ const getUserId = (req, res, next) => {
   req.userId = 1;
   next();
 };
-
-// In-memory storage for Slack settings (replaces database)
-let slackSettings = {};
 
 // POST /api/slack/validate - Validate bot token (original logic)
 app.post('/api/slack/validate', getUserId, async (req, res) => {
@@ -557,22 +610,31 @@ app.get('/api/slack/channels', getUserId, async (req, res) => {
 // GET /api/slack/settings - Get user's Slack settings (original logic)
 app.get('/api/slack/settings', getUserId, async (req, res) => {
   try {
-    const settings = slackSettings[req.userId];
-    
-    if (!settings) {
-      return res.json({ configured: false });
-    }
+    if (dbType === 'postgres') {
+      const result = await db.query(
+        'SELECT "botToken", "channelId", "channelName", "isActive", "slackScheduled", "slackPublished", "slackFailed" FROM slack_settings WHERE "userId" = $1',
+        [req.userId]
+      );
+      
+      const settings = result.rows[0];
+      
+      if (!settings) {
+        return res.json({ configured: false });
+      }
 
-    res.json({
-      configured: true,
-      channelId: settings.channelId,
-      channelName: settings.channelName,
-      isActive: settings.isActive,
-      hasToken: !!settings.botToken,
-      slackScheduled: settings.slackScheduled ?? true,
-      slackPublished: settings.slackPublished ?? true,
-      slackFailed: settings.slackFailed ?? true
-    });
+      res.json({
+        configured: true,
+        channelId: settings.channelId,
+        channelName: settings.channelName,
+        isActive: settings.isActive,
+        hasToken: !!settings.botToken,
+        slackScheduled: settings.slackScheduled ?? true,
+        slackPublished: settings.slackPublished ?? true,
+        slackFailed: settings.slackFailed ?? true
+      });
+    } else {
+      res.json({ configured: false });
+    }
   } catch (error) {
     console.error('Error fetching Slack settings:', error);
     res.status(500).json({ error: 'Failed to fetch settings' });
@@ -588,20 +650,18 @@ app.post('/api/slack/settings', getUserId, async (req, res) => {
       return res.status(400).json({ error: 'Bot token and channel ID are required' });
     }
 
-    const now = new Date().toISOString();
+    if (dbType === 'postgres') {
+      const now = new Date().toISOString();
 
-    // Store settings in memory
-    slackSettings[req.userId] = {
-      botToken,
-      channelId,
-      channelName,
-      isActive: true,
-      slackScheduled: true,
-      slackPublished: true,
-      slackFailed: true,
-      createdAt: now,
-      updatedAt: now
-    };
+      // Upsert settings with default notification preferences
+      await db.query(`
+        INSERT INTO slack_settings 
+        ("userId", "botToken", "channelId", "channelName", "isActive", "slackScheduled", "slackPublished", "slackFailed", "createdAt", "updatedAt")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT ("userId") DO UPDATE SET
+        "botToken" = $2, "channelId" = $3, "channelName" = $4, "isActive" = $5, "updatedAt" = $10
+      `, [req.userId, botToken, channelId, channelName, true, true, true, true, now, now]);
+    }
 
     res.json({ success: true, message: 'Slack settings saved successfully' });
   } catch (error) {
@@ -620,25 +680,38 @@ app.get('/api/slack/status', getUserId, async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    const settings = slackSettings[req.userId];
+    if (dbType === 'postgres') {
+      const result = await db.query(
+        'SELECT "botToken", "channelId", "isActive" FROM slack_settings WHERE "userId" = $1',
+        [req.userId]
+      );
+      
+      const settings = result.rows[0];
 
-    if (!settings) {
-      console.log(`No Slack settings found for user: ${req.userId}`);
-      return res.json({
+      if (!settings) {
+        console.log(`No Slack settings found for user: ${req.userId}`);
+        return res.json({
+          connected: false,
+          tokenConfigured: false,
+          channelConfigured: false
+        });
+      }
+
+      const status = {
+        connected: settings.isActive && !!settings.botToken && !!settings.channelId,
+        tokenConfigured: !!settings.botToken,
+        channelConfigured: !!settings.channelId
+      };
+      
+      console.log(`Slack status for user ${req.userId}:`, status);
+      res.json(status);
+    } else {
+      res.json({
         connected: false,
         tokenConfigured: false,
         channelConfigured: false
       });
     }
-
-    const status = {
-      connected: settings.isActive && !!settings.botToken && !!settings.channelId,
-      tokenConfigured: !!settings.botToken,
-      channelConfigured: !!settings.channelId
-    };
-    
-    console.log(`Slack status for user ${req.userId}:`, status);
-    res.json(status);
   } catch (error) {
     console.error('Error checking Slack status:', error);
     res.status(500).json({ error: 'Failed to check status' });

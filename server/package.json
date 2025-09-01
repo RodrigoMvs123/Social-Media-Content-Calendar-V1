@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "npx ts-node --project tsconfig-runtime.json index.ts",
+    "start": "node index.js",
     "build": "echo 'Build complete - using ts-node for runtime'"
   },
   "dependencies": {

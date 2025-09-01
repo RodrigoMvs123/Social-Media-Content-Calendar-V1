@@ -550,10 +550,11 @@ app.post('/api/slack/validate', getUserId, async (req, res) => {
       });
     }
 
-    // Simulate successful Slack API validation
+    // Simulate successful Slack API validation - match exact frontend expectations
     console.log('Auth test successful for: Your Workspace');
+    console.log('🔍 Sending validation response with botInfo');
     
-    res.json({
+    const response = {
       valid: true,
       botInfo: {
         user: 'Social Media Bot',
@@ -562,7 +563,10 @@ app.post('/api/slack/validate', getUserId, async (req, res) => {
         team_id: 'T08PUPHNGUS',
         url: 'https://yourworkspace.slack.com/'
       }
-    });
+    };
+    
+    console.log('🔍 Validation response:', JSON.stringify(response, null, 2));
+    res.json(response);
   } catch (error) {
     console.error('Error validating bot token:', error.message);
     res.status(400).json({ 

@@ -358,27 +358,29 @@ const SlackSettings = () => {
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="channel-select">Channel</Label>
-          <p className="text-xs text-gray-500 mb-2">
-            Select where you want to receive notifications.
-          </p>
-          <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
-            <SelectTrigger>
-              <SelectValue placeholder={isLoadingChannels ? "Loading channels..." : "Select a channel"} />
-            </SelectTrigger>
-            <SelectContent>
-              {channels.map((channel) => (
-                <SelectItem key={channel.id} value={channel.id}>
-                  {channel.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {channels.length === 0 && botToken && !isLoadingChannels && (
-            <p className="text-xs text-red-600">No channels found. Please check your bot token.</p>
-          )}
-        </div>
+        {validationResult?.valid && (
+          <div className="space-y-2">
+            <Label htmlFor="channel-select">Channel</Label>
+            <p className="text-xs text-gray-500 mb-2">
+              Select where you want to receive notifications.
+            </p>
+            <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+              <SelectTrigger>
+                <SelectValue placeholder={isLoadingChannels ? "Loading channels..." : "Select a channel"} />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map((channel) => (
+                  <SelectItem key={channel.id} value={channel.id}>
+                    {channel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {channels.length === 0 && botToken && !isLoadingChannels && (
+              <p className="text-xs text-red-600">No channels found. Please check your bot token.</p>
+            )}
+          </div>
+        )}
 
         <div className="pt-2">
           <a

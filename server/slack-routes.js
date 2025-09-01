@@ -298,8 +298,6 @@ router.get('/channels', getUserId, async (req, res) => {
         ? 'Bot token is valid. You may need to invite the bot to channels or create a DM.'
         : `Found ${availableChannels.length} available destinations.`
     });
-
-    res.json({ channels: availableChannels });
   } catch (error) {
     console.error('Error fetching Slack channels:', error);
     res.status(400).json({ 

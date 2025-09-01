@@ -314,15 +314,18 @@ app.get('/api/calendar', (req, res) => {
   res.json([]);
 });
 
+// In-memory storage for posts
+let posts = [];
 let postsCallCount = 0;
+
 app.get('/api/posts', (req, res) => {
   postsCallCount++;
-  console.log(`GET /api/posts called - Call #${postsCallCount}`);
+  console.log(`GET /api/posts called - Call #${postsCallCount} - Returning ${posts.length} posts`);
   
-  // Return empty array but add delay to prevent rapid loops
+  // Return actual posts with longer delay to reduce rapid calls
   setTimeout(() => {
-    res.json([]);
-  }, 50);
+    res.json(posts);
+  }, 200);
 });
 
 app.post('/api/posts', (req, res) => {
@@ -333,7 +336,7 @@ app.post('/api/posts', (req, res) => {
     return res.status(400).json({ error: 'Content, platform, and scheduled time required' });
   }
   
-  // Return the created post object that frontend expects
+  // Create and store the post
   const newPost = {
     id: Date.now(),
     content,
@@ -343,6 +346,10 @@ app.post('/api/posts', (req, res) => {
     createdAt: new Date().toISOString()
   };
   
+  // Add to posts array
+  posts.push(newPost);
+  
+  console.log('Post created and stored. Total posts:', posts.length);
   console.log('Sending response:', newPost);
   res.status(201).json(newPost);
 });

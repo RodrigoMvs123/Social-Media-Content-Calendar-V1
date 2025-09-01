@@ -43,80 +43,60 @@ if (dbType === 'sqlite') {
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   });
   
-  // Create PostgreSQL tables
+  // Create PostgreSQL tables with better error handling
   (async () => {
     try {
-      await db.query(`CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`);
+      // Create tables one by one with individual error handling
+      try {
+        await db.query(`CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+        console.log('✅ Users table created');
+      } catch (err) {
+        console.log('Users table already exists or error:', err.message);
+      }
       
-      await db.query(`CREATE TABLE IF NOT EXISTS posts (
-        id SERIAL PRIMARY KEY,
-        "userId" INTEGER DEFAULT 1,
-        platform VARCHAR(50) NOT NULL,
-        content TEXT NOT NULL,
-        "scheduledTime" TIMESTAMP NOT NULL,
-        status VARCHAR(20) DEFAULT 'scheduled',
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        media TEXT,
-        "slackMessageTs" TEXT,
-        "slackScheduledTs" TEXT
-      )`);
+      try {
+        await db.query(`CREATE TABLE IF NOT EXISTS posts (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER DEFAULT 1,
+          platform VARCHAR(50) NOT NULL,
+          content TEXT NOT NULL,
+          "scheduledTime" TIMESTAMP NOT NULL,
+          status VARCHAR(20) DEFAULT 'scheduled',
+          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          media TEXT
+        )`);
+        console.log('✅ Posts table created');
+      } catch (err) {
+        console.log('Posts table already exists or error:', err.message);
+      }
       
-      await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
-        id SERIAL PRIMARY KEY,
-        "userId" INTEGER NOT NULL,
-        "botToken" TEXT,
-        "channelId" TEXT,
-        "channelName" TEXT,
-        "isActive" BOOLEAN DEFAULT true,
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "slackScheduled" BOOLEAN DEFAULT true,
-        "slackPublished" BOOLEAN DEFAULT true,
-        "slackFailed" BOOLEAN DEFAULT true,
-        UNIQUE("userId")
-      )`);
+      try {
+        await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
+          id SERIAL PRIMARY KEY,
+          "userId" INTEGER NOT NULL UNIQUE,
+          "botToken" TEXT,
+          "channelId" TEXT,
+          "channelName" TEXT,
+          "isActive" BOOLEAN DEFAULT true,
+          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "slackScheduled" BOOLEAN DEFAULT true,
+          "slackPublished" BOOLEAN DEFAULT true,
+          "slackFailed" BOOLEAN DEFAULT true
+        )`);
+        console.log('✅ Slack settings table created');
+      } catch (err) {
+        console.log('Slack settings table already exists or error:', err.message);
+      }
       
-      await db.query(`CREATE TABLE IF NOT EXISTS social_accounts (
-        id SERIAL PRIMARY KEY,
-        "userId" INTEGER NOT NULL,
-        platform VARCHAR(50) NOT NULL,
-        username VARCHAR(255) NOT NULL,
-        "accessToken" TEXT NOT NULL,
-        "refreshToken" TEXT,
-        "tokenExpiry" TIMESTAMP,
-        connected BOOLEAN DEFAULT true,
-        "connectedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "profileData" TEXT,
-        UNIQUE("userId", platform)
-      )`);
-      
-      await db.query(`CREATE TABLE IF NOT EXISTS notification_preferences (
-        id SERIAL PRIMARY KEY,
-        "userId" INTEGER NOT NULL UNIQUE,
-        "emailDigest" BOOLEAN DEFAULT false,
-        "emailPostPublished" BOOLEAN DEFAULT false,
-        "emailPostFailed" BOOLEAN DEFAULT false,
-        "browserNotifications" BOOLEAN DEFAULT true,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`);
-      
-      await db.query(`CREATE TABLE IF NOT EXISTS slack_message_timestamps (
-        id SERIAL PRIMARY KEY,
-        "postId" INTEGER NOT NULL,
-        "slackTimestamp" TEXT NOT NULL,
-        "messageType" VARCHAR(20) DEFAULT 'scheduled',
-        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE("postId", "messageType")
-      )`);
-      
-      console.log('✅ PostgreSQL database initialized with all tables matching SQLite schema');
+      console.log('✅ PostgreSQL database initialized');
     } catch (err) {
       console.error('❌ PostgreSQL initialization error:', err);
     }

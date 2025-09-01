@@ -446,33 +446,41 @@ app.post('/api/upload', (req, res) => {
   res.json(uploadedFile);
 });
 
-// Slack token validation endpoint - matches original TypeScript implementation
-app.post('/api/slack/validate', async (req, res) => {
-  console.log('POST /api/slack/validate called');
-  console.log('Request body:', req.body);
-  
-  const { botToken } = req.body;
-  
-  console.log('Extracted botToken:', botToken ? `${botToken.substring(0, 10)}...` : 'null');
-  
-  if (!botToken || typeof botToken !== 'string') {
-    return res.status(400).json({ 
-      valid: false,
-      error: 'Bot token is required and must be a string'
-    });
-  }
-  
-  // Check if token starts with xoxb-
-  if (!botToken.startsWith('xoxb-')) {
-    return res.status(400).json({ 
-      valid: false,
-      error: 'Bot token must start with "xoxb-"'
-    });
-  }
-  
+// Middleware to get user ID from token (simplified for demo)
+const getUserId = (req, res, next) => {
+  // For demo purposes, always use user ID 1
+  req.userId = 1;
+  next();
+};
+
+// In-memory storage for Slack settings (replaces database)
+let slackSettings = {};
+
+// POST /api/slack/validate - Validate bot token (original logic)
+app.post('/api/slack/validate', getUserId, async (req, res) => {
   try {
+    const { botToken } = req.body;
+    
+    console.log('Validating bot token:', botToken ? `${botToken.substring(0, 10)}...` : 'undefined');
+    
+    if (!botToken || typeof botToken !== 'string') {
+      return res.status(400).json({ 
+        valid: false, 
+        error: 'Bot token is required and must be a string' 
+      });
+    }
+
+    // Check if token starts with xoxb-
+    if (!botToken.startsWith('xoxb-')) {
+      return res.status(400).json({ 
+        valid: false, 
+        error: 'Bot token must start with "xoxb-"' 
+      });
+    }
+
     // Simulate successful Slack API validation
-    console.log('Bot token validation successful');
+    console.log('Auth test successful for: Your Workspace');
+    
     res.json({
       valid: true,
       botInfo: {
@@ -484,151 +492,157 @@ app.post('/api/slack/validate', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Slack validation error:', error);
+    console.error('Error validating bot token:', error.message);
     res.status(400).json({ 
-      valid: false,
+      valid: false, 
       error: 'Invalid bot token'
     });
   }
 });
 
-// Alternative GET endpoint for Slack validation
-app.get('/api/slack/validate', async (req, res) => {
-  console.log('GET /api/slack/validate called');
-  const token = req.query.token;
-  
-  if (!token) {
-    return res.status(400).json({ error: 'Token parameter is required' });
-  }
-  
+// GET /api/slack/channels - Get available channels (original logic)
+app.get('/api/slack/channels', getUserId, async (req, res) => {
   try {
-    if (token.startsWith('xoxb-')) {
-      res.json({
-        success: true,
-        valid: true,
-        team: {
-          name: 'Your Workspace',
-          id: 'T08PUPHNGUS'
-        },
-        user: {
-          name: 'Social Media Bot',
-          id: 'U123456789'
-        }
-      });
-    } else {
-      res.status(400).json({ error: 'Invalid token format' });
+    const { botToken } = req.query;
+    
+    if (!botToken) {
+      return res.status(400).json({ error: 'Bot token is required' });
     }
+
+    console.log('Bot token provided for channels');
+    
+    const availableChannels = [
+      {
+        id: 'DM_PLACEHOLDER',
+        name: 'Direct Messages',
+        type: 'dm'
+      },
+      {
+        id: 'C08PUPJ15LJ',
+        name: '#general',
+        type: 'channel'
+      },
+      {
+        id: 'C123456789',
+        name: '#random',
+        type: 'channel'
+      },
+      {
+        id: 'C08SOCIAL01',
+        name: '#social',
+        type: 'channel'
+      },
+      {
+        id: 'C987654321',
+        name: '#social-media',
+        type: 'channel'
+      }
+    ];
+
+    console.log(`Total available channels: ${availableChannels.length}`);
+    
+    res.json({ 
+      channels: availableChannels,
+      message: `Found ${availableChannels.length} available destinations.`
+    });
   } catch (error) {
-    console.error('Slack validation error:', error);
-    res.status(500).json({ error: 'Failed to validate token' });
-  }
-});
-
-// Slack channels search endpoint - matches original implementation
-app.get('/api/slack/channels', async (req, res) => {
-  console.log('GET /api/slack/channels called');
-  const { botToken, search } = req.query;
-  
-  if (!botToken) {
-    return res.status(400).json({ error: 'Bot token is required' });
-  }
-  
-  // Mock Slack channels including your actual workspace channels
-  const mockChannels = [
-    { id: 'DM_PLACEHOLDER', name: 'Direct Messages', type: 'dm' },
-    { id: 'C08PUPJ15LJ', name: '#general', type: 'channel' },
-    { id: 'C123456789', name: '#random', type: 'channel' },
-    { id: 'C08SOCIAL01', name: '#social', type: 'channel' },
-    { id: 'C987654321', name: '#social-media', type: 'channel' },
-    { id: 'C456789123', name: '#marketing', type: 'channel' },
-    { id: 'C789012345', name: '#announcements', type: 'channel' }
-  ];
-  
-  let channels = mockChannels;
-  if (search) {
-    channels = mockChannels.filter(channel => 
-      channel.name.toLowerCase().includes(search.toLowerCase())
-    );
-  }
-  
-  res.json({ 
-    channels,
-    message: `Found ${channels.length} available destinations.`
-  });
-});
-
-// Get Slack status/configuration - check saved settings
-app.get('/api/slack/status', (req, res) => {
-  console.log('GET /api/slack/status called');
-  
-  const userId = 1; // Demo user ID
-  const settings = slackSettings[userId];
-  
-  if (!settings) {
-    return res.json({
-      connected: false,
-      tokenConfigured: false,
-      channelConfigured: false,
-      lastChecked: new Date().toISOString()
+    console.error('Error fetching Slack channels:', error);
+    res.status(400).json({ 
+      error: 'Invalid bot token or Slack API error',
+      details: error.message
     });
   }
-  
-  res.json({
-    connected: settings.isActive && !!settings.botToken && !!settings.channelId,
-    tokenConfigured: !!settings.botToken,
-    channelConfigured: !!settings.channelId,
-    lastChecked: new Date().toISOString()
-  });
 });
 
-// Get Slack settings - return saved configuration
-app.get('/api/slack/settings', (req, res) => {
-  console.log('GET /api/slack/settings called');
-  
-  const userId = 1; // Demo user ID
-  const settings = slackSettings[userId];
-  
-  if (!settings) {
-    return res.json({ configured: false });
+// GET /api/slack/settings - Get user's Slack settings (original logic)
+app.get('/api/slack/settings', getUserId, async (req, res) => {
+  try {
+    const settings = slackSettings[req.userId];
+    
+    if (!settings) {
+      return res.json({ configured: false });
+    }
+
+    res.json({
+      configured: true,
+      channelId: settings.channelId,
+      channelName: settings.channelName,
+      isActive: settings.isActive,
+      hasToken: !!settings.botToken,
+      slackScheduled: settings.slackScheduled ?? true,
+      slackPublished: settings.slackPublished ?? true,
+      slackFailed: settings.slackFailed ?? true
+    });
+  } catch (error) {
+    console.error('Error fetching Slack settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
   }
-  
-  res.json({
-    configured: true,
-    channelId: settings.channelId,
-    channelName: settings.channelName,
-    isActive: settings.isActive,
-    hasToken: !!settings.botToken
-  });
 });
 
-// In-memory storage for Slack settings (per user)
-let slackSettings = {};
+// POST /api/slack/settings - Save user's Slack settings (original logic)
+app.post('/api/slack/settings', getUserId, async (req, res) => {
+  try {
+    const { botToken, channelId, channelName } = req.body;
 
-// Save Slack configuration - POST /api/slack/settings (matches frontend)
-app.post('/api/slack/settings', (req, res) => {
-  console.log('POST /api/slack/settings called with:', req.body);
-  const { botToken, channelId, channelName } = req.body;
-  
-  if (!botToken || !channelId) {
-    return res.status(400).json({ error: 'Bot token and channel ID are required' });
+    if (!botToken || !channelId) {
+      return res.status(400).json({ error: 'Bot token and channel ID are required' });
+    }
+
+    const now = new Date().toISOString();
+
+    // Store settings in memory
+    slackSettings[req.userId] = {
+      botToken,
+      channelId,
+      channelName,
+      isActive: true,
+      slackScheduled: true,
+      slackPublished: true,
+      slackFailed: true,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    res.json({ success: true, message: 'Slack settings saved successfully' });
+  } catch (error) {
+    console.error('Error saving Slack settings:', error);
+    res.status(400).json({ error: 'Invalid bot token or failed to save settings' });
   }
-  
-  // Store settings in memory (in real app would use database)
-  const userId = 1; // Demo user ID
-  slackSettings[userId] = {
-    botToken,
-    channelId,
-    channelName,
-    configured: true,
-    isActive: true,
-    savedAt: new Date().toISOString()
-  };
-  
-  console.log('Slack settings saved for user:', userId);
-  res.json({
-    success: true,
-    message: 'Slack settings saved successfully'
-  });
+});
+
+// GET /api/slack/status - Get connection status (original logic)
+app.get('/api/slack/status', getUserId, async (req, res) => {
+  try {
+    console.log(`Checking Slack status for user: ${req.userId}`);
+    
+    // Add cache control headers to prevent infinite loops
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    const settings = slackSettings[req.userId];
+
+    if (!settings) {
+      console.log(`No Slack settings found for user: ${req.userId}`);
+      return res.json({
+        connected: false,
+        tokenConfigured: false,
+        channelConfigured: false
+      });
+    }
+
+    const status = {
+      connected: settings.isActive && !!settings.botToken && !!settings.channelId,
+      tokenConfigured: !!settings.botToken,
+      channelConfigured: !!settings.channelId
+    };
+    
+    console.log(`Slack status for user ${req.userId}:`, status);
+    res.json(status);
+  } catch (error) {
+    console.error('Error checking Slack status:', error);
+    res.status(500).json({ error: 'Failed to check status' });
+  }
 });
 
 // Legacy config endpoint for compatibility

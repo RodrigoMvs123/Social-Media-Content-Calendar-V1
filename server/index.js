@@ -446,6 +446,80 @@ app.post('/api/upload', (req, res) => {
   res.json(uploadedFile);
 });
 
+// Slack token validation endpoint
+app.post('/api/slack/validate', async (req, res) => {
+  console.log('POST /api/slack/validate called');
+  const { token } = req.body;
+  
+  if (!token) {
+    return res.status(400).json({ error: 'Token is required' });
+  }
+  
+  try {
+    // Simulate Slack API validation
+    if (token.startsWith('xoxb-')) {
+      res.json({
+        success: true,
+        valid: true,
+        team: {
+          name: 'Your Workspace',
+          id: 'T08PUPHNGUS'
+        },
+        user: {
+          name: 'Social Media Bot',
+          id: 'U123456789'
+        }
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid token format' });
+    }
+  } catch (error) {
+    console.error('Slack validation error:', error);
+    res.status(500).json({ error: 'Failed to validate token' });
+  }
+});
+
+// Slack channels search endpoint
+app.get('/api/slack/channels', async (req, res) => {
+  console.log('GET /api/slack/channels called');
+  const { search } = req.query;
+  
+  // Mock Slack channels
+  const mockChannels = [
+    { id: 'C08PUPJ15LJ', name: 'general', is_member: true },
+    { id: 'C123456789', name: 'random', is_member: true },
+    { id: 'C987654321', name: 'social-media', is_member: false },
+    { id: 'C456789123', name: 'marketing', is_member: true }
+  ];
+  
+  let channels = mockChannels;
+  if (search) {
+    channels = mockChannels.filter(channel => 
+      channel.name.toLowerCase().includes(search.toLowerCase())
+    );
+  }
+  
+  res.json({ channels });
+});
+
+// Save Slack configuration
+app.post('/api/slack/config', (req, res) => {
+  console.log('POST /api/slack/config called with:', req.body);
+  const { token, channelId, webhookUrl } = req.body;
+  
+  // In a real app, you'd save this to database
+  // For now, just return success
+  res.json({
+    success: true,
+    message: 'Slack configuration saved successfully',
+    config: {
+      token: token ? '***' + token.slice(-4) : null,
+      channelId,
+      webhookUrl: webhookUrl ? '***' + webhookUrl.slice(-10) : null
+    }
+  });
+});
+
 // Social accounts endpoint
 app.get('/social-accounts', (req, res) => {
   console.log('GET /social-accounts called');

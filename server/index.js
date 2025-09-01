@@ -449,14 +449,60 @@ app.post('/api/upload', (req, res) => {
 // Slack token validation endpoint
 app.post('/api/slack/validate', async (req, res) => {
   console.log('POST /api/slack/validate called');
-  const { token } = req.body;
+  console.log('Request body:', req.body);
+  console.log('Request headers:', req.headers);
+  
+  // Try to get token from different possible locations
+  const token = req.body.token || req.body.slackToken || req.query.token;
+  
+  console.log('Extracted token:', token ? `${token.substring(0, 10)}...` : 'null');
   
   if (!token) {
-    return res.status(400).json({ error: 'Token is required' });
+    console.log('No token found in request');
+    return res.status(400).json({ 
+      error: 'Token is required',
+      debug: {
+        bodyKeys: Object.keys(req.body),
+        hasToken: !!req.body.token,
+        hasSlackToken: !!req.body.slackToken
+      }
+    });
   }
   
   try {
     // Simulate Slack API validation
+    if (token.startsWith('xoxb-')) {
+      res.json({
+        success: true,
+        valid: true,
+        team: {
+          name: 'Your Workspace',
+          id: 'T08PUPHNGUS'
+        },
+        user: {
+          name: 'Social Media Bot',
+          id: 'U123456789'
+        }
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid token format' });
+    }
+  } catch (error) {
+    console.error('Slack validation error:', error);
+    res.status(500).json({ error: 'Failed to validate token' });
+  }
+});
+
+// Alternative GET endpoint for Slack validation
+app.get('/api/slack/validate', async (req, res) => {
+  console.log('GET /api/slack/validate called');
+  const token = req.query.token;
+  
+  if (!token) {
+    return res.status(400).json({ error: 'Token parameter is required' });
+  }
+  
+  try {
     if (token.startsWith('xoxb-')) {
       res.json({
         success: true,

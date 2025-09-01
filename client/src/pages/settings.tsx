@@ -117,7 +117,7 @@ const Settings = () => {
             </TabsList>
             
             <TabsContent value="slack">
-              <SlackSettingsFixed />
+              <SlackSettings />
             </TabsContent>
             
             <TabsContent value="notifications">

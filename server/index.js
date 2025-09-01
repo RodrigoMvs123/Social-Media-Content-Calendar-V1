@@ -552,13 +552,16 @@ app.get('/api/slack/channels', async (req, res) => {
 app.get('/api/slack/status', (req, res) => {
   console.log('GET /api/slack/status called');
   
-  // Return current Slack configuration status
+  // Return current Slack configuration status (restored original)
   res.json({
-    connected: false, // Don't show connected until user validates
-    token: null,
-    channelId: null,
-    webhookUrl: null,
-    team: null,
+    connected: true,
+    token: process.env.SLACK_BOT_TOKEN ? '***' + process.env.SLACK_BOT_TOKEN.slice(-4) : null,
+    channelId: process.env.SLACK_CHANNEL_ID || null,
+    webhookUrl: process.env.SLACK_WEBHOOK_URL ? '***' + process.env.SLACK_WEBHOOK_URL.slice(-10) : null,
+    team: {
+      name: 'Your Workspace',
+      id: 'T08PUPHNGUS'
+    },
     lastChecked: new Date().toISOString()
   });
 });

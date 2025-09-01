@@ -69,7 +69,7 @@ if (dbType === 'sqlite') {
       
       await db.query(`CREATE TABLE IF NOT EXISTS slack_settings (
         id SERIAL PRIMARY KEY,
-        "userId" INTEGER DEFAULT 1 UNIQUE,
+        "userId" INTEGER DEFAULT 1,
         "botToken" VARCHAR(255),
         "channelId" VARCHAR(50),
         "channelName" VARCHAR(100),
@@ -78,7 +78,8 @@ if (dbType === 'sqlite') {
         "slackPublished" BOOLEAN DEFAULT true,
         "slackFailed" BOOLEAN DEFAULT true,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE("userId")
       )`);
       
       console.log('✅ PostgreSQL database initialized with posts and slack_settings tables');

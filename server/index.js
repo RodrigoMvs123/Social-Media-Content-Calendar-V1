@@ -63,13 +63,14 @@ if (dbType === 'sqlite') {
       try {
         await db.query(`CREATE TABLE IF NOT EXISTS posts (
           id SERIAL PRIMARY KEY,
-          "userId" INTEGER DEFAULT 1,
+          userid INTEGER DEFAULT 1,
           platform VARCHAR(50) NOT NULL,
           content TEXT NOT NULL,
-          "scheduledTime" TIMESTAMP NOT NULL,
+          scheduledtime TIMESTAMP NOT NULL,
           status VARCHAR(20) DEFAULT 'scheduled',
-          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          publishedat TIMESTAMP,
           media TEXT
         )`);
         console.log('✅ Posts table created');
@@ -368,15 +369,15 @@ app.get('/api/posts', async (req, res) => {
   try {
     let result;
     if (dbType === 'postgres') {
-      result = await db.query('SELECT * FROM posts ORDER BY "createdAt" DESC');
+      result = await db.query('SELECT * FROM posts ORDER BY createdat DESC');
       const posts = result.rows;
       
       // Update post statuses based on scheduled time
       const now = new Date();
       for (const post of posts) {
-        if (post.status === 'scheduled' && new Date(post.scheduledTime) <= now) {
+        if (post.status === 'scheduled' && new Date(post.scheduledtime) <= now) {
           await db.query(
-            'UPDATE posts SET status = $1, "publishedAt" = $2 WHERE id = $3',
+            'UPDATE posts SET status = $1, publishedat = $2 WHERE id = $3',
             ['published', now.toISOString(), post.id]
           );
           post.status = 'published';
@@ -408,7 +409,7 @@ app.post('/api/posts', async (req, res) => {
   try {
     if (dbType === 'postgres') {
       const result = await db.query(`
-        INSERT INTO posts ("userId", content, platform, "scheduledTime", status, "createdAt", "updatedAt", media)
+        INSERT INTO posts (userid, content, platform, scheduledtime, status, createdat, updatedat, media)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `, [

@@ -362,13 +362,18 @@ router.get('/settings', getUserId, async (req, res) => {
 // DELETE /api/slack/disconnect - Disconnect Slack integration
 router.delete('/disconnect', getUserId, async (req, res) => {
   try {
-    const db = await getDb();
-    
-    // Delete user's Slack settings
-    const result = await db.run(
-      'DELETE FROM slack_settings WHERE userId = ?',
-      [req.userId]
-    );
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      await database.run(
+        'DELETE FROM slack_settings WHERE userId = ?',
+        [req.userId]
+      );
+    } else {
+      await db.query(
+        'DELETE FROM slack_settings WHERE userid = $1',
+        [req.userId]
+      );
+    }
     
     console.log(`Slack integration disconnected for user: ${req.userId}`);
     
@@ -447,18 +452,29 @@ router.post('/preferences', getUserId, async (req, res) => {
       slackFailed
     });
     
-    const db = await getDb();
     const now = new Date().toISOString();
     
-    // Update notification preferences
-    const result = await db.run(`
-      UPDATE slack_settings 
-      SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
-      WHERE userId = ?
-    `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Slack settings not found. Please configure Slack integration first.' });
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      const result = await database.run(`
+        UPDATE slack_settings 
+        SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
+        WHERE userId = ?
+      `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Slack settings not found. Please configure Slack integration first.' });
+      }
+    } else {
+      const result = await db.query(`
+        UPDATE slack_settings 
+        SET slackscheduled = $1, slackpublished = $2, slackfailed = $3, updatedat = $4
+        WHERE userid = $5
+      `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
+      
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Slack settings not found. Please configure Slack integration first.' });
+      }
     }
     
     console.log('✅ Slack preferences updated successfully');
@@ -472,11 +488,29 @@ router.post('/preferences', getUserId, async (req, res) => {
 // POST /api/slack/test - Test Slack connection
 router.post('/test', getUserId, async (req, res) => {
   try {
-    const db = await getDb();
-    const settings = await db.get(
-      'SELECT botToken, channelId, channelName FROM slack_settings WHERE userId = ?',
-      [req.userId]
-    );
+    let settings;
+    
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      settings = await database.get(
+        'SELECT botToken, channelId, channelName FROM slack_settings WHERE userId = ?',
+        [req.userId]
+      );
+    } else {
+      const result = await db.query(
+        'SELECT bottoken, channelid, channelname FROM slack_settings WHERE userid = $1',
+        [req.userId]
+      );
+      settings = result.rows[0];
+      
+      if (settings) {
+        settings = {
+          botToken: settings.bottoken,
+          channelId: settings.channelid,
+          channelName: settings.channelname
+        };
+      }
+    }
 
     if (!settings) {
       return res.status(400).json({ error: 'No Slack settings found' });

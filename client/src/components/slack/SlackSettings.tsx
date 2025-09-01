@@ -237,37 +237,7 @@ const SlackSettings = () => {
     }
   };
 
-  const handleTestConnection = async () => {
-    setIsTesting(true);
-    try {
-      const authToken = localStorage.getItem('auth_token');
-      const response = await fetch('/api/slack/test', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Test Successful!",
-          description: "Check your Slack channel for the test message.",
-        });
-        // Notify status change
-        slackEvents.emitStatusChange();
-      } else {
-        throw new Error('Test failed');
-      }
-    } catch (error) {
-      toast({
-        title: "Test Failed",
-        description: "Unable to send test message. Please check your settings.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsTesting(false);
-    }
-  };
+
 
   if (error) {
     return (

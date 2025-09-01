@@ -8,7 +8,7 @@ const router = express.Router();
 
 // Add CORS headers for all Slack routes
 router.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -20,11 +20,24 @@ router.use((req, res, next) => {
   }
 });
 
-// Get database connection
-async function getDb() {
-  return await open({
-    filename: process.env.DB_PATH || './data.sqlite',
-    driver: sqlite3.Database
+// Database setup - hybrid approach
+const dbType = process.env.DB_TYPE || 'sqlite';
+let db;
+
+if (dbType === 'sqlite') {
+  // SQLite connection
+  async function getDb() {
+    return await open({
+      filename: process.env.DB_PATH || './data.sqlite',
+      driver: sqlite3.Database
+    });
+  }
+} else {
+  // PostgreSQL connection
+  const { Pool } = require('pg');
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   });
 }
 
@@ -299,11 +312,34 @@ router.get('/channels', getUserId, async (req, res) => {
 // GET /api/slack/settings - Get user's Slack settings
 router.get('/settings', getUserId, async (req, res) => {
   try {
-    const db = await getDb();
-    const settings = await db.get(
-      'SELECT botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed FROM slack_settings WHERE userId = ?',
-      [req.userId]
-    );
+    let settings;
+    
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      settings = await database.get(
+        'SELECT botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed FROM slack_settings WHERE userId = ?',
+        [req.userId]
+      );
+    } else {
+      const result = await db.query(
+        'SELECT bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed FROM slack_settings WHERE userid = $1',
+        [req.userId]
+      );
+      settings = result.rows[0];
+      
+      // Map PostgreSQL lowercase columns to camelCase
+      if (settings) {
+        settings = {
+          botToken: settings.bottoken,
+          channelId: settings.channelid,
+          channelName: settings.channelname,
+          isActive: settings.isactive,
+          slackScheduled: settings.slackscheduled,
+          slackPublished: settings.slackpublished,
+          slackFailed: settings.slackfailed
+        };
+      }
+    }
     
     if (!settings) {
       return res.json({ configured: false });
@@ -363,15 +399,33 @@ router.post('/settings', getUserId, async (req, res) => {
     const slack = new WebClient(botToken);
     await slack.auth.test();
 
-    const db = await getDb();
     const now = new Date().toISOString();
 
-    // Upsert settings with default notification preferences
-    await db.run(`
-      INSERT OR REPLACE INTO slack_settings 
-      (userId, botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, 1, 1, 1, 1, ?, ?)
-    `, [req.userId, botToken, channelId, channelName, now, now]);
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      // Upsert settings with default notification preferences
+      await database.run(`
+        INSERT OR REPLACE INTO slack_settings 
+        (userId, botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, 1, 1, 1, 1, ?, ?)
+      `, [req.userId, botToken, channelId, channelName, now, now]);
+    } else {
+      // First try to update existing record
+      const updateResult = await db.query(`
+        UPDATE slack_settings 
+        SET bottoken = $2, channelid = $3, channelname = $4, isactive = $5, updatedat = $6
+        WHERE userid = $1
+      `, [req.userId, botToken, channelId, channelName, true, now]);
+      
+      // If no rows updated, insert new record
+      if (updateResult.rowCount === 0) {
+        await db.query(`
+          INSERT INTO slack_settings 
+          (userid, bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [req.userId, botToken, channelId, channelName, true, true, true, true, now, now]);
+      }
+    }
 
     res.json({ success: true, message: 'Slack settings saved successfully' });
   } catch (error) {
@@ -455,11 +509,12 @@ router.get('/status', getUserId, async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    const db = await getDb();
-    const settings = await db.get(
-      'SELECT botToken, channelId, isActive FROM slack_settings WHERE userId = ?',
+    const result = await db.query(
+      'SELECT bottoken, channelid, isactive FROM slack_settings WHERE userid = $1',
       [req.userId]
     );
+    
+    const settings = result.rows[0];
 
     if (!settings) {
       console.log(`No Slack settings found for user: ${req.userId}`);
@@ -471,9 +526,9 @@ router.get('/status', getUserId, async (req, res) => {
     }
 
     const status = {
-      connected: settings.isActive && !!settings.botToken && !!settings.channelId,
-      tokenConfigured: !!settings.botToken,
-      channelConfigured: !!settings.channelId
+      connected: settings.isactive && !!settings.bottoken && !!settings.channelid,
+      tokenConfigured: !!settings.bottoken,
+      channelConfigured: !!settings.channelid
     };
     
     console.log(`Slack status for user ${req.userId}:`, status);

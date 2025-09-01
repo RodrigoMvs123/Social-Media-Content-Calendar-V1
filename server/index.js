@@ -557,41 +557,85 @@ app.get('/api/slack/channels', async (req, res) => {
   });
 });
 
-// Get Slack status/configuration - don't show connected until user validates
+// Get Slack status/configuration - check saved settings
 app.get('/api/slack/status', (req, res) => {
   console.log('GET /api/slack/status called');
   
-  // Return disconnected status until user validates through UI
+  const userId = 1; // Demo user ID
+  const settings = slackSettings[userId];
+  
+  if (!settings) {
+    return res.json({
+      connected: false,
+      tokenConfigured: false,
+      channelConfigured: false,
+      lastChecked: new Date().toISOString()
+    });
+  }
+  
   res.json({
-    connected: false,
-    tokenConfigured: false,
-    channelConfigured: false,
+    connected: settings.isActive && !!settings.botToken && !!settings.channelId,
+    tokenConfigured: !!settings.botToken,
+    channelConfigured: !!settings.channelId,
     lastChecked: new Date().toISOString()
   });
 });
 
-// Get Slack settings (same as status for now)
+// Get Slack settings - return saved configuration
 app.get('/api/slack/settings', (req, res) => {
   console.log('GET /api/slack/settings called');
   
+  const userId = 1; // Demo user ID
+  const settings = slackSettings[userId];
+  
+  if (!settings) {
+    return res.json({ configured: false });
+  }
+  
   res.json({
-    token: null,
-    channelId: null,
-    webhookUrl: null,
-    notifications: {
-      enabled: false,
-      channels: []
-    }
+    configured: true,
+    channelId: settings.channelId,
+    channelName: settings.channelName,
+    isActive: settings.isActive,
+    hasToken: !!settings.botToken
   });
 });
 
-// Save Slack configuration
+// In-memory storage for Slack settings (per user)
+let slackSettings = {};
+
+// Save Slack configuration - POST /api/slack/settings (matches frontend)
+app.post('/api/slack/settings', (req, res) => {
+  console.log('POST /api/slack/settings called with:', req.body);
+  const { botToken, channelId, channelName } = req.body;
+  
+  if (!botToken || !channelId) {
+    return res.status(400).json({ error: 'Bot token and channel ID are required' });
+  }
+  
+  // Store settings in memory (in real app would use database)
+  const userId = 1; // Demo user ID
+  slackSettings[userId] = {
+    botToken,
+    channelId,
+    channelName,
+    configured: true,
+    isActive: true,
+    savedAt: new Date().toISOString()
+  };
+  
+  console.log('Slack settings saved for user:', userId);
+  res.json({
+    success: true,
+    message: 'Slack settings saved successfully'
+  });
+});
+
+// Legacy config endpoint for compatibility
 app.post('/api/slack/config', (req, res) => {
   console.log('POST /api/slack/config called with:', req.body);
   const { token, channelId, webhookUrl } = req.body;
   
-  // In a real app, you'd save this to database
-  // For now, just return success
   res.json({
     success: true,
     message: 'Slack configuration saved successfully',

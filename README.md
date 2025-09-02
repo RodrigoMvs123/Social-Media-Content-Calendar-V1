@@ -4,6 +4,13 @@ README.md
 
 A modern web application for planning and scheduling social media content across multiple platforms.
 
+## 🚀 Live Demo
+
+The application is deployed and available at:
+**https://social-media-content-calendar-v1.onrender.com/**
+
+*Note: This is a production deployment on Render.com with full functionality including PostgreSQL database, Slack integration, and AI content generation.*
+
 ## Technologies Used
 
 - React with TypeScript
@@ -94,31 +101,42 @@ This application uses OAuth for real social media integration.
 To connect your social media accounts:
 
 1. Register as a developer on each platform:
-   - X (formerly Twitter): [X Developer Portal](https://developer.twitter.com/)
-   - LinkedIn: [LinkedIn Developer Portal](https://developer.linkedin.com/)
-   - Facebook/Instagram: [Meta for Developers](https://developers.facebook.com/)
+   - **X**: [X Developer Portal](https://developer.x.com/)
+   - **LinkedIn**: [LinkedIn Developer Portal](https://developer.linkedin.com/)
+   - **Facebook/Instagram**: [Meta for Developers](https://developers.facebook.com/)
 
 2. Create an application in their developer portals
 
 3. Configure the redirect URLs in each platform's developer portal:
+
+   > **Important**: These URLs are configured in the **external platform developer portals** (X, LinkedIn, Facebook, Instagram), NOT in your code files.
    
    **For Development (localhost):**
-   - **X (Twitter)**: `http://localhost:3001/api/oauth/callback/twitter`
-   - **LinkedIn**: `http://localhost:3001/api/oauth/callback/linkedin`
-   - **Facebook**: `http://localhost:3001/api/oauth/callback/facebook`
-   - **Instagram**: `http://localhost:3001/api/oauth/callback/instagram`
+   - **X Developer Portal**: Add `http://localhost:3001/api/oauth/callback/x`
+   - **LinkedIn Developer Portal**: Add `http://localhost:3001/api/oauth/callback/linkedin`
+   - **Facebook Developer Portal**: Add `http://localhost:3001/api/oauth/callback/facebook`
+   - **Instagram Developer Portal**: Add `http://localhost:3001/api/oauth/callback/instagram`
    
-   **For Production:**
-   - **X (Twitter)**: `https://yourdomain.com/api/oauth/callback/twitter`
-   - **LinkedIn**: `https://yourdomain.com/api/oauth/callback/linkedin`
-   - **Facebook**: `https://yourdomain.com/api/oauth/callback/facebook`
-   - **Instagram**: `https://yourdomain.com/api/oauth/callback/instagram`
+   **For Production (using this deployment):**
+   - **X Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/x`
+   - **LinkedIn Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/linkedin`
+   - **Facebook Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/facebook`
+   - **Instagram Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/instagram`
+   
+   **For Your Own Deployment:**
+   - Use your own domain instead of `social-media-content-calendar-v1.onrender.com`
+   - Example: `https://yourdomain.com/api/oauth/callback/x`
 
-4. Copy the client ID and secret to **both** `.env` files (root and server directory):
+4. Copy the client ID and secret to **both** `.env` files:
+   
+   **File 1: `/Social-Media-Content-Calendar-V1/.env`**
+   **File 2: `/Social-Media-Content-Calendar-V1/server/.env`**
+   
+   Add these lines to both files:
    ```
    # X (formerly Twitter) OAuth credentials
-   TWITTER_CLIENT_ID=your_x_client_id
-   TWITTER_CLIENT_SECRET=your_x_client_secret
+   X_CLIENT_ID=your_x_client_id
+   X_CLIENT_SECRET=your_x_client_secret
 
    # LinkedIn OAuth credentials
    LINKEDIN_CLIENT_ID=your_linkedin_client_id
@@ -136,10 +154,15 @@ To connect your social media accounts:
 5. Set the client URL in both `.env` files:
    ```
    CLIENT_URL=http://localhost:3000  # For development
-   CLIENT_URL=https://yourdomain.com  # For production
+   CLIENT_URL=https://social-media-content-calendar-v1.onrender.com  # For this deployment
+   CLIENT_URL=https://yourdomain.com  # For your own deployment
    ```
 
    > **Important**: You must add these credentials to both the root `.env` file AND the `server/.env` file, as Node.js sometimes only checks for the nearest environment file.
+   
+   > **File Locations**: 
+   > - Root: `/Social-Media-Content-Calendar-V1/.env`
+   > - Server: `/Social-Media-Content-Calendar-V1/server/.env`
 
 The application is already configured to use these credentials when available.
 

@@ -623,10 +623,12 @@ router.post('/events', async (req, res) => {
     // Handle message events
     if (type === 'event_callback' && event) {
       console.log('📨 Slack event received:', event.type, event.subtype || 'no subtype');
+      console.log('📨 Full event data:', JSON.stringify(event, null, 2));
       
-      // Handle message deletion
-      if (event.type === 'message' && event.subtype === 'message_deleted') {
-        console.log('🗑️ Message deleted in Slack, timestamp:', event.deleted_ts);
+      // Handle message deletion - Slack sends this as a regular message event with deleted_ts
+      if (event.type === 'message' && (event.subtype === 'message_deleted' || event.deleted_ts)) {
+        const deletedTs = event.deleted_ts || event.ts;
+        console.log('🗑️ Message deleted in Slack, timestamp:', deletedTs);
         
         // Find and delete corresponding post
         try {
@@ -636,7 +638,7 @@ router.post('/events', async (req, res) => {
             const database = await getDb();
             const result = await database.run(
               'DELETE FROM posts WHERE slackMessageTs = ?',
-              [event.deleted_ts]
+              [deletedTs]
             );
             deletedCount = result.changes;
             await database.close();
@@ -644,20 +646,29 @@ router.post('/events', async (req, res) => {
           } else {
             const result = await db.query(
               'DELETE FROM posts WHERE slackmessagets = $1',
-              [event.deleted_ts]
+              [deletedTs]
             );
             deletedCount = result.rowCount;
             console.log(`🗑️ Deleted ${deletedCount} post(s) from PostgreSQL database`);
           }
           
           if (deletedCount === 0) {
-            console.log('⚠️ No posts found with Slack timestamp:', event.deleted_ts);
+            console.log('⚠️ No posts found with Slack timestamp:', deletedTs);
           }
           
         } catch (deleteError) {
           console.error('❌ Error deleting post from database:', deleteError);
           console.error('❌ Error details:', deleteError.stack);
         }
+      } else if (event.type === 'message') {
+        console.log('💬 Regular message event:', {
+          type: event.type,
+          subtype: event.subtype,
+          user: event.user,
+          bot_id: event.bot_id,
+          ts: event.ts,
+          text: event.text?.substring(0, 50) + '...'
+        });
       } else {
         console.log('🔕 Ignoring event:', event.type, event.subtype || 'no subtype');
       }

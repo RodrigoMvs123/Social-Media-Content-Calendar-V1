@@ -94,7 +94,7 @@ router.get('/oauth/:platform', (req, res) => {
     return res.status(400).json({ error: `Unsupported platform: ${platform}` });
   }
   
-  // Check if required credentials exist
+  // Check if required credentials exist, if not redirect to developer portal
   const credentialMap = {
     twitter: process.env.TWITTER_CLIENT_ID,
     linkedin: process.env.LINKEDIN_CLIENT_ID,
@@ -102,13 +102,17 @@ router.get('/oauth/:platform', (req, res) => {
     instagram: process.env.INSTAGRAM_CLIENT_ID
   };
   
+  // Developer portal URLs for registration
+  const developerPortals = {
+    twitter: 'https://developer.twitter.com/',
+    linkedin: 'https://developer.linkedin.com/',
+    facebook: 'https://developers.facebook.com/',
+    instagram: 'https://developers.facebook.com/' // Instagram uses Meta for Developers
+  };
+  
   if (!credentialMap[platform]) {
-    console.log(`❌ Missing credentials for ${platform}`);
-    return res.status(400).json({ 
-      error: `${platform.toUpperCase()}_CLIENT_ID not configured. Please add it to your .env file.`,
-      platform,
-      required: `${platform.toUpperCase()}_CLIENT_ID`
-    });
+    console.log(`❌ Missing credentials for ${platform}, redirecting to developer portal`);
+    return res.redirect(developerPortals[platform]);
   }
   
   console.log(`🚀 Redirecting to ${platform} OAuth:`, authUrl);

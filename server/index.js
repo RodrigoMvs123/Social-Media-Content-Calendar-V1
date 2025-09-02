@@ -164,6 +164,10 @@ app.use('/api/slack', slackRoutes);
 app.use('/api/posts', postsRoutes);
 app.use('/api', socialMediaRoutes);
 
+// Start Slack deletion sync
+require('./slack-sync');
+console.log('✅ Slack deletion sync started');
+
 // Authentication routes
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;

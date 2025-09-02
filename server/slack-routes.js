@@ -562,13 +562,22 @@ router.post('/test', getUserId, async (req, res) => {
 // GET /api/slack/events - Test endpoint to verify webhook is reachable
 router.get('/events', (req, res) => {
   console.log('🔍 Slack events endpoint test accessed');
+  console.log('🔍 Headers:', req.headers);
   res.json({ 
     message: 'Slack events endpoint is reachable',
     timestamp: new Date().toISOString(),
     url: req.originalUrl,
     status: 'ready_for_slack_events',
     webhook_url: 'https://social-media-content-calendar-v1.onrender.com/api/slack/events',
-    database_type: dbType
+    database_type: dbType,
+    test_instructions: [
+      '1. Go to api.slack.com/apps',
+      '2. Select your app',
+      '3. Event Subscriptions → Request URL',
+      '4. Enter: https://social-media-content-calendar-v1.onrender.com/api/slack/events',
+      '5. Should show ✅ Verified',
+      '6. If not verified, check server logs for errors'
+    ]
   });
 });
 

@@ -562,7 +562,9 @@ router.get('/events', (req, res) => {
   res.json({ 
     message: 'Slack events endpoint is reachable',
     timestamp: new Date().toISOString(),
-    url: req.originalUrl
+    url: req.originalUrl,
+    status: 'ready_for_slack_events',
+    webhook_url: 'https://social-media-content-calendar-v1.onrender.com/api/slack/events'
   });
 });
 

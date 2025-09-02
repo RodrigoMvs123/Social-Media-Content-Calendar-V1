@@ -465,4 +465,47 @@ router.post('/sync-slack-deletions', async (req, res) => {
   }
 });
 
+// Slack webhook endpoint for real-time deletion detection
+router.post('/slack-webhook', async (req, res) => {
+  try {
+    const { type, challenge, event } = req.body;
+    
+    // Handle URL verification
+    if (type === 'url_verification') {
+      return res.json({ challenge });
+    }
+    
+    // Handle message deletion events
+    if (type === 'event_callback' && event && event.type === 'message' && event.subtype === 'message_deleted') {
+      console.log('🗑️ Slack webhook: Message deleted, timestamp:', event.deleted_ts);
+      
+      // Find and delete corresponding post
+      let deletedCount = 0;
+      
+      if (dbType === 'sqlite') {
+        const database = await getDb();
+        const result = await database.run(
+          'DELETE FROM posts WHERE slackMessageTs = ?',
+          [event.deleted_ts]
+        );
+        deletedCount = result.changes;
+        await database.close();
+      } else {
+        const result = await db.query(
+          'DELETE FROM posts WHERE slackmessagets = $1',
+          [event.deleted_ts]
+        );
+        deletedCount = result.rowCount;
+      }
+      
+      console.log(`🗑️ Webhook: Deleted ${deletedCount} post(s) from database`);
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('❌ Slack webhook error:', error);
+    res.status(500).send('Error');
+  }
+});
+
 module.exports = router;

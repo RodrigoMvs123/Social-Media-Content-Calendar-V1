@@ -339,9 +339,11 @@ router.delete('/:id', async (req, res) => {
           }
         }
         
-        if (slackSettings && slackSettings.botToken) {
+        if (slackSettings && slackSettings.botToken && slackSettings.channelId) {
           const { WebClient } = require('@slack/web-api');
           const slack = new WebClient(slackSettings.botToken);
+          
+          console.log('🗑️ Attempting to delete Slack message from channel:', slackSettings.channelId);
           
           await slack.chat.delete({
             channel: slackSettings.channelId,
@@ -351,6 +353,12 @@ router.delete('/:id', async (req, res) => {
           console.log('✅ Slack message deleted successfully');
         } else {
           console.log('🔕 No Slack settings found, skipping message deletion');
+          console.log('🔕 Settings debug:', {
+            hasSettings: !!slackSettings,
+            hasToken: !!(slackSettings && slackSettings.botToken),
+            hasChannel: !!(slackSettings && slackSettings.channelId),
+            userId: userId
+          });
         }
       } catch (slackError) {
         console.error('❌ Error deleting Slack message:', slackError.message);

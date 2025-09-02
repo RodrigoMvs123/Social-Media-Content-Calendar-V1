@@ -29,11 +29,19 @@ const Settings = () => {
       try {
         let token = localStorage.getItem('auth_token');
         
-        // If no token, create a demo token for user ID 1
+        // If no token, get one from the bypass auth endpoint
         if (!token) {
-          token = 'demo-token-12345';
-          localStorage.setItem('auth_token', token);
-          console.log('🔧 Created demo token for preferences');
+          console.log('🔧 No token found, getting auth token...');
+          const authResponse = await fetch('/api/auth/bypass');
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            token = authData.token;
+            localStorage.setItem('auth_token', token);
+            console.log('🔧 Got auth token:', token);
+          } else {
+            console.error('Failed to get auth token');
+            return;
+          }
         }
         
         const response = await fetch('/api/slack/settings', {
@@ -78,8 +86,14 @@ const Settings = () => {
       
       // Ensure we have a token
       if (!token) {
-        token = 'demo-token-12345';
-        localStorage.setItem('auth_token', token);
+        const authResponse = await fetch('/api/auth/bypass');
+        if (authResponse.ok) {
+          const authData = await authResponse.json();
+          token = authData.token;
+          localStorage.setItem('auth_token', token);
+        } else {
+          throw new Error('Failed to get authentication token');
+        }
       }
       
       const response = await fetch('/api/slack/preferences', {

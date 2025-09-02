@@ -306,6 +306,14 @@ app.options('*', (req, res) => {
 // Bypass authentication completely - always return logged in user
 app.get('/api/auth/bypass', (req, res) => {
   console.log('GET /api/auth/bypass called');
+  
+  // Create a proper JWT token for user ID 1
+  const token = jwt.sign(
+    { userId: 1, email: 'demo@example.com' },
+    process.env.JWT_SECRET || 'fallback-secret',
+    { expiresIn: '24h' }
+  );
+  
   res.json({
     success: true,
     user: {
@@ -313,7 +321,7 @@ app.get('/api/auth/bypass', (req, res) => {
       name: 'Demo User',
       email: 'demo@example.com'
     },
-    token: 'demo-token-12345'
+    token: token
   });
 });
 

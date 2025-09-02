@@ -263,72 +263,42 @@ USE_SERVER_STORAGE=false # For development (localStorage only)
 
 When `USE_SERVER_STORAGE` is false, the application will only use localStorage, making it perfect for demonstrations and development without a backend.
 
-## Slack Bidirectional Sync Setup
+## Slack Integration Setup
 
-The application supports bidirectional synchronization with Slack - when you delete a Slack notification message, the corresponding post is automatically deleted from the webapp.
+The application supports one-way synchronization with Slack - when you delete a post from the dashboard, it automatically deletes the corresponding Slack notification message.
 
 ### Prerequisites
 
 1. **Slack App Configuration**:
    - Create a Slack App at [api.slack.com](https://api.slack.com/apps)
-   - Add your `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_WEBHOOK_URL`, and `SLACK_CHANNEL_ID` to `.env` files
-   - Configure Event Subscriptions (see below)
+   - Add your `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` to both `.env` files
 
-### Event Subscriptions Setup
-
-1. **Go to your Slack App** → **Event Subscriptions**
-2. **Enable Events** → Toggle ON
-3. **Request URL**: Configure based on your environment:
-
-#### For Local Development (VS Code Desktop):
-```bash
-# Install ngrok globally
-npm install -g ngrok
-
-# Start ngrok tunnel (use the port your server runs on)
-ngrok http 3001
-
-# Use the ngrok URL in Slack Event Subscriptions
-https://abc123.ngrok.io/api/slack/events
-```
-
-#### For GitHub Codespaces:
-```
-# Use your Codespace URL
-https://your-codespace-name.app.github.dev/api/slack/events
-```
-
-**⚠️ Important for Codespaces**: Port visibility is set to **private** by default. You must manually make the backend port **public**:
-
-1. **In VS Code**, go to the **"PORTS"** tab (bottom panel)
-2. **Find your backend port** (usually 3001)
-3. **Right-click on the port** → **"Port Visibility"** → **"Public"**
-
-Without making the port public, Slack cannot reach your webhook endpoint and bidirectional sync will not work.
-
-4. **Subscribe to Bot Events**:
-   - `message.channels` - Listen for messages in channels
-   - `message.groups` - Listen for messages in private channels
-   - `message.im` - Listen for direct messages
-
-5. **Required OAuth Scopes**:
-   - `channels:history` - Read messages in channels
+2. **Required OAuth Scopes**:
    - `chat:write` - Send messages
    - `chat:write.public` - Send messages to channels bot isn't in
 
-6. **Add Bot to Channel**:
+3. **Add Bot to Channel**:
    - In your target Slack channel (e.g., #social)
    - Type: `/invite @YourBotName`
    - Or go to channel settings → Integrations → Add your bot
 
-### Testing Bidirectional Sync
+### How It Works
+
+1. **Create a post** in the dashboard → Sends Slack notification
+2. **Delete the post** from dashboard → Automatically deletes Slack message
+3. **Post scheduling** → Sends notifications when posts are ready to publish
+
+### Configuration
+
+Add these to both `.env` files:
+```
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_CHANNEL_ID=your-channel-id
+```
+
+### Testing
 
 1. **Create a post** in the webapp → Should send Slack notification
-2. **Delete the Slack message** → Should automatically delete the post from webapp
-3. **Check server logs** for sync confirmation messages
+2. **Delete the post** from dashboard → Should delete Slack message
+3. **Check Slack channel** for notifications
 
-### Troubleshooting
-
-- **No Slack notifications**: Check bot token and channel configuration
-- **Deletion not syncing**: Ensure bot is added to the channel and port is public (Codespaces)
-- **Webhook errors**: Verify the webhook URL is accessible and Event Subscriptions are configured correctly

@@ -1,96 +1,69 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 
-// Get database connection from environment
-let pool;
+// Database setup - hybrid approach
+const dbType = process.env.DB_TYPE || 'sqlite';
+let db;
 
-// Only initialize PostgreSQL pool if not using SQLite
-if (process.env.DB_TYPE !== 'sqlite') {
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL || process.env.DB_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-  console.log('Connecting to PostgreSQL using environment variables');
+if (dbType === 'sqlite') {
+  const sqlite3 = require('sqlite3');
+  const { open } = require('sqlite');
+  
+  // Initialize SQLite database
+  (async () => {
+    try {
+      db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
+      });
+      console.log('✅ SQLite connected for posts');
+    } catch (error) {
+      console.error('❌ SQLite connection failed:', error);
+    }
+  })();
 } else {
-  console.log('Using SQLite - skipping PostgreSQL connection');
+  const { Pool } = require('pg');
+  db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+  console.log('✅ PostgreSQL connected for posts');
 }
 
-// Check if posts table exists and has the right structure
-(async () => {
-  // Skip PostgreSQL initialization if using SQLite
-  if (process.env.DB_TYPE === 'sqlite') {
-    return;
-  }
-  
-  try {
-    // First check if the table exists
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'posts'
-      );
-    `);
-    
-    const tableExists = tableCheck.rows[0].exists;
-    
-    if (!tableExists) {
-      // Create the table if it doesn't exist
-      console.log('Creating posts table...');
-      await pool.query(`
-        CREATE TABLE posts (
-          id SERIAL PRIMARY KEY,
-          userid INTEGER NOT NULL,
-          platform VARCHAR(50) NOT NULL,
-          content TEXT NOT NULL,
-          scheduledtime TIMESTAMP NOT NULL,
-          status VARCHAR(20) NOT NULL,
-          media JSONB,
-          createdat TIMESTAMP NOT NULL,
-          updatedat TIMESTAMP NOT NULL
-        )
-      `);
-      console.log('Posts table created successfully');
-    } else {
-      // Check if media column exists
-      const columnCheck = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.columns 
-          WHERE table_name = 'posts' AND column_name = 'media'
-        );
-      `);
-      
-      const mediaColumnExists = columnCheck.rows[0].exists;
-      
-      if (!mediaColumnExists) {
-        // Add media column if it doesn't exist
-        console.log('Adding media column to posts table...');
-        await pool.query(`ALTER TABLE posts ADD COLUMN media JSONB;`);
-        console.log('Media column added successfully');
-      }
-    }
-  } catch (error) {
-    console.error('Error setting up posts table:', error);
-  }
-})();
+// Table initialization handled by init-database.js or index.js
 
 // Get all posts
 router.get('/', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM posts ORDER BY scheduledtime DESC');
+    let posts = [];
     
-    // Transform database column names to camelCase for frontend
-    const posts = result.rows.map(row => ({
-      id: row.id,
-      userId: row.userid,
-      platform: row.platform,
-      content: row.content,
-      scheduledTime: row.scheduledtime,
-      status: row.status,
-      media: row.media,
-      createdAt: row.createdat,
-      updatedAt: row.updatedat
-    }));
+    if (dbType === 'sqlite') {
+      const rows = await db.all('SELECT * FROM posts ORDER BY scheduledTime DESC');
+      posts = rows.map(row => ({
+        id: row.id,
+        userId: row.userId,
+        platform: row.platform,
+        content: row.content,
+        scheduledTime: row.scheduledTime,
+        status: row.status,
+        media: row.media ? JSON.parse(row.media) : null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt
+      }));
+    } else {
+      const result = await db.query('SELECT * FROM posts ORDER BY scheduledtime DESC');
+      posts = result.rows.map(row => ({
+        id: row.id,
+        userId: row.userid,
+        platform: row.platform,
+        content: row.content,
+        scheduledTime: row.scheduledtime,
+        status: row.status,
+        media: row.media,
+        createdAt: row.createdat,
+        updatedAt: row.updatedat
+      }));
+    }
     
     res.json(posts);
   } catch (error) {
@@ -103,54 +76,51 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { content, platform, scheduledTime, status, media } = req.body;
-    const userId = req.user?.id || 1; // Default to user 1 if not authenticated
+    const userId = req.user?.id || 1;
+    const now = new Date().toISOString();
     
     console.log('Creating post:', { content, platform, scheduledTime, status });
     
-    // Check if media column exists
-    let includeMedia = false;
-    try {
-      const columnCheck = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.columns 
-          WHERE table_name = 'posts' AND column_name = 'media'
-        );
-      `);
-      includeMedia = columnCheck.rows[0].exists;
-    } catch (err) {
-      console.error('Error checking for media column:', err);
-    }
+    let post;
     
-    let result;
-    if (includeMedia) {
-      // If media column exists, include it in the query
-      result = await pool.query(
-        'INSERT INTO posts (userid, platform, content, scheduledtime, status, media, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *',
-        [userId, platform, content, scheduledTime, status, media ? JSON.stringify(media) : null]
+    if (dbType === 'sqlite') {
+      const result = await db.run(
+        'INSERT INTO posts (userId, platform, content, scheduledTime, status, media, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, platform, content, scheduledTime, status || 'scheduled', media ? JSON.stringify(media) : null, now, now]
       );
+      
+      post = {
+        id: result.lastID,
+        userId,
+        platform,
+        content,
+        scheduledTime,
+        status: status || 'scheduled',
+        media,
+        createdAt: now,
+        updatedAt: now
+      };
     } else {
-      // If media column doesn't exist, exclude it from the query
-      result = await pool.query(
-        'INSERT INTO posts (userid, platform, content, scheduledtime, status, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING *',
-        [userId, platform, content, scheduledTime, status]
+      const result = await db.query(
+        'INSERT INTO posts (userid, platform, content, scheduledtime, status, media, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *',
+        [userId, platform, content, scheduledTime, status || 'scheduled', media ? JSON.stringify(media) : null]
       );
+      
+      post = {
+        id: result.rows[0].id,
+        userId: result.rows[0].userid,
+        platform: result.rows[0].platform,
+        content: result.rows[0].content,
+        scheduledTime: result.rows[0].scheduledtime,
+        status: result.rows[0].status,
+        media: result.rows[0].media,
+        createdAt: result.rows[0].createdat,
+        updatedAt: result.rows[0].updatedat
+      };
     }
-    
-    // Transform to camelCase for frontend
-    const post = {
-      id: result.rows[0].id,
-      userId: result.rows[0].userid,
-      platform: result.rows[0].platform,
-      content: result.rows[0].content,
-      scheduledTime: result.rows[0].scheduledtime,
-      status: result.rows[0].status,
-      media: result.rows[0].media,
-      createdAt: result.rows[0].createdat,
-      updatedAt: result.rows[0].updatedat
-    };
     
     // Send scheduled notification if post is scheduled
-    if (status === 'scheduled') {
+    if ((status || 'scheduled') === 'scheduled') {
       try {
         const { notifyPostScheduled } = require('./notification-service');
         await notifyPostScheduled(userId, post);
@@ -170,24 +140,43 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM posts WHERE id = $1', [id]);
+    let post;
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Post not found' });
+    if (dbType === 'sqlite') {
+      const row = await db.get('SELECT * FROM posts WHERE id = ?', [id]);
+      if (!row) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+      
+      post = {
+        id: row.id,
+        userId: row.userId,
+        platform: row.platform,
+        content: row.content,
+        scheduledTime: row.scheduledTime,
+        status: row.status,
+        media: row.media ? JSON.parse(row.media) : null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt
+      };
+    } else {
+      const result = await db.query('SELECT * FROM posts WHERE id = $1', [id]);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+      
+      post = {
+        id: result.rows[0].id,
+        userId: result.rows[0].userid,
+        platform: result.rows[0].platform,
+        content: result.rows[0].content,
+        scheduledTime: result.rows[0].scheduledtime,
+        status: result.rows[0].status,
+        media: result.rows[0].media,
+        createdAt: result.rows[0].createdat,
+        updatedAt: result.rows[0].updatedat
+      };
     }
-    
-    // Transform to camelCase for frontend
-    const post = {
-      id: result.rows[0].id,
-      userId: result.rows[0].userid,
-      platform: result.rows[0].platform,
-      content: result.rows[0].content,
-      scheduledTime: result.rows[0].scheduledtime,
-      status: result.rows[0].status,
-      media: result.rows[0].media,
-      createdAt: result.rows[0].createdat,
-      updatedAt: result.rows[0].updatedat
-    };
     
     res.json(post);
   } catch (error) {
@@ -201,67 +190,70 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { content, platform, scheduledTime, status, media } = req.body;
+    const now = new Date().toISOString();
     
-    // Check if media column exists
-    let includeMedia = false;
-    try {
-      const columnCheck = await pool.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.columns 
-          WHERE table_name = 'posts' AND column_name = 'media'
-        );
-      `);
-      includeMedia = columnCheck.rows[0].exists;
-    } catch (err) {
-      console.error('Error checking for media column:', err);
-    }
+    let post;
     
-    let result;
-    if (includeMedia) {
-      // If media column exists, include it in the query
-      result = await pool.query(
-        `UPDATE posts 
-         SET content = COALESCE($1, content), 
-             platform = COALESCE($2, platform), 
-             scheduledtime = COALESCE($3, scheduledtime), 
-             status = COALESCE($4, status), 
-             media = COALESCE($5, media),
-             updatedat = NOW() 
+    if (dbType === 'sqlite') {
+      const result = await db.run(
+        `UPDATE posts SET 
+         content = COALESCE(?, content), 
+         platform = COALESCE(?, platform), 
+         scheduledTime = COALESCE(?, scheduledTime), 
+         status = COALESCE(?, status), 
+         media = COALESCE(?, media),
+         updatedAt = ? 
+         WHERE id = ?`,
+        [content, platform, scheduledTime, status, media ? JSON.stringify(media) : null, now, id]
+      );
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+      
+      // Get updated post
+      const updatedRow = await db.get('SELECT * FROM posts WHERE id = ?', [id]);
+      post = {
+        id: updatedRow.id,
+        userId: updatedRow.userId,
+        platform: updatedRow.platform,
+        content: updatedRow.content,
+        scheduledTime: updatedRow.scheduledTime,
+        status: updatedRow.status,
+        media: updatedRow.media ? JSON.parse(updatedRow.media) : null,
+        createdAt: updatedRow.createdAt,
+        updatedAt: updatedRow.updatedAt
+      };
+    } else {
+      const result = await db.query(
+        `UPDATE posts SET 
+         content = COALESCE($1, content), 
+         platform = COALESCE($2, platform), 
+         scheduledtime = COALESCE($3, scheduledtime), 
+         status = COALESCE($4, status), 
+         media = COALESCE($5, media),
+         updatedat = NOW() 
          WHERE id = $6 
          RETURNING *`,
         [content, platform, scheduledTime, status, media ? JSON.stringify(media) : null, id]
       );
-    } else {
-      // If media column doesn't exist, exclude it from the query
-      result = await pool.query(
-        `UPDATE posts 
-         SET content = COALESCE($1, content), 
-             platform = COALESCE($2, platform), 
-             scheduledtime = COALESCE($3, scheduledtime), 
-             status = COALESCE($4, status),
-             updatedat = NOW() 
-         WHERE id = $5 
-         RETURNING *`,
-        [content, platform, scheduledTime, status, id]
-      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+      
+      post = {
+        id: result.rows[0].id,
+        userId: result.rows[0].userid,
+        platform: result.rows[0].platform,
+        content: result.rows[0].content,
+        scheduledTime: result.rows[0].scheduledtime,
+        status: result.rows[0].status,
+        media: result.rows[0].media,
+        createdAt: result.rows[0].createdat,
+        updatedAt: result.rows[0].updatedat
+      };
     }
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-    
-    // Transform to camelCase for frontend
-    const post = {
-      id: result.rows[0].id,
-      userId: result.rows[0].userid,
-      platform: result.rows[0].platform,
-      content: result.rows[0].content,
-      scheduledTime: result.rows[0].scheduledtime,
-      status: result.rows[0].status,
-      media: result.rows[0].media,
-      createdAt: result.rows[0].createdat,
-      updatedAt: result.rows[0].updatedat
-    };
     
     res.json(post);
   } catch (error) {
@@ -274,10 +266,17 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM posts WHERE id = $1 RETURNING *', [id]);
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Post not found' });
+    if (dbType === 'sqlite') {
+      const result = await db.run('DELETE FROM posts WHERE id = ?', [id]);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+    } else {
+      const result = await db.query('DELETE FROM posts WHERE id = $1 RETURNING *', [id]);
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
     }
     
     res.json({ message: 'Post deleted successfully' });

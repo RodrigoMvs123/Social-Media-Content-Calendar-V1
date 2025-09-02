@@ -1,8 +1,47 @@
 const express = require('express');
 const { WebClient } = require('@slack/web-api');
+const { RTMClient } = require('@slack/rtm-api');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const jwt = require('jsonwebtoken');
+
+// Initialize RTM client for real-time message deletion detection
+let rtmClient = null;
+if (process.env.SLACK_BOT_TOKEN) {
+  rtmClient = new RTMClient(process.env.SLACK_BOT_TOKEN);
+  
+  rtmClient.on('message', async (event) => {
+    if (event.subtype === 'message_deleted' && event.deleted_ts) {
+      console.log('🗑️ RTM: Message deleted, timestamp:', event.deleted_ts);
+      
+      try {
+        if (dbType === 'sqlite') {
+          const database = await getDb();
+          const result = await database.run(
+            'DELETE FROM posts WHERE slackMessageTs = ?',
+            [event.deleted_ts]
+          );
+          console.log(`🗑️ RTM: Deleted ${result.changes} post(s) from SQLite`);
+          await database.close();
+        } else {
+          const result = await db.query(
+            'DELETE FROM posts WHERE slackmessagets = $1',
+            [event.deleted_ts]
+          );
+          console.log(`🗑️ RTM: Deleted ${result.rowCount} post(s) from PostgreSQL`);
+        }
+      } catch (error) {
+        console.error('❌ RTM: Error deleting post:', error);
+      }
+    }
+  });
+  
+  rtmClient.start().then(() => {
+    console.log('✅ Slack RTM client connected for message deletion detection');
+  }).catch(error => {
+    console.error('❌ Slack RTM connection failed:', error.message);
+  });
+}
 
 const router = express.Router();
 

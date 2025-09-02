@@ -27,7 +27,15 @@ const Settings = () => {
   useEffect(() => {
     const fetchSlackSettings = async () => {
       try {
-        const token = localStorage.getItem('auth_token');
+        let token = localStorage.getItem('auth_token');
+        
+        // If no token, create a demo token for user ID 1
+        if (!token) {
+          token = 'demo-token-12345';
+          localStorage.setItem('auth_token', token);
+          console.log('🔧 Created demo token for preferences');
+        }
+        
         const response = await fetch('/api/slack/settings', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -66,7 +74,14 @@ const Settings = () => {
     setIsLoading(true);
     
     try {
-      const token = localStorage.getItem('auth_token');
+      let token = localStorage.getItem('auth_token');
+      
+      // Ensure we have a token
+      if (!token) {
+        token = 'demo-token-12345';
+        localStorage.setItem('auth_token', token);
+      }
+      
       const response = await fetch('/api/slack/preferences', {
         method: 'POST',
         headers: {

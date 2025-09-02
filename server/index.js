@@ -159,8 +159,10 @@ app.get('/api/health', (req, res) => {
 // Import and use the proper routes
 const slackRoutes = require('./slack-routes');
 const postsRoutes = require('./posts-routes');
+const socialMediaRoutes = require('./social-media-routes');
 app.use('/api/slack', slackRoutes);
 app.use('/api/posts', postsRoutes);
+app.use('/api', socialMediaRoutes);
 
 // Authentication routes
 app.post('/api/auth/login', async (req, res) => {
@@ -381,10 +383,7 @@ app.get('/api/auth/me', (req, res) => {
   });
 });
 
-app.get('/api/social-accounts', (req, res) => {
-  console.log('GET /api/social-accounts called');
-  res.json([]);
-});
+// Social accounts endpoint now handled by social-media-routes.js
 
 app.get('/api/notifications', (req, res) => {
   console.log('GET /api/notifications called');

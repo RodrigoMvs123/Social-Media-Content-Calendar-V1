@@ -445,6 +445,7 @@ router.post('/preferences', getUserId, async (req, res) => {
     console.log('🔧 SLACK PREFERENCES REQUEST RECEIVED!');
     console.log('🔧 Request body:', req.body);
     console.log('🔧 User ID:', req.userId);
+    console.log('🔧 Database type:', dbType);
     
     const { slackScheduled, slackPublished, slackFailed } = req.body;
     
@@ -458,32 +459,54 @@ router.post('/preferences', getUserId, async (req, res) => {
     
     if (dbType === 'sqlite') {
       const database = await getDb();
+      
+      // First try to insert if record doesn't exist
+      try {
+        await database.run(`
+          INSERT OR IGNORE INTO slack_settings (userId, slackScheduled, slackPublished, slackFailed, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [req.userId, slackScheduled, slackPublished, slackFailed, now, now]);
+      } catch (insertError) {
+        console.log('🔧 Insert failed, will try update:', insertError.message);
+      }
+      
+      // Then update
       const result = await database.run(`
         UPDATE slack_settings 
         SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
         WHERE userId = ?
       `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
       
-      if (result.changes === 0) {
-        return res.status(404).json({ error: 'Slack settings not found. Please configure Slack integration first.' });
-      }
+      console.log('🔧 SQLite update result:', { changes: result.changes });
+      
     } else {
+      // PostgreSQL - First try to insert if record doesn't exist
+      try {
+        await db.query(`
+          INSERT INTO slack_settings (userid, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (userid) DO NOTHING
+        `, [req.userId, slackScheduled, slackPublished, slackFailed, now, now]);
+      } catch (insertError) {
+        console.log('🔧 Insert failed, will try update:', insertError.message);
+      }
+      
+      // Then update
       const result = await db.query(`
         UPDATE slack_settings 
         SET slackscheduled = $1, slackpublished = $2, slackfailed = $3, updatedat = $4
         WHERE userid = $5
       `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
       
-      if (result.rowCount === 0) {
-        return res.status(404).json({ error: 'Slack settings not found. Please configure Slack integration first.' });
-      }
+      console.log('🔧 PostgreSQL update result:', { rowCount: result.rowCount });
     }
     
     console.log('✅ Slack preferences updated successfully');
     res.json({ success: true, message: 'Slack notification preferences updated successfully' });
   } catch (error) {
-    console.error('Error updating Slack preferences:', error);
-    res.status(500).json({ error: 'Failed to update preferences' });
+    console.error('❌ Error updating Slack preferences:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to update preferences', details: error.message });
   }
 });
 

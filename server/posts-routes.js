@@ -58,7 +58,8 @@ router.get('/', async (req, res) => {
         status: row.status,
         media: row.media ? JSON.parse(row.media) : null,
         createdAt: row.createdAt,
-        updatedAt: row.updatedAt
+        updatedAt: row.updatedAt,
+        slackMessageTs: row.slackMessageTs
       }));
     } else {
       const result = await db.query('SELECT * FROM posts ORDER BY scheduledtime DESC');
@@ -71,7 +72,8 @@ router.get('/', async (req, res) => {
         status: row.status,
         media: row.media,
         createdAt: row.createdat,
-        updatedAt: row.updatedat
+        updatedAt: row.updatedat,
+        slackMessageTs: row.slackmessagets
       }));
     }
     

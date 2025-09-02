@@ -24,21 +24,24 @@ router.use((req, res, next) => {
 const dbType = process.env.DB_TYPE || 'sqlite';
 let db;
 
-if (dbType === 'sqlite') {
-  // SQLite connection
-  async function getDb() {
-    return await open({
-      filename: process.env.DB_PATH || './data.sqlite',
-      driver: sqlite3.Database
-    });
-  }
-} else {
+// SQLite helper function
+async function getDb() {
+  return await open({
+    filename: process.env.DB_PATH || './data.sqlite',
+    driver: sqlite3.Database
+  });
+}
+
+if (dbType === 'postgres') {
   // PostgreSQL connection
   const { Pool } = require('pg');
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   });
+  console.log('✅ Slack routes using PostgreSQL');
+} else {
+  console.log('✅ Slack routes using SQLite');
 }
 
 // Middleware to get user ID from token
@@ -564,8 +567,42 @@ router.get('/events', (req, res) => {
     timestamp: new Date().toISOString(),
     url: req.originalUrl,
     status: 'ready_for_slack_events',
-    webhook_url: 'https://social-media-content-calendar-v1.onrender.com/api/slack/events'
+    webhook_url: 'https://social-media-content-calendar-v1.onrender.com/api/slack/events',
+    database_type: dbType
   });
+});
+
+// GET /api/slack/debug - Debug endpoint to check posts with Slack timestamps
+router.get('/debug', async (req, res) => {
+  try {
+    let posts = [];
+    
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      posts = await database.all(
+        'SELECT id, content, platform, slackMessageTs FROM posts WHERE slackMessageTs IS NOT NULL LIMIT 10'
+      );
+      await database.close();
+    } else {
+      const result = await db.query(
+        'SELECT id, content, platform, slackmessagets FROM posts WHERE slackmessagets IS NOT NULL LIMIT 10'
+      );
+      posts = result.rows.map(row => ({
+        id: row.id,
+        content: row.content,
+        platform: row.platform,
+        slackMessageTs: row.slackmessagets
+      }));
+    }
+    
+    res.json({
+      database_type: dbType,
+      posts_with_slack_timestamps: posts.length,
+      posts: posts
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // POST /api/slack/events - Handle Slack events (bidirectional sync)
@@ -591,22 +628,33 @@ router.post('/events', async (req, res) => {
         
         // Find and delete corresponding post
         try {
+          let deletedCount = 0;
+          
           if (dbType === 'sqlite') {
             const database = await getDb();
             const result = await database.run(
               'DELETE FROM posts WHERE slackMessageTs = ?',
               [event.deleted_ts]
             );
-            console.log(`🗑️ Deleted ${result.changes} post(s) from SQLite database`);
+            deletedCount = result.changes;
+            await database.close();
+            console.log(`🗑️ Deleted ${deletedCount} post(s) from SQLite database`);
           } else {
             const result = await db.query(
               'DELETE FROM posts WHERE slackmessagets = $1',
               [event.deleted_ts]
             );
-            console.log(`🗑️ Deleted ${result.rowCount} post(s) from PostgreSQL database`);
+            deletedCount = result.rowCount;
+            console.log(`🗑️ Deleted ${deletedCount} post(s) from PostgreSQL database`);
           }
+          
+          if (deletedCount === 0) {
+            console.log('⚠️ No posts found with Slack timestamp:', event.deleted_ts);
+          }
+          
         } catch (deleteError) {
           console.error('❌ Error deleting post from database:', deleteError);
+          console.error('❌ Error details:', deleteError.stack);
         }
       } else {
         console.log('🔕 Ignoring event:', event.type, event.subtype || 'no subtype');

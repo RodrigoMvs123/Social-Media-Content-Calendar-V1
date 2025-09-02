@@ -64,6 +64,10 @@ async function getUserNotificationSettings(userId) {
     
     console.log('🔍 Slack settings for notifications:', {
       userId,
+      hasSlackSettings: !!slackSettings,
+      botToken: slackSettings?.botToken ? 'Present' : 'Missing',
+      channelId: slackSettings?.channelId || 'Missing',
+      channelName: slackSettings?.channelName || 'Missing',
       slackScheduled: slackSettings?.slackScheduled,
       slackPublished: slackSettings?.slackPublished,
       slackFailed: slackSettings?.slackFailed
@@ -83,25 +87,32 @@ async function getUserNotificationSettings(userId) {
 // Send Slack notification
 async function sendSlackNotification(slackSettings, message) {
   try {
-    if (!slackSettings) return null;
-    
-    const slack = new WebClient(slackSettings.botToken);
-    let channelToUse = slackSettings.channelId;
-    
-    if (channelToUse === 'DM_PLACEHOLDER') {
-      channelToUse = 'C08PUPJ15LJ'; // Your #social channel
+    if (!slackSettings || !slackSettings.botToken || !slackSettings.channelId) {
+      console.log('❌ Missing Slack settings:', { 
+        hasSettings: !!slackSettings, 
+        hasToken: !!slackSettings?.botToken, 
+        hasChannel: !!slackSettings?.channelId 
+      });
+      return null;
     }
     
+    console.log('📤 Sending Slack notification to channel:', slackSettings.channelId);
+    console.log('📝 Message:', message);
+    
+    const slack = new WebClient(slackSettings.botToken);
+    
     const result = await slack.chat.postMessage({
-      channel: channelToUse,
+      channel: slackSettings.channelId,
       text: message,
       mrkdwn: true
     });
     
-    console.log('✅ Slack notification sent');
+    console.log('✅ Slack notification sent successfully:', result.ts);
     return result;
   } catch (error) {
     console.error('❌ Slack notification failed:', error.message);
+    console.error('❌ Error details:', error.data || error);
+    return null;
   }
 }
 

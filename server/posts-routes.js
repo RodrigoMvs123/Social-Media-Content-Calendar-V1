@@ -432,14 +432,14 @@ router.post('/sync-slack-deletions', async (req, res) => {
     // Check each post's Slack message
     for (const post of posts) {
       try {
-        await slack.conversations.history({
+        // Try to get the message permalink - if message is deleted, this will fail
+        await slack.chat.getPermalink({
           channel: slackSettings.channelId,
-          latest: post.slackMessageTs,
-          limit: 1,
-          inclusive: true
+          message_ts: post.slackMessageTs
         });
+        console.log(`✅ Message ${post.slackMessageTs} exists for post ${post.id}`);
       } catch (error) {
-        if (error.data && error.data.error === 'message_not_found') {
+        if (error.data && (error.data.error === 'message_not_found' || error.data.error === 'channel_not_found')) {
           // Message was deleted, remove post
           console.log(`🗑️ Slack message deleted, removing post ${post.id}`);
           
@@ -450,6 +450,8 @@ router.post('/sync-slack-deletions', async (req, res) => {
           }
           
           deletedCount++;
+        } else {
+          console.log(`⚠️ Error checking message ${post.slackMessageTs}:`, error.data?.error);
         }
       }
     }

@@ -17,14 +17,13 @@ const Settings = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   
-  // Load initial values from localStorage
-  const storedSettings = loadSettings();
+  // Initialize with default values - will be loaded from database
+  const [slackPostScheduled, setSlackPostScheduled] = useState(true);
+  const [slackPostPublished, setSlackPostPublished] = useState(true);
+  const [slackPostFailed, setSlackPostFailed] = useState(true);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   
-  const [slackPostScheduled, setSlackPostScheduled] = useState(storedSettings.slackPostScheduled !== undefined ? storedSettings.slackPostScheduled : false);
-  const [slackPostPublished, setSlackPostPublished] = useState(storedSettings.slackPostPublished !== undefined ? storedSettings.slackPostPublished : false);
-  const [slackPostFailed, setSlackPostFailed] = useState(storedSettings.slackPostFailed !== undefined ? storedSettings.slackPostFailed : false);
-  
-  // Load Slack notification preferences from our API
+  // Load Slack notification preferences from database
   useEffect(() => {
     const fetchSlackSettings = async () => {
       try {
@@ -36,14 +35,26 @@ const Settings = () => {
         if (response.ok) {
           const settings = await response.json();
           console.log('🔧 Loaded Slack settings:', settings);
+          
           if (settings.configured) {
-            setSlackPostScheduled(Boolean(settings.slackScheduled));
-            setSlackPostPublished(Boolean(settings.slackPublished));
-            setSlackPostFailed(Boolean(settings.slackFailed));
+            // Load preferences from database, with defaults if not set
+            setSlackPostScheduled(settings.slackScheduled !== undefined ? Boolean(settings.slackScheduled) : true);
+            setSlackPostPublished(settings.slackPublished !== undefined ? Boolean(settings.slackPublished) : true);
+            setSlackPostFailed(settings.slackFailed !== undefined ? Boolean(settings.slackFailed) : true);
+          } else {
+            // If not configured, use defaults
+            setSlackPostScheduled(true);
+            setSlackPostPublished(true);
+            setSlackPostFailed(true);
           }
+        } else {
+          console.log('No Slack settings found, using defaults');
         }
+        
+        setPreferencesLoaded(true);
       } catch (error) {
         console.error('Failed to load Slack settings:', error);
+        setPreferencesLoaded(true);
       }
     };
     
@@ -73,6 +84,14 @@ const Settings = () => {
       console.log('🔧 Save result:', result);
       
       if (response.ok) {
+        // Save to localStorage as backup
+        localStorage.setItem('slack_preferences', JSON.stringify({
+          slackScheduled: slackPostScheduled,
+          slackPublished: slackPostPublished,
+          slackFailed: slackPostFailed,
+          lastUpdated: new Date().toISOString()
+        }));
+        
         toast({
           title: "Notification Settings Saved",
           description: "Your Slack notification preferences have been updated successfully.",
@@ -131,48 +150,59 @@ const Settings = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4 flex items-center">
-                        <MessageSquare className="h-5 w-5 mr-2" />
-                        Slack Notifications
-                      </h3>
-                      <p className="text-gray-600 mb-2">Send notifications to your connected Slack workspace</p>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="checkbox" 
-                          id="slack-scheduled" 
-                          checked={slackPostScheduled}
-                          onChange={(e) => setSlackPostScheduled(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="slack-scheduled" className="text-sm">When a post is scheduled</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <input 
-                          type="checkbox" 
-                          id="slack-published" 
-                          checked={slackPostPublished}
-                          onChange={(e) => setSlackPostPublished(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="slack-published" className="text-sm">When a post is published</label>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <input 
-                          type="checkbox" 
-                          id="slack-failed" 
-                          checked={slackPostFailed}
-                          onChange={(e) => setSlackPostFailed(e.target.checked)}
-                          className="h-4 w-4" 
-                        />
-                        <label htmlFor="slack-failed" className="text-sm">When a post fails to publish</label>
+                  {!preferencesLoaded ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-gray-500">Loading notification preferences...</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-lg font-medium mb-4 flex items-center">
+                          <MessageSquare className="h-5 w-5 mr-2" />
+                          Slack Notifications
+                        </h3>
+                        <p className="text-gray-600 mb-4">Send notifications to your connected Slack workspace</p>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              id="slack-scheduled" 
+                              checked={slackPostScheduled}
+                              onChange={(e) => setSlackPostScheduled(e.target.checked)}
+                              className="h-4 w-4" 
+                            />
+                            <label htmlFor="slack-scheduled" className="text-sm font-medium">When a post is scheduled</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              id="slack-published" 
+                              checked={slackPostPublished}
+                              onChange={(e) => setSlackPostPublished(e.target.checked)}
+                              className="h-4 w-4" 
+                            />
+                            <label htmlFor="slack-published" className="text-sm font-medium">When a post is published</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              id="slack-failed" 
+                              checked={slackPostFailed}
+                              onChange={(e) => setSlackPostFailed(e.target.checked)}
+                              className="h-4 w-4" 
+                            />
+                            <label htmlFor="slack-failed" className="text-sm font-medium">When a post fails to publish</label>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
                 <CardFooter>
-                  <Button onClick={handleSaveNotifications} disabled={isLoading}>
+                  <Button 
+                    onClick={handleSaveNotifications} 
+                    disabled={isLoading || !preferencesLoaded}
+                  >
                     {isLoading ? 'Saving...' : 'Save Notification Settings'}
                   </Button>
                 </CardFooter>

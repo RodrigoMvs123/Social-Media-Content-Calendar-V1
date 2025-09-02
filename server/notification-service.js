@@ -161,7 +161,7 @@ async function notifyPostPublished(userId, post) {
       const result = await sendSlackNotification(settings.slackSettings, message);
       
       // Update the slackMessageTs with the new published message timestamp
-      if (result && result.ts && db) {
+      if (result && result.ts) {
         try {
           if (dbType === 'sqlite') {
             await db.run(
@@ -169,15 +169,19 @@ async function notifyPostPublished(userId, post) {
               [result.ts, post.id]
             );
           } else {
-            // PostgreSQL - check if column exists first
+            // PostgreSQL - add column if it doesn't exist, then update
             try {
               await db.query(
-                'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
-                [result.ts, post.id]
+                'ALTER TABLE posts ADD COLUMN IF NOT EXISTS slackmessagets TEXT'
               );
-            } catch (colError) {
-              console.log('📝 slackmessagets column not found, skipping timestamp update');
+            } catch (alterError) {
+              // Column might already exist
             }
+            
+            await db.query(
+              'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
+              [result.ts, post.id]
+            );
           }
           console.log('📝 Updated Slack message timestamp for published post:', result.ts);
         } catch (updateError) {
@@ -275,7 +279,36 @@ async function notifyPostScheduled(userId, post) {
         `*Content:* ${post.content}\n` +
         `*Status:* Ready to Publish`;
       
-      await sendSlackNotification(settings.slackSettings, message);
+      const result = await sendSlackNotification(settings.slackSettings, message);
+      
+      // Store Slack message timestamp for bidirectional sync
+      if (result && result.ts) {
+        try {
+          if (dbType === 'sqlite') {
+            await db.run(
+              'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+              [result.ts, post.id]
+            );
+          } else {
+            // PostgreSQL - add column if it doesn't exist, then update
+            try {
+              await db.query(
+                'ALTER TABLE posts ADD COLUMN IF NOT EXISTS slackmessagets TEXT'
+              );
+            } catch (alterError) {
+              // Column might already exist
+            }
+            
+            await db.query(
+              'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
+              [result.ts, post.id]
+            );
+          }
+          console.log('📝 Updated Slack message timestamp for scheduled post:', result.ts);
+        } catch (updateError) {
+          console.log('📝 Could not update Slack timestamp:', updateError.message);
+        }
+      }
     } else {
       console.log('❌ Skipping scheduled notification (disabled)');
     }

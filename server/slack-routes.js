@@ -556,6 +556,53 @@ router.post('/test', getUserId, async (req, res) => {
   }
 });
 
+// POST /api/slack/events - Handle Slack events (bidirectional sync)
+router.post('/events', async (req, res) => {
+  try {
+    const { type, challenge, event } = req.body;
+    
+    // Handle URL verification challenge
+    if (type === 'url_verification') {
+      return res.json({ challenge });
+    }
+    
+    // Handle message events
+    if (type === 'event_callback' && event) {
+      console.log('📨 Slack event received:', event.type);
+      
+      // Handle message deletion
+      if (event.type === 'message' && event.subtype === 'message_deleted') {
+        console.log('🗑️ Message deleted in Slack:', event.deleted_ts);
+        
+        // Find and delete corresponding post
+        try {
+          if (dbType === 'sqlite') {
+            const database = await getDb();
+            const result = await database.run(
+              'DELETE FROM posts WHERE slackMessageTs = ?',
+              [event.deleted_ts]
+            );
+            console.log(`🗑️ Deleted ${result.changes} post(s) from database`);
+          } else {
+            const result = await db.query(
+              'DELETE FROM posts WHERE slackmessagets = $1',
+              [event.deleted_ts]
+            );
+            console.log(`🗑️ Deleted ${result.rowCount} post(s) from database`);
+          }
+        } catch (deleteError) {
+          console.error('❌ Error deleting post:', deleteError);
+        }
+      }
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('❌ Slack events error:', error);
+    res.status(500).send('Error');
+  }
+});
+
 // GET /api/slack/status - Get connection status
 router.get('/status', getUserId, async (req, res) => {
   try {

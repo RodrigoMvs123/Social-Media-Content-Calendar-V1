@@ -271,16 +271,74 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    let deletedPost = null;
     
+    // First get the post to check for Slack message timestamp
     if (dbType === 'sqlite') {
+      deletedPost = await db.get('SELECT * FROM posts WHERE id = ?', [id]);
+      if (!deletedPost) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+      
       const result = await db.run('DELETE FROM posts WHERE id = ?', [id]);
       if (result.changes === 0) {
         return res.status(404).json({ error: 'Post not found' });
       }
     } else {
-      const result = await db.query('DELETE FROM posts WHERE id = $1 RETURNING *', [id]);
-      if (result.rows.length === 0) {
+      const getResult = await db.query('SELECT * FROM posts WHERE id = $1', [id]);
+      if (getResult.rows.length === 0) {
         return res.status(404).json({ error: 'Post not found' });
+      }
+      deletedPost = getResult.rows[0];
+      
+      const result = await db.query('DELETE FROM posts WHERE id = $1', [id]);
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Post not found' });
+      }
+    }
+    
+    // Delete corresponding Slack message if it exists
+    if (deletedPost && deletedPost.slackMessageTs) {
+      try {
+        console.log('🗑️ Deleting Slack message:', deletedPost.slackMessageTs);
+        
+        // Get user's Slack settings
+        const userId = 1; // Default user
+        let slackSettings;
+        
+        if (dbType === 'sqlite') {
+          slackSettings = await db.get(
+            'SELECT botToken, channelId FROM slack_settings WHERE userId = ?',
+            [userId]
+          );
+        } else {
+          const result = await db.query(
+            'SELECT bottoken, channelid FROM slack_settings WHERE userid = $1',
+            [userId]
+          );
+          slackSettings = result.rows[0];
+          if (slackSettings) {
+            slackSettings = {
+              botToken: slackSettings.bottoken,
+              channelId: slackSettings.channelid
+            };
+          }
+        }
+        
+        if (slackSettings && slackSettings.botToken) {
+          const { WebClient } = require('@slack/web-api');
+          const slack = new WebClient(slackSettings.botToken);
+          
+          await slack.chat.delete({
+            channel: slackSettings.channelId,
+            ts: deletedPost.slackMessageTs
+          });
+          
+          console.log('✅ Slack message deleted successfully');
+        }
+      } catch (slackError) {
+        console.error('❌ Error deleting Slack message:', slackError.message);
+        // Don't fail the post deletion if Slack deletion fails
       }
     }
     

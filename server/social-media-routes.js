@@ -76,17 +76,39 @@ router.get('/oauth/:platform', (req, res) => {
   
   console.log(`🔗 OAuth initiation for ${platform}`);
   
+  // Get the server URL for callbacks (as per README configuration)
+  const serverUrl = process.env.NODE_ENV === 'production' 
+    ? (process.env.CLIENT_URL || 'https://yourdomain.com')
+    : 'http://localhost:3001';
+  
   const clientUrls = {
-    twitter: `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${process.env.TWITTER_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.CLIENT_URL || 'http://localhost:3000')}/api/oauth/callback/twitter&scope=tweet.read%20tweet.write%20users.read&state=state&code_challenge=challenge&code_challenge_method=plain`,
-    linkedin: `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.CLIENT_URL || 'http://localhost:3000')}/api/oauth/callback/linkedin&scope=r_liteprofile%20r_emailaddress%20w_member_social`,
-    facebook: `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.FACEBOOK_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.CLIENT_URL || 'http://localhost:3000')}/api/oauth/callback/facebook&scope=pages_manage_posts,pages_read_engagement&response_type=code`,
-    instagram: `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.CLIENT_URL || 'http://localhost:3000')}/api/oauth/callback/instagram&scope=user_profile,user_media&response_type=code`
+    twitter: `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${process.env.TWITTER_CLIENT_ID}&redirect_uri=${encodeURIComponent(serverUrl)}/api/oauth/callback/twitter&scope=tweet.read%20tweet.write%20users.read&state=state&code_challenge=challenge&code_challenge_method=plain`,
+    linkedin: `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(serverUrl)}/api/oauth/callback/linkedin&scope=r_liteprofile%20r_emailaddress%20w_member_social`,
+    facebook: `https://www.facebook.com/v18.0/dialog/oauth?client_id=${process.env.FACEBOOK_CLIENT_ID}&redirect_uri=${encodeURIComponent(serverUrl)}/api/oauth/callback/facebook&scope=pages_manage_posts,pages_read_engagement&response_type=code`,
+    instagram: `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${encodeURIComponent(serverUrl)}/api/oauth/callback/instagram&scope=user_profile,user_media&response_type=code`
   };
   
   const authUrl = clientUrls[platform];
   
   if (!authUrl) {
     return res.status(400).json({ error: `Unsupported platform: ${platform}` });
+  }
+  
+  // Check if required credentials exist
+  const credentialMap = {
+    twitter: process.env.TWITTER_CLIENT_ID,
+    linkedin: process.env.LINKEDIN_CLIENT_ID,
+    facebook: process.env.FACEBOOK_CLIENT_ID,
+    instagram: process.env.INSTAGRAM_CLIENT_ID
+  };
+  
+  if (!credentialMap[platform]) {
+    console.log(`❌ Missing credentials for ${platform}`);
+    return res.status(400).json({ 
+      error: `${platform.toUpperCase()}_CLIENT_ID not configured. Please add it to your .env file.`,
+      platform,
+      required: `${platform.toUpperCase()}_CLIENT_ID`
+    });
   }
   
   console.log(`🚀 Redirecting to ${platform} OAuth:`, authUrl);

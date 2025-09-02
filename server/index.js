@@ -440,6 +440,10 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Start post scheduler
+const { startPostScheduler } = require('./post-scheduler');
+startPostScheduler();
+
 // Start server
 app.listen(port, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${port}`);

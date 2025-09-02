@@ -1,17 +1,29 @@
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
 const { notifyPostPublished, notifyPostFailed } = require('./notification-service');
 
-const dbPath = process.env.DB_PATH || './data.sqlite';
+// Database setup - hybrid approach
+const dbType = process.env.DB_TYPE || 'sqlite';
 let db;
 
 // Initialize database
 async function initializeDb() {
   try {
-    db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database
-    });
+    if (dbType === 'sqlite') {
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      
+      db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
+      });
+      console.log('✅ Post scheduler connected to SQLite');
+    } else {
+      const { Pool } = require('pg');
+      db = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      });
+      console.log('✅ Post scheduler connected to PostgreSQL');
+    }
     return db;
   } catch (error) {
     console.error('Error setting up post scheduler DB:', error);
@@ -27,17 +39,39 @@ const NO_POSTS_LOG_INTERVAL = 5 * 60 * 1000; // Log every 5 minutes if no posts
 async function checkAndPublishPosts() {
   try {
     const now = new Date().toISOString();
+    let postsToPublish = [];
     
-    // Get posts that should be published now
-    const postsToPublish = await db.all(`
-      SELECT * FROM posts 
-      WHERE scheduledTime <= ? 
-      AND (status = 'scheduled' OR status = 'ready') 
-      AND status != 'published' 
-      AND status != 'failed'
-    `, [now]);
+    if (dbType === 'sqlite') {
+      postsToPublish = await db.all(`
+        SELECT * FROM posts 
+        WHERE scheduledTime <= ? 
+        AND (status = 'scheduled' OR status = 'ready') 
+        AND status != 'published' 
+        AND status != 'failed'
+      `, [now]);
+    } else {
+      const result = await db.query(`
+        SELECT * FROM posts 
+        WHERE scheduledtime <= $1 
+        AND (status = 'scheduled' OR status = 'ready') 
+        AND status != 'published' 
+        AND status != 'failed'
+      `, [now]);
+      
+      // Map PostgreSQL columns to camelCase
+      postsToPublish = result.rows.map(row => ({
+        id: row.id,
+        userId: row.userid,
+        platform: row.platform,
+        content: row.content,
+        scheduledTime: row.scheduledtime,
+        status: row.status,
+        media: row.media,
+        createdAt: row.createdat,
+        updatedAt: row.updatedat
+      }));
+    }
     
-    // Only log if we found posts or if it's been a while since our last "no posts" message
     if (postsToPublish.length > 0) {
       console.log(`📅 Found ${postsToPublish.length} post(s) to publish`);
       
@@ -47,7 +81,7 @@ async function checkAndPublishPosts() {
     } else {
       const currentTime = Date.now();
       if (currentTime - lastNoPostsLog >= NO_POSTS_LOG_INTERVAL) {
-        
+        console.log('🔍 No posts ready to publish');
         lastNoPostsLog = currentTime;
       }
     }
@@ -75,12 +109,21 @@ async function publishPost(post) {
     // In real implementation, this would call actual social media APIs
     const success = await simulatePublishToSocialMedia(post);
     
+    const now = new Date().toISOString();
+    
     if (success) {
       // Update post status to published
-      await db.run(
-        'UPDATE posts SET status = ?, updatedAt = ? WHERE id = ?',
-        ['published', new Date().toISOString(), post.id]
-      );
+      if (dbType === 'sqlite') {
+        await db.run(
+          'UPDATE posts SET status = ?, updatedAt = ? WHERE id = ?',
+          ['published', now, post.id]
+        );
+      } else {
+        await db.query(
+          'UPDATE posts SET status = $1, updatedat = $2 WHERE id = $3',
+          ['published', now, post.id]
+        );
+      }
       
       // Send success notifications
       await notifyPostPublished(post.userId, post);
@@ -88,10 +131,17 @@ async function publishPost(post) {
       console.log(`✅ Post ${post.id} published successfully`);
     } else {
       // Mark as failed
-      await db.run(
-        'UPDATE posts SET status = ?, errorMessage = ?, updatedAt = ? WHERE id = ?',
-        ['failed', 'Failed to publish to social media platform', new Date().toISOString(), post.id]
-      );
+      if (dbType === 'sqlite') {
+        await db.run(
+          'UPDATE posts SET status = ?, updatedAt = ? WHERE id = ?',
+          ['failed', now, post.id]
+        );
+      } else {
+        await db.query(
+          'UPDATE posts SET status = $1, updatedat = $2 WHERE id = $3',
+          ['failed', now, post.id]
+        );
+      }
       
       // Send failure notifications
       await notifyPostFailed(post.userId, post, 'Failed to publish to social media platform');
@@ -103,10 +153,18 @@ async function publishPost(post) {
     console.error(`❌ Error publishing post ${post.id}:`, error);
     
     // Mark as failed
-    await db.run(
-      'UPDATE posts SET status = ?, errorMessage = ?, updatedAt = ? WHERE id = ?',
-      ['failed', error.message, new Date().toISOString(), post.id]
-    );
+    const now = new Date().toISOString();
+    if (dbType === 'sqlite') {
+      await db.run(
+        'UPDATE posts SET status = ?, updatedAt = ? WHERE id = ?',
+        ['failed', now, post.id]
+      );
+    } else {
+      await db.query(
+        'UPDATE posts SET status = $1, updatedat = $2 WHERE id = $3',
+        ['failed', now, post.id]
+      );
+    }
     
     // Send failure notifications
     await notifyPostFailed(post.userId, post, error.message);

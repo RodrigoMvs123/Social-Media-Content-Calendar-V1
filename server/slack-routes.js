@@ -608,13 +608,15 @@ router.get('/debug', async (req, res) => {
 // POST /api/slack/events - Handle Slack events (bidirectional sync)
 router.post('/events', async (req, res) => {
   try {
-    console.log('📨 Slack webhook received:', JSON.stringify(req.body, null, 2));
+    console.log('📨 SLACK WEBHOOK RECEIVED!');
+    console.log('📨 Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('📨 Body:', JSON.stringify(req.body, null, 2));
     
     const { type, challenge, event } = req.body;
     
     // Handle URL verification challenge
     if (type === 'url_verification') {
-      console.log('✅ URL verification challenge received:', challenge);
+      console.log('✅ URL VERIFICATION CHALLENGE RECEIVED:', challenge);
       return res.json({ challenge });
     }
     

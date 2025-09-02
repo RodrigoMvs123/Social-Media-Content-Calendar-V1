@@ -556,23 +556,36 @@ router.post('/test', getUserId, async (req, res) => {
   }
 });
 
+// GET /api/slack/events - Test endpoint to verify webhook is reachable
+router.get('/events', (req, res) => {
+  console.log('🔍 Slack events endpoint test accessed');
+  res.json({ 
+    message: 'Slack events endpoint is reachable',
+    timestamp: new Date().toISOString(),
+    url: req.originalUrl
+  });
+});
+
 // POST /api/slack/events - Handle Slack events (bidirectional sync)
 router.post('/events', async (req, res) => {
   try {
+    console.log('📨 Slack webhook received:', JSON.stringify(req.body, null, 2));
+    
     const { type, challenge, event } = req.body;
     
     // Handle URL verification challenge
     if (type === 'url_verification') {
+      console.log('✅ URL verification challenge received:', challenge);
       return res.json({ challenge });
     }
     
     // Handle message events
     if (type === 'event_callback' && event) {
-      console.log('📨 Slack event received:', event.type);
+      console.log('📨 Slack event received:', event.type, event.subtype || 'no subtype');
       
       // Handle message deletion
       if (event.type === 'message' && event.subtype === 'message_deleted') {
-        console.log('🗑️ Message deleted in Slack:', event.deleted_ts);
+        console.log('🗑️ Message deleted in Slack, timestamp:', event.deleted_ts);
         
         // Find and delete corresponding post
         try {
@@ -582,17 +595,19 @@ router.post('/events', async (req, res) => {
               'DELETE FROM posts WHERE slackMessageTs = ?',
               [event.deleted_ts]
             );
-            console.log(`🗑️ Deleted ${result.changes} post(s) from database`);
+            console.log(`🗑️ Deleted ${result.changes} post(s) from SQLite database`);
           } else {
             const result = await db.query(
               'DELETE FROM posts WHERE slackmessagets = $1',
               [event.deleted_ts]
             );
-            console.log(`🗑️ Deleted ${result.rowCount} post(s) from database`);
+            console.log(`🗑️ Deleted ${result.rowCount} post(s) from PostgreSQL database`);
           }
         } catch (deleteError) {
-          console.error('❌ Error deleting post:', deleteError);
+          console.error('❌ Error deleting post from database:', deleteError);
         }
+      } else {
+        console.log('🔕 Ignoring event:', event.type, event.subtype || 'no subtype');
       }
     }
     

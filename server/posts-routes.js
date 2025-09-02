@@ -119,10 +119,11 @@ router.post('/', async (req, res) => {
       };
     }
     
-    // Send scheduled notification if post is scheduled
-    if ((status || 'scheduled') === 'scheduled') {
+    // Send scheduled notification if post is scheduled or ready
+    const finalStatus = status || 'scheduled';
+    if (finalStatus === 'scheduled' || finalStatus === 'ready') {
       try {
-        console.log('🔔 Post created with scheduled status, sending notification...');
+        console.log(`🔔 Post created with ${finalStatus} status, sending notification...`);
         const { notifyPostScheduled } = require('./notification-service');
         await notifyPostScheduled(userId, post);
         console.log('✅ Scheduled notification process completed');
@@ -130,7 +131,7 @@ router.post('/', async (req, res) => {
         console.error('❌ Error sending scheduled notification:', notifyError);
       }
     } else {
-      console.log('🔕 Post status is not scheduled, no notification sent. Status:', status || 'scheduled');
+      console.log('🔕 Post status does not trigger notifications. Status:', finalStatus);
     }
     
     res.status(201).json(post);

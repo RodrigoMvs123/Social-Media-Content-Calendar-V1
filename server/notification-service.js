@@ -42,8 +42,14 @@ async function getUserNotificationSettings(userId) {
       const userResult = await db.query('SELECT email FROM users WHERE id = $1', [userId]);
       user = userResult.rows[0];
       
-      const prefsResult = await db.query('SELECT * FROM notification_preferences WHERE userid = $1', [userId]);
-      preferences = prefsResult.rows[0];
+      // Check if notification_preferences table exists, if not skip it
+      try {
+        const prefsResult = await db.query('SELECT * FROM notification_preferences WHERE userid = $1', [userId]);
+        preferences = prefsResult.rows[0];
+      } catch (error) {
+        console.log('📋 notification_preferences table not found, skipping');
+        preferences = {};
+      }
       
       const slackResult = await db.query('SELECT * FROM slack_settings WHERE userid = $1 AND isactive = true', [userId]);
       const rawSlackSettings = slackResult.rows[0];
@@ -156,19 +162,27 @@ async function notifyPostPublished(userId, post) {
       
       // Update the slackMessageTs with the new published message timestamp
       if (result && result.ts && db) {
-        await db.run(
-          'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
-          [result.ts, post.id]
-        );
-        
-        // Also store in slack_message_timestamps table for bidirectional sync
-        await db.run(
-          `INSERT OR REPLACE INTO slack_message_timestamps 
-           (postId, slackTimestamp, messageType) VALUES (?, ?, ?)`,
-          [post.id, result.ts, 'published']
-        );
-        
-        console.log('📝 Updated Slack message timestamp for published post:', result.ts);
+        try {
+          if (dbType === 'sqlite') {
+            await db.run(
+              'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+              [result.ts, post.id]
+            );
+          } else {
+            // PostgreSQL - check if column exists first
+            try {
+              await db.query(
+                'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
+                [result.ts, post.id]
+              );
+            } catch (colError) {
+              console.log('📝 slackmessagets column not found, skipping timestamp update');
+            }
+          }
+          console.log('📝 Updated Slack message timestamp for published post:', result.ts);
+        } catch (updateError) {
+          console.log('📝 Could not update Slack timestamp:', updateError.message);
+        }
       }
     } else {
       console.log('❌ Skipping published notification (disabled)');

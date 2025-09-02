@@ -156,9 +156,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Import and use the proper Slack routes
+// Import and use the proper routes
 const slackRoutes = require('./slack-routes');
+const postsRoutes = require('./posts-routes');
 app.use('/api/slack', slackRoutes);
+app.use('/api/posts', postsRoutes);
 
 // Authentication routes
 app.post('/api/auth/login', async (req, res) => {
@@ -387,161 +389,7 @@ app.get('/api/calendar', (req, res) => {
   res.json([]);
 });
 
-let postsCallCount = 0;
-
-app.get('/api/posts', async (req, res) => {
-  postsCallCount++;
-  
-  try {
-    let result;
-    if (dbType === 'postgres') {
-      result = await db.query('SELECT * FROM posts ORDER BY createdat DESC');
-      const rawPosts = result.rows;
-      
-      // Map PostgreSQL columns to camelCase for frontend
-      const posts = rawPosts.map(post => ({
-        id: post.id,
-        userid: post.userid,
-        content: post.content,
-        platform: post.platform,
-        scheduledTime: post.scheduledtime, // Map to camelCase
-        status: post.status,
-        createdAt: post.createdat, // Map to camelCase
-        updatedAt: post.updatedat, // Map to camelCase
-        publishedAt: post.publishedat, // Map to camelCase
-        media: post.media
-      }));
-      
-      // Update post statuses based on scheduled time
-      const now = new Date();
-      for (let i = 0; i < posts.length; i++) {
-        const post = posts[i];
-        if (post.status === 'scheduled' && new Date(post.scheduledTime) <= now) {
-          await db.query(
-            'UPDATE posts SET status = $1, publishedat = $2 WHERE id = $3',
-            ['published', now.toISOString(), post.id]
-          );
-          posts[i].status = 'published';
-          posts[i].publishedAt = now.toISOString();
-          console.log(`Post ${post.id} auto-published at ${posts[i].publishedAt}`);
-        }
-      }
-      
-      console.log(`GET /api/posts called - Call #${postsCallCount} - Returning ${posts.length} posts`);
-      res.json(posts);
-    } else {
-      // SQLite fallback
-      res.json([]);
-    }
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    res.status(500).json({ error: 'Failed to fetch posts' });
-  }
-});
-
-app.post('/api/posts', async (req, res) => {
-  console.log('POST /api/posts called with body:', req.body);
-  const { content, platform, scheduledTime, media, images, videos } = req.body;
-  
-  if (!content || !platform || !scheduledTime) {
-    return res.status(400).json({ error: 'Content, platform, and scheduled time required' });
-  }
-  
-  try {
-    if (dbType === 'postgres') {
-      const result = await db.query(`
-        INSERT INTO posts (userid, content, platform, scheduledtime, status, createdat, updatedat, media)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING *
-      `, [
-        1, // userId
-        content,
-        platform, 
-        scheduledTime,
-        'scheduled',
-        new Date().toISOString(),
-        new Date().toISOString(),
-        JSON.stringify(media || [])
-      ]);
-      
-      const newPost = result.rows[0];
-      console.log('Post created and saved to PostgreSQL:', newPost.id);
-      res.status(201).json(newPost);
-    } else {
-      // SQLite fallback
-      const newPost = {
-        id: Date.now(),
-        content,
-        platform,
-        scheduledTime,
-        status: 'scheduled',
-        createdAt: new Date().toISOString()
-      };
-      res.status(201).json(newPost);
-    }
-  } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).json({ error: 'Failed to create post' });
-  }
-});
-
-// Get single post by ID
-app.get('/api/posts/:id', (req, res) => {
-  const postId = parseInt(req.params.id);
-  const post = posts.find(p => p.id === postId);
-  
-  if (!post) {
-    return res.status(404).json({ error: 'Post not found' });
-  }
-  
-  console.log(`GET /api/posts/${postId} - Post found`);
-  res.json(post);
-});
-
-// Update post by ID
-app.put('/api/posts/:id', (req, res) => {
-  const postId = parseInt(req.params.id);
-  const postIndex = posts.findIndex(p => p.id === postId);
-  
-  if (postIndex === -1) {
-    return res.status(404).json({ error: 'Post not found' });
-  }
-  
-  const { content, platform, scheduledTime, media, images, videos, status } = req.body;
-  
-  // Update the post
-  const updatedPost = {
-    ...posts[postIndex],
-    content: content || posts[postIndex].content,
-    platform: platform || posts[postIndex].platform,
-    scheduledTime: scheduledTime || posts[postIndex].scheduledTime,
-    media: media || posts[postIndex].media,
-    images: images || posts[postIndex].images,
-    videos: videos || posts[postIndex].videos,
-    status: status || posts[postIndex].status,
-    updatedAt: new Date().toISOString()
-  };
-  
-  posts[postIndex] = updatedPost;
-  
-  console.log(`PUT /api/posts/${postId} - Post updated`);
-  res.json(updatedPost);
-});
-
-// Delete post by ID
-app.delete('/api/posts/:id', (req, res) => {
-  const postId = parseInt(req.params.id);
-  const postIndex = posts.findIndex(p => p.id === postId);
-  
-  if (postIndex === -1) {
-    return res.status(404).json({ error: 'Post not found' });
-  }
-  
-  const deletedPost = posts.splice(postIndex, 1)[0];
-  
-  console.log(`DELETE /api/posts/${postId} - Post deleted`);
-  res.json({ message: 'Post deleted successfully', post: deletedPost });
-});
+// Posts routes now handled by posts-routes.js router
 
 // Media upload endpoint
 app.post('/api/upload', (req, res) => {

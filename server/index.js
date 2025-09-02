@@ -346,16 +346,14 @@ app.get('/auth/me', (req, res) => {
   authMeCallCount++;
   console.log(`GET /auth/me called (frontend endpoint) - Call #${authMeCallCount}`);
   
-  // Add small delay to prevent rapid loops
-  setTimeout(() => {
-    res.status(200).json({
-      success: true,
-      id: 1,
-      name: 'Demo User',
-      email: 'rodrigomvsrodrigo@gmail.com',
-      authenticated: true
-    });
-  }, 100);
+  // Always return the same user to maintain consistency
+  res.status(200).json({
+    success: true,
+    id: '1', // String ID for frontend compatibility
+    name: 'Demo User',
+    email: 'demo@example.com',
+    authenticated: true
+  });
 });
 
 // Get current user info - return format that frontend expects
@@ -364,7 +362,7 @@ app.get('/api/me', (req, res) => {
   // Return user in the format the frontend expects
   res.status(200).json({
     success: true,
-    id: 1,
+    id: '1', // String ID for frontend compatibility
     name: 'Demo User',
     email: 'demo@example.com',
     authenticated: true
@@ -376,7 +374,7 @@ app.get('/api/auth/me', (req, res) => {
   console.log('GET /api/auth/me called');
   res.status(200).json({
     success: true,
-    id: 1,
+    id: '1', // String ID for frontend compatibility
     name: 'Demo User',
     email: 'demo@example.com',
     authenticated: true

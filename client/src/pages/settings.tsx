@@ -44,6 +44,7 @@ const Settings = () => {
           }
         }
         
+        console.log('🔧 Loading Slack settings with token...');
         const response = await fetch('/api/slack/settings', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -57,19 +58,33 @@ const Settings = () => {
             setSlackPostScheduled(settings.slackScheduled !== undefined ? Boolean(settings.slackScheduled) : true);
             setSlackPostPublished(settings.slackPublished !== undefined ? Boolean(settings.slackPublished) : true);
             setSlackPostFailed(settings.slackFailed !== undefined ? Boolean(settings.slackFailed) : true);
+            console.log('🔧 Preferences loaded from database:', {
+              scheduled: settings.slackScheduled,
+              published: settings.slackPublished,
+              failed: settings.slackFailed
+            });
           } else {
             // If not configured, use defaults
+            console.log('🔧 No Slack configuration found, using defaults');
             setSlackPostScheduled(true);
             setSlackPostPublished(true);
             setSlackPostFailed(true);
           }
         } else {
-          console.log('No Slack settings found, using defaults');
+          console.log('🔧 Slack settings API call failed:', response.status);
+          // Use defaults if API fails
+          setSlackPostScheduled(true);
+          setSlackPostPublished(true);
+          setSlackPostFailed(true);
         }
         
         setPreferencesLoaded(true);
       } catch (error) {
-        console.error('Failed to load Slack settings:', error);
+        console.error('🔧 Failed to load Slack settings:', error);
+        // Use defaults on error
+        setSlackPostScheduled(true);
+        setSlackPostPublished(true);
+        setSlackPostFailed(true);
         setPreferencesLoaded(true);
       }
     };

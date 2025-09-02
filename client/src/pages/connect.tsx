@@ -191,13 +191,22 @@ const ConnectPage = () => {
           </div>
           
           <Alert className="mb-6">
-            <AlertTitle>OAuth Social Media Integration</AlertTitle>
+            <AlertTitle>Connect Your Social Media Accounts</AlertTitle>
             <AlertDescription>
-              <p className="mb-2">
-                Connect your social media accounts using OAuth authentication.
+              <p className="mb-3">
+                First time connecting? We'll guide you through the setup process.
               </p>
-              <p className="text-sm">
-                Click "Connect" to authenticate with each platform. Make sure you have configured your OAuth credentials in the .env file.
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.href = '/social-setup'}
+                className="mb-2"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Setup Guide for New Users
+              </Button>
+              <p className="text-xs text-gray-600">
+                Already have OAuth credentials? Click "Connect" below to authenticate.
               </p>
             </AlertDescription>
           </Alert>

@@ -14,6 +14,7 @@ import Reports from '@/pages/reports';
 import Settings from '@/pages/settings';
 import AuthPage from '@/pages/auth/AuthPage';
 import OAuthSetupPage from '@/pages/oauth-setup';
+import SocialSetup from '@/pages/social-setup';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Using the configured queryClient from lib/queryClient.ts
@@ -27,6 +28,7 @@ function App() {
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/oauth-setup" element={<OAuthSetupPage />} />
+              <Route path="/social-setup" element={<SocialSetup />} />
               
               <Route path="/" element={
                 <ProtectedRoute>

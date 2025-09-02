@@ -376,4 +376,89 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Check for deleted Slack messages and remove corresponding posts
+router.post('/sync-slack-deletions', async (req, res) => {
+  try {
+    console.log('🔄 Checking for deleted Slack messages...');
+    
+    // Get posts with Slack timestamps
+    let posts = [];
+    
+    if (dbType === 'sqlite') {
+      posts = await db.all('SELECT id, slackMessageTs FROM posts WHERE slackMessageTs IS NOT NULL');
+    } else {
+      const result = await db.query('SELECT id, slackmessagets FROM posts WHERE slackmessagets IS NOT NULL');
+      posts = result.rows.map(row => ({ id: row.id, slackMessageTs: row.slackmessagets }));
+    }
+    
+    if (posts.length === 0) {
+      return res.json({ message: 'No posts with Slack timestamps found' });
+    }
+    
+    // Get Slack settings
+    let slackSettings;
+    const userId = 1;
+    
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      slackSettings = await database.get(
+        'SELECT botToken, channelId FROM slack_settings WHERE userId = ?',
+        [userId]
+      );
+    } else {
+      const result = await db.query(
+        'SELECT bottoken, channelid FROM slack_settings WHERE userid = $1',
+        [userId]
+      );
+      slackSettings = result.rows[0];
+      if (slackSettings) {
+        slackSettings = {
+          botToken: slackSettings.bottoken,
+          channelId: slackSettings.channelid
+        };
+      }
+    }
+    
+    if (!slackSettings || !slackSettings.botToken) {
+      return res.status(400).json({ error: 'No Slack settings found' });
+    }
+    
+    const { WebClient } = require('@slack/web-api');
+    const slack = new WebClient(slackSettings.botToken);
+    let deletedCount = 0;
+    
+    // Check each post's Slack message
+    for (const post of posts) {
+      try {
+        await slack.conversations.history({
+          channel: slackSettings.channelId,
+          latest: post.slackMessageTs,
+          limit: 1,
+          inclusive: true
+        });
+      } catch (error) {
+        if (error.data && error.data.error === 'message_not_found') {
+          // Message was deleted, remove post
+          console.log(`🗑️ Slack message deleted, removing post ${post.id}`);
+          
+          if (dbType === 'sqlite') {
+            await db.run('DELETE FROM posts WHERE id = ?', [post.id]);
+          } else {
+            await db.query('DELETE FROM posts WHERE id = $1', [post.id]);
+          }
+          
+          deletedCount++;
+        }
+      }
+    }
+    
+    console.log(`✅ Sync complete: ${deletedCount} posts deleted`);
+    res.json({ message: `Sync complete: ${deletedCount} posts deleted` });
+    
+  } catch (error) {
+    console.error('❌ Slack sync error:', error);
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
 module.exports = router;

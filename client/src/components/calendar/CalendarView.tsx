@@ -133,13 +133,21 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
     }
     
     // Apply search filter to each section's posts
-    if (filters?.searchQuery) {
+    if (filters?.searchQuery && filters.searchQuery.trim() !== '') {
       const query = filters.searchQuery.toLowerCase().trim();
+      console.log('🔍 Searching for:', query);
+      
       sections.forEach(section => {
-        section.posts = section.posts.filter(post => 
-          post.content.toLowerCase().includes(query) ||
-          post.platform.toLowerCase().includes(query)
-        );
+        const originalCount = section.posts.length;
+        section.posts = section.posts.filter(post => {
+          const contentMatch = post.content.toLowerCase().includes(query);
+          const platformMatch = post.platform.toLowerCase().includes(query);
+          const statusMatch = post.status?.toLowerCase().includes(query);
+          
+          return contentMatch || platformMatch || statusMatch;
+        });
+        
+        console.log(`📊 Section "${section.title}": ${originalCount} → ${section.posts.length} posts after search`);
       });
     }
     

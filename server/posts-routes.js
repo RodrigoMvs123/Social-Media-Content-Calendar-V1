@@ -5,6 +5,16 @@ const router = express.Router();
 const dbType = process.env.DB_TYPE || 'sqlite';
 let db;
 
+// SQLite helper function
+async function getDb() {
+  const sqlite3 = require('sqlite3');
+  const { open } = require('sqlite');
+  return await open({
+    filename: process.env.DB_PATH || './data.sqlite',
+    driver: sqlite3.Database
+  });
+}
+
 if (dbType === 'sqlite') {
   const sqlite3 = require('sqlite3');
   const { open } = require('sqlite');
@@ -273,6 +283,8 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     let deletedPost = null;
     
+    console.log(`🗑️ Deleting post ${id}...`);
+    
     // First get the post to check for Slack message timestamp
     if (dbType === 'sqlite') {
       deletedPost = await db.get('SELECT * FROM posts WHERE id = ?', [id]);
@@ -298,16 +310,18 @@ router.delete('/:id', async (req, res) => {
     }
     
     // Delete corresponding Slack message if it exists
-    if (deletedPost && deletedPost.slackMessageTs) {
+    const slackTs = deletedPost.slackMessageTs || deletedPost.slackmessagets;
+    if (slackTs) {
       try {
-        console.log('🗑️ Deleting Slack message:', deletedPost.slackMessageTs);
+        console.log('🗑️ Found Slack timestamp, deleting message:', slackTs);
         
         // Get user's Slack settings
         const userId = 1; // Default user
         let slackSettings;
         
         if (dbType === 'sqlite') {
-          slackSettings = await db.get(
+          const database = await getDb();
+          slackSettings = await database.get(
             'SELECT botToken, channelId FROM slack_settings WHERE userId = ?',
             [userId]
           );
@@ -331,20 +345,25 @@ router.delete('/:id', async (req, res) => {
           
           await slack.chat.delete({
             channel: slackSettings.channelId,
-            ts: deletedPost.slackMessageTs
+            ts: slackTs
           });
           
           console.log('✅ Slack message deleted successfully');
+        } else {
+          console.log('🔕 No Slack settings found, skipping message deletion');
         }
       } catch (slackError) {
         console.error('❌ Error deleting Slack message:', slackError.message);
         // Don't fail the post deletion if Slack deletion fails
       }
+    } else {
+      console.log('🔕 No Slack timestamp found for post, skipping message deletion');
     }
     
+    console.log('✅ Post deleted successfully from database');
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
-    console.error('Error deleting post:', error);
+    console.error('❌ Error deleting post:', error);
     res.status(500).json({ error: 'Failed to delete post' });
   }
 });

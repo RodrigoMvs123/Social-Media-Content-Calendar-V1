@@ -302,3 +302,144 @@ SLACK_CHANNEL_ID=your-channel-id
 2. **Delete the post** from dashboard → Should delete Slack message
 3. **Check Slack channel** for notifications
 
+### Troubleshooting
+
+- **No Slack notifications**: Check bot token and channel configuration
+- **Bot not in channel**: Ensure bot is added to the target Slack channel
+- **Permission errors**: Verify OAuth scopes are correctly configured
+
+## 🚀 Render Deployment
+
+The application can be deployed to Render.com using the included `render.yaml` configuration.
+
+### Prerequisites
+
+1. **GitHub Repository**: Push your code to GitHub
+2. **Render Account**: Sign up at [render.com](https://render.com)
+3. **Environment Variables**: Configure your `.env` variables
+
+### Step-by-Step Deployment
+
+#### Step 1: Prepare Environment Variables
+
+In your Render Dashboard, you'll need to set these environment variables:
+
+```bash
+# Database configuration
+DB_TYPE=postgres
+DATABASE_URL=postgresql://username:password@localhost:5432/social_media_content_calendar_v1
+
+# Or for SQLite:
+DB_TYPE=sqlite
+DB_PATH=./data.sqlite
+
+# Use mock data for development
+USE_MOCK_DATA=false
+
+# JWT configuration
+JWT_SECRET=your_jwt_secret_here
+
+# CORS configuration
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+
+# Client URL for OAuth redirects
+CLIENT_URL=http://localhost:3000
+
+# AI configuration (choose one)
+OPENAI_API_KEY=your_openai_api_key_here
+CLAUDE_API_KEY=your_claude_api_key_here
+
+# Slack configuration
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+SLACK_SIGNING_SECRET=your-slack-signing-secret
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your-webhook-url
+SLACK_CHANNEL_ID=your-channel-id
+
+# Twitter OAuth credentials
+TWITTER_CLIENT_ID=your_twitter_client_id
+TWITTER_CLIENT_SECRET=your_twitter_client_secret
+
+# LinkedIn OAuth credentials
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+
+# Facebook OAuth credentials
+FACEBOOK_CLIENT_ID=your_facebook_client_id
+FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
+
+# Instagram OAuth credentials
+INSTAGRAM_CLIENT_ID=your_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+```
+
+#### Step 2: Connect GitHub Repository
+
+1. **Go to Render Dashboard** → **New** → **Web Service**
+2. **Connect GitHub** and select your repository
+3. **Branch**: Choose `main` or your deployment branch
+4. **Root Directory**: Leave empty (uses root)
+
+#### Step 3: Configure Build Settings
+
+**Build Command:**
+```bash
+npm install && cd client && npm install && npm run build
+```
+
+**Start Command:**
+```bash
+cd server && npm start
+```
+
+**Environment**: `Node`
+
+#### Step 4: Add Database (Optional)
+
+For PostgreSQL:
+1. **New** → **PostgreSQL**
+2. **Copy connection string**
+3. **Add to environment variables** as `DATABASE_URL`
+
+#### Step 5: Deploy
+
+1. **Click "Create Web Service"**
+2. **Render will automatically**:
+   - Install dependencies
+   - Build the frontend
+   - Start the server
+   - Provide live URL
+
+### Using render.yaml (Advanced)
+
+The included `render.yaml` file automates the deployment with hybrid database support:
+
+```yaml
+# render.yaml configured with:
+- Web service configuration
+- Hybrid database support (PostgreSQL + SQLite fallback)
+- Automatic PostgreSQL database creation
+- Environment variables
+- Build and start commands
+```
+
+**Database Configuration:**
+- **Production**: Uses PostgreSQL (automatically created)
+- **Development**: Can fallback to SQLite
+- **Hybrid Support**: Application detects and uses available database
+
+To use it:
+1. **Push `render.yaml`** to your repository
+2. **Import from GitHub** in Render Dashboard
+3. **Render auto-detects** the configuration
+4. **PostgreSQL database** is automatically created and connected
+
+### Deployment Benefits
+
+- ✅ **Automatic Deployments**: Push to GitHub → Auto-deploy
+- ✅ **Free Tier Available**: Great for testing
+- ✅ **PostgreSQL Included**: Managed database
+- ✅ **SSL Certificates**: HTTPS by default
+- ✅ **Custom Domains**: Add your own domain
+
+
+

@@ -4,6 +4,13 @@ README.md
 
 A modern web application for planning and scheduling social media content across multiple platforms.
 
+## 🚀 Live Demo
+
+The application is deployed and available at:
+**https://social-media-content-calendar-v1.onrender.com/**
+
+*Note: This is a production deployment on Render.com with full functionality including PostgreSQL database, Slack integration, and AI content generation.*
+
 ## Technologies Used
 
 - React with TypeScript
@@ -94,31 +101,42 @@ This application uses OAuth for real social media integration.
 To connect your social media accounts:
 
 1. Register as a developer on each platform:
-   - X (formerly Twitter): [X Developer Portal](https://developer.twitter.com/)
-   - LinkedIn: [LinkedIn Developer Portal](https://developer.linkedin.com/)
-   - Facebook/Instagram: [Meta for Developers](https://developers.facebook.com/)
+   - **X**: [X Developer Portal](https://developer.x.com/)
+   - **LinkedIn**: [LinkedIn Developer Portal](https://developer.linkedin.com/)
+   - **Facebook/Instagram**: [Meta for Developers](https://developers.facebook.com/)
 
 2. Create an application in their developer portals
 
 3. Configure the redirect URLs in each platform's developer portal:
+
+   > **Important**: These URLs are configured in the **external platform developer portals** (X, LinkedIn, Facebook, Instagram), NOT in your code files.
    
    **For Development (localhost):**
-   - **X (Twitter)**: `http://localhost:3001/api/oauth/callback/twitter`
-   - **LinkedIn**: `http://localhost:3001/api/oauth/callback/linkedin`
-   - **Facebook**: `http://localhost:3001/api/oauth/callback/facebook`
-   - **Instagram**: `http://localhost:3001/api/oauth/callback/instagram`
+   - **X Developer Portal**: Add `http://localhost:3001/api/oauth/callback/x`
+   - **LinkedIn Developer Portal**: Add `http://localhost:3001/api/oauth/callback/linkedin`
+   - **Facebook Developer Portal**: Add `http://localhost:3001/api/oauth/callback/facebook`
+   - **Instagram Developer Portal**: Add `http://localhost:3001/api/oauth/callback/instagram`
    
-   **For Production:**
-   - **X (Twitter)**: `https://yourdomain.com/api/oauth/callback/twitter`
-   - **LinkedIn**: `https://yourdomain.com/api/oauth/callback/linkedin`
-   - **Facebook**: `https://yourdomain.com/api/oauth/callback/facebook`
-   - **Instagram**: `https://yourdomain.com/api/oauth/callback/instagram`
+   **For Production (using this deployment):**
+   - **X Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/x`
+   - **LinkedIn Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/linkedin`
+   - **Facebook Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/facebook`
+   - **Instagram Developer Portal**: Add `https://social-media-content-calendar-v1.onrender.com/api/oauth/callback/instagram`
+   
+   **For Your Own Deployment:**
+   - Use your own domain instead of `social-media-content-calendar-v1.onrender.com`
+   - Example: `https://yourdomain.com/api/oauth/callback/x`
 
-4. Copy the client ID and secret to **both** `.env` files (root and server directory):
+4. Copy the client ID and secret to **both** `.env` files:
+   
+   **File 1: `/Social-Media-Content-Calendar-V1/.env`**
+   **File 2: `/Social-Media-Content-Calendar-V1/server/.env`**
+   
+   Add these lines to both files:
    ```
    # X (formerly Twitter) OAuth credentials
-   TWITTER_CLIENT_ID=your_x_client_id
-   TWITTER_CLIENT_SECRET=your_x_client_secret
+   X_CLIENT_ID=your_x_client_id
+   X_CLIENT_SECRET=your_x_client_secret
 
    # LinkedIn OAuth credentials
    LINKEDIN_CLIENT_ID=your_linkedin_client_id
@@ -136,10 +154,15 @@ To connect your social media accounts:
 5. Set the client URL in both `.env` files:
    ```
    CLIENT_URL=http://localhost:3000  # For development
-   CLIENT_URL=https://yourdomain.com  # For production
+   CLIENT_URL=https://social-media-content-calendar-v1.onrender.com  # For this deployment
+   CLIENT_URL=https://yourdomain.com  # For your own deployment
    ```
 
    > **Important**: You must add these credentials to both the root `.env` file AND the `server/.env` file, as Node.js sometimes only checks for the nearest environment file.
+   
+   > **File Locations**: 
+   > - Root: `/Social-Media-Content-Calendar-V1/.env`
+   > - Server: `/Social-Media-Content-Calendar-V1/server/.env`
 
 The application is already configured to use these credentials when available.
 
@@ -240,72 +263,183 @@ USE_SERVER_STORAGE=false # For development (localStorage only)
 
 When `USE_SERVER_STORAGE` is false, the application will only use localStorage, making it perfect for demonstrations and development without a backend.
 
-## Slack Bidirectional Sync Setup
+## Slack Integration Setup
 
-The application supports bidirectional synchronization with Slack - when you delete a Slack notification message, the corresponding post is automatically deleted from the webapp.
+The application supports one-way synchronization with Slack - when you delete a post from the dashboard, it automatically deletes the corresponding Slack notification message.
 
 ### Prerequisites
 
 1. **Slack App Configuration**:
    - Create a Slack App at [api.slack.com](https://api.slack.com/apps)
-   - Add your `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET`, `SLACK_WEBHOOK_URL`, and `SLACK_CHANNEL_ID` to `.env` files
-   - Configure Event Subscriptions (see below)
+   - Add your `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` to both `.env` files
 
-### Event Subscriptions Setup
-
-1. **Go to your Slack App** → **Event Subscriptions**
-2. **Enable Events** → Toggle ON
-3. **Request URL**: Configure based on your environment:
-
-#### For Local Development (VS Code Desktop):
-```bash
-# Install ngrok globally
-npm install -g ngrok
-
-# Start ngrok tunnel (use the port your server runs on)
-ngrok http 3001
-
-# Use the ngrok URL in Slack Event Subscriptions
-https://abc123.ngrok.io/api/slack/events
-```
-
-#### For GitHub Codespaces:
-```
-# Use your Codespace URL
-https://your-codespace-name.app.github.dev/api/slack/events
-```
-
-**⚠️ Important for Codespaces**: Port visibility is set to **private** by default. You must manually make the backend port **public**:
-
-1. **In VS Code**, go to the **"PORTS"** tab (bottom panel)
-2. **Find your backend port** (usually 3001)
-3. **Right-click on the port** → **"Port Visibility"** → **"Public"**
-
-Without making the port public, Slack cannot reach your webhook endpoint and bidirectional sync will not work.
-
-4. **Subscribe to Bot Events**:
-   - `message.channels` - Listen for messages in channels
-   - `message.groups` - Listen for messages in private channels
-   - `message.im` - Listen for direct messages
-
-5. **Required OAuth Scopes**:
-   - `channels:history` - Read messages in channels
+2. **Required OAuth Scopes**:
    - `chat:write` - Send messages
    - `chat:write.public` - Send messages to channels bot isn't in
 
-6. **Add Bot to Channel**:
+3. **Add Bot to Channel**:
    - In your target Slack channel (e.g., #social)
    - Type: `/invite @YourBotName`
    - Or go to channel settings → Integrations → Add your bot
 
-### Testing Bidirectional Sync
+### How It Works
+
+1. **Create a post** in the dashboard → Sends Slack notification
+2. **Delete the post** from dashboard → Automatically deletes Slack message
+3. **Post scheduling** → Sends notifications when posts are ready to publish
+
+### Configuration
+
+Add these to both `.env` files:
+```
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_CHANNEL_ID=your-channel-id
+```
+
+### Testing
 
 1. **Create a post** in the webapp → Should send Slack notification
-2. **Delete the Slack message** → Should automatically delete the post from webapp
-3. **Check server logs** for sync confirmation messages
+2. **Delete the post** from dashboard → Should delete Slack message
+3. **Check Slack channel** for notifications
 
 ### Troubleshooting
 
 - **No Slack notifications**: Check bot token and channel configuration
-- **Deletion not syncing**: Ensure bot is added to the channel and port is public (Codespaces)
-- **Webhook errors**: Verify the webhook URL is accessible and Event Subscriptions are configured correctly
+- **Bot not in channel**: Ensure bot is added to the target Slack channel
+- **Permission errors**: Verify OAuth scopes are correctly configured
+
+## 🚀 Render Deployment
+
+The application can be deployed to Render.com using the included `render.yaml` configuration.
+
+### Prerequisites
+
+1. **GitHub Repository**: Push your code to GitHub
+2. **Render Account**: Sign up at [render.com](https://render.com)
+3. **Environment Variables**: Configure your `.env` variables
+
+### Step-by-Step Deployment
+
+#### Step 1: Prepare Environment Variables
+
+In your Render Dashboard, you'll need to set these environment variables:
+
+```bash
+# Database configuration
+DB_TYPE=postgres
+DATABASE_URL=postgresql://username:password@localhost:5432/social_media_content_calendar_v1
+
+# Or for SQLite:
+DB_TYPE=sqlite
+DB_PATH=./data.sqlite
+
+# Use mock data for development
+USE_MOCK_DATA=false
+
+# JWT configuration
+JWT_SECRET=your_jwt_secret_here
+
+# CORS configuration
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+
+# Client URL for OAuth redirects
+CLIENT_URL=http://localhost:3000
+
+# AI configuration (choose one)
+OPENAI_API_KEY=your_openai_api_key_here
+CLAUDE_API_KEY=your_claude_api_key_here
+
+# Slack configuration
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+SLACK_SIGNING_SECRET=your-slack-signing-secret
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your-webhook-url
+SLACK_CHANNEL_ID=your-channel-id
+
+# Twitter OAuth credentials
+TWITTER_CLIENT_ID=your_twitter_client_id
+TWITTER_CLIENT_SECRET=your_twitter_client_secret
+
+# LinkedIn OAuth credentials
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+
+# Facebook OAuth credentials
+FACEBOOK_CLIENT_ID=your_facebook_client_id
+FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
+
+# Instagram OAuth credentials
+INSTAGRAM_CLIENT_ID=your_instagram_client_id
+INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
+```
+
+#### Step 2: Connect GitHub Repository
+
+1. **Go to Render Dashboard** → **New** → **Web Service**
+2. **Connect GitHub** and select your repository
+3. **Branch**: Choose `main` or your deployment branch
+4. **Root Directory**: Leave empty (uses root)
+
+#### Step 3: Configure Build Settings
+
+**Build Command:**
+```bash
+npm install && cd client && npm install && npm run build
+```
+
+**Start Command:**
+```bash
+cd server && npm start
+```
+
+**Environment**: `Node`
+
+#### Step 4: Add Database (Optional)
+
+For PostgreSQL:
+1. **New** → **PostgreSQL**
+2. **Copy connection string**
+3. **Add to environment variables** as `DATABASE_URL`
+
+#### Step 5: Deploy
+
+1. **Click "Create Web Service"**
+2. **Render will automatically**:
+   - Install dependencies
+   - Build the frontend
+   - Start the server
+   - Provide live URL
+
+### Using render.yaml (Advanced)
+
+The included `render.yaml` file automates the deployment with hybrid database support:
+
+```yaml
+# render.yaml configured with:
+- Web service configuration
+- Hybrid database support (PostgreSQL + SQLite fallback)
+- Automatic PostgreSQL database creation
+- Environment variables
+- Build and start commands
+```
+
+**Database Configuration:**
+- **Production**: Uses PostgreSQL (automatically created)
+- **Development**: Can fallback to SQLite
+- **Hybrid Support**: Application detects and uses available database
+
+To use it:
+1. **Push `render.yaml`** to your repository
+2. **Import from GitHub** in Render Dashboard
+3. **Render auto-detects** the configuration
+4. **PostgreSQL database** is automatically created and connected
+
+### Deployment Benefits
+
+- ✅ **Automatic Deployments**: Push to GitHub → Auto-deploy
+- ✅ **Free Tier Available**: Great for testing
+- ✅ **PostgreSQL Included**: Managed database
+- ✅ **SSL Certificates**: HTTPS by default
+- ✅ **Custom Domains**: Add your own domain
+
+
+

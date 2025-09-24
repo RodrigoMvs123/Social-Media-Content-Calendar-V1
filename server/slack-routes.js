@@ -355,6 +355,7 @@ router.get('/channels', getUserId, async (req, res) => {
 router.get('/settings', getUserId, async (req, res) => {
   try {
     let settings;
+    console.log('GET /api/slack/settings - userId:', req.userId);
     
     if (dbType === 'sqlite') {
       const database = await getDb();
@@ -362,6 +363,8 @@ router.get('/settings', getUserId, async (req, res) => {
         'SELECT botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed FROM slack_settings WHERE userId = ?',
         [req.userId]
       );
+      console.log('GET /api/slack/settings - SQLite query result:', settings);
+      await database.close();
     } else {
       const result = await db.query(
         'SELECT bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed FROM slack_settings WHERE userid = $1',
@@ -381,12 +384,15 @@ router.get('/settings', getUserId, async (req, res) => {
           slackFailed: settings.slackfailed
         };
       }
+      console.log('GET /api/slack/settings - PostgreSQL query result:', settings);
     }
     
     if (!settings) {
+      console.log('GET /api/slack/settings - No settings found for user:', req.userId);
       return res.json({ configured: false });
     }
 
+    console.log('GET /api/slack/settings - Settings found:', settings);
     res.json({
       configured: true,
       channelId: settings.channelId,

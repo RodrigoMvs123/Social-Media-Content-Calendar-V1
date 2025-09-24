@@ -88,51 +88,35 @@ async function initializeDatabase() {
     }
   } else {
     // SQLite initialization
-    const sqlite3 = require('sqlite3').verbose();
+    const { SQLiteAdapter } = require('./sqlite-db');
     const dbPath = process.env.DB_PATH || './data.sqlite';
-    const db = new sqlite3.Database(dbPath);
-    
-    db.serialize(() => {
-      db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`);
-      
-      db.run(`CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userId INTEGER DEFAULT 1,
-        platform TEXT NOT NULL,
-        content TEXT NOT NULL,
-        scheduledTime DATETIME NOT NULL,
-        status TEXT DEFAULT 'scheduled',
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        publishedAt DATETIME,
-        media TEXT
-      )`);
-      
-      db.run(`CREATE TABLE IF NOT EXISTS slack_settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userId INTEGER NOT NULL UNIQUE,
-        botToken TEXT,
-        channelId TEXT,
-        channelName TEXT,
-        isActive BOOLEAN DEFAULT 1,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        slackScheduled BOOLEAN DEFAULT 1,
-        slackPublished BOOLEAN DEFAULT 1,
-        slackFailed BOOLEAN DEFAULT 1
-      )`);
-      
+    const sqliteAdapter = new SQLiteAdapter(dbPath);
+
+    try {
+      await sqliteAdapter.initialize();
       console.log('✅ SQLite tables created');
-    });
-    
-    db.close();
-    console.log('🎉 SQLite database initialization complete!');
+
+      // Insert default user if not exists
+      const userCheck = await sqliteAdapter.users.findByEmail('demo@example.com');
+      if (!userCheck) {
+        const bcrypt = require('bcrypt');
+        const hashedPassword = await bcrypt.hash('demo123', 10);
+        await sqliteAdapter.users.create({
+          email: 'demo@example.com',
+          name: 'Demo User',
+          password: hashedPassword,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        console.log('✅ Default user created');
+      } else {
+        console.log('✅ Default user exists');
+      }
+      console.log('🎉 SQLite database initialization complete!');
+    } catch (error) {
+      console.error('❌ Database initialization failed:', error.message);
+      process.exit(1);
+    }
   }
 }
 

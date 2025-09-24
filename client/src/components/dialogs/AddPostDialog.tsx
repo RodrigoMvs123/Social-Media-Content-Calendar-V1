@@ -327,6 +327,7 @@ const AddPostDialog = () => {
               placeholder="What do you want to share?"
               className="min-h-[100px]"
             />
+            {console.log('AddPostDialog - Content value:', content, 'Type:', typeof content)}
           </div>
           
           {/* Media Upload Section */}

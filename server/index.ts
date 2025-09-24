@@ -16,7 +16,7 @@ import slackRoutes from './slack-routes';
 import notificationRoutes from './notification-routes';
 const oauthRoutes = require('./oauth-routes');
 const SocialMediaAPI = require('./social-media-api');
-const { createSocialAccountsTable } = require('./create-social-accounts-table');
+const { createSocialAccountsTable } = require('./dev-tools/create-social-accounts-table');
 
 // Load environment variables
 dotenv.config();

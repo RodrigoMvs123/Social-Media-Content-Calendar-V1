@@ -62,16 +62,21 @@ const SlackSettings = () => {
 
   // Load existing settings when component mounts
   useEffect(() => {
+    console.log('SlackSettings useEffect - slackSettings:', slackSettings);
     if (slackSettings?.configured) {
       setSelectedChannelId(slackSettings.channelId || '');
-      // Load token from environment if configured (for persistence)
-      if (slackSettings.hasToken) {
-        const envToken = process.env.SLACK_BOT_TOKEN || localStorage.getItem('slack_bot_token');
-        if (envToken) {
-          setBotToken(envToken);
-          setValidationResult({ valid: true, botInfo: { team: 'Your Workspace', user: 'Bot' } });
-          loadChannels(envToken);
-        }
+      console.log('SlackSettings useEffect - slackSettings.channelId:', slackSettings.channelId);
+    }
+
+    // Always try to load token from localStorage
+    const storedToken = localStorage.getItem('slack_bot_token');
+    if (storedToken) {
+      setBotToken(storedToken);
+      // Only set validation result and load channels if the server also indicates a token is configured
+      // This prevents trying to load channels with a token that the server doesn't recognize
+      if (slackSettings?.hasToken) {
+        setValidationResult({ valid: true, botInfo: { team: 'Your Workspace', user: 'Bot' } });
+        loadChannels(storedToken);
       }
     }
   }, [slackSettings]);

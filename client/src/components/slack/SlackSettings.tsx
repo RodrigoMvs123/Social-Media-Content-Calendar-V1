@@ -48,38 +48,56 @@ const SlackSettings = () => {
           }
         });
         if (!response.ok) {
-          console.error('Slack settings fetch failed:', response.status);
           return { configured: false };
         }
         return response.json() as Promise<SlackSettings>;
       } catch (error) {
-        console.error('Slack settings error:', error);
         return { configured: false };
       }
     },
     retry: false
   });
 
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      refetch();
+    };
+    window.addEventListener('slack-settings-changed', handleSettingsChange);
+    return () => {
+      window.removeEventListener('slack-settings-changed', handleSettingsChange);
+    };
+  }, [refetch]);
+
   // Load existing settings when component mounts
   useEffect(() => {
-    console.log('SlackSettings useEffect - slackSettings:', slackSettings);
     if (slackSettings?.configured) {
       setSelectedChannelId(slackSettings.channelId || '');
-      console.log('SlackSettings useEffect - slackSettings.channelId:', slackSettings.channelId);
     }
 
-    // Always try to load token from localStorage
     const storedToken = localStorage.getItem('slack_bot_token');
     if (storedToken) {
       setBotToken(storedToken);
-      // Only set validation result and load channels if the server also indicates a token is configured
-      // This prevents trying to load channels with a token that the server doesn't recognize
       if (slackSettings?.hasToken) {
         setValidationResult({ valid: true, botInfo: { team: 'Your Workspace', user: 'Bot' } });
         loadChannels(storedToken);
       }
     }
+    
+    const storedChannelId = localStorage.getItem('slack_selected_channel_id');
+    if (storedChannelId) {
+      setSelectedChannelId(storedChannelId);
+    }
   }, [slackSettings]);
+
+  // Save selectedChannelId to localStorage
+  useEffect(() => {
+    if (selectedChannelId) {
+      localStorage.setItem('slack_selected_channel_id', selectedChannelId);
+    } else {
+      // If channel is deselected, remove it from storage
+      localStorage.removeItem('slack_selected_channel_id');
+    }
+  }, [selectedChannelId]);
 
   // Validate bot token
   const validateBotToken = async (token: string) => {
@@ -125,7 +143,6 @@ const SlackSettings = () => {
         });
       }
     } catch (error) {
-      console.error('Validation error:', error);
       setValidationResult({ valid: false, error: 'Network error' });
       const message = error instanceof Error ? error.message : "An unknown error occurred";
       toast({
@@ -228,6 +245,7 @@ const SlackSettings = () => {
         await refetch();
         // Notify status change
         slackEvents.emitStatusChange();
+        window.dispatchEvent(new Event('slack-settings-changed'));
       } else {
         throw new Error('Failed to save settings');
       }

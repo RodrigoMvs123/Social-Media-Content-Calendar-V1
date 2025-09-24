@@ -9,7 +9,9 @@
     "server": "cd server && cross-env NODE_ENV=development ts-node-dev -r dotenv/config --files --respawn --transpile-only index.ts",
     "client": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rm -rf node_modules package-lock.json dist build .next .cache && npm install",
+    "fresh-start": "npm run clean && npm start"
   },
   "keywords": [
     "social media",

@@ -1,3 +1,4 @@
+console.log('### init-database.js started ###');
 const dotenv = require('dotenv');
 dotenv.config();
 const fs = require('fs');

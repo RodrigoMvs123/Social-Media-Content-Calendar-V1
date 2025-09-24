@@ -1,5 +1,6 @@
 const dotenv = require('dotenv');
 dotenv.config();
+const fs = require('fs');
 
 const dbType = process.env.DB_TYPE || 'sqlite';
 
@@ -90,11 +91,19 @@ async function initializeDatabase() {
     // SQLite initialization
     const { SQLiteAdapter } = require('./sqlite-db');
     const dbPath = process.env.DB_PATH || './data.sqlite';
+    console.log(`🔍 SQLite DB Path: ${dbPath}`);
     const sqliteAdapter = new SQLiteAdapter(dbPath);
 
     try {
       await sqliteAdapter.initialize();
       console.log('✅ SQLite tables created');
+
+      if (fs.existsSync(dbPath)) {
+        const stats = fs.statSync(dbPath);
+        console.log(`✅ SQLite DB file exists at ${dbPath}, size: ${stats.size} bytes`);
+      } else {
+        console.log(`❌ SQLite DB file DOES NOT exist at ${dbPath}`);
+      }
 
       // Insert default user if not exists
       const userCheck = await sqliteAdapter.users.findByEmail('demo@example.com');

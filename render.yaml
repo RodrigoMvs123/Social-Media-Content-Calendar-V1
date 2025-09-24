@@ -12,7 +12,7 @@ services:
       - key: DB_TYPE
         value: sqlite
       - key: DB_PATH
-        value: ./data.sqlite
+        value: /var/data/data.sqlite
       - key: JWT_SECRET
         sync: false
       - key: CORS_ORIGINS
@@ -27,3 +27,6 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+    disks:
+      - name: sqlite-data
+        mountPath: /var/data

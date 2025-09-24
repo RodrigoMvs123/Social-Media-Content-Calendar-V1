@@ -35,7 +35,7 @@ if (dbType === 'sqlite') {
   dbAdapter.initialize().then(async () => {
     console.log('SQLite database initialized successfully');
     // Initialize social accounts table
-    await createSocialAccountsTable();
+    
   }).catch(err => {
     console.error('Failed to initialize SQLite database:', err);
   });

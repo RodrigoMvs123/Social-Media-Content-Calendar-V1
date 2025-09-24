@@ -723,12 +723,29 @@ router.get('/status', getUserId, async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    const result = await db.query(
-      'SELECT bottoken, channelid, isactive FROM slack_settings WHERE userid = $1',
-      [req.userId]
-    );
-    
-    const settings = result.rows[0];
+    let settings;
+    if (dbType === 'sqlite') {
+      const database = await getDb(); // Use getDb() for SQLite
+      settings = await database.get(
+        'SELECT botToken, channelId, isActive FROM slack_settings WHERE userId = ?',
+        [req.userId]
+      );
+      await database.close(); // Close the database connection
+    } else {
+      const result = await db.query(
+        'SELECT bottoken, channelid, isactive FROM slack_settings WHERE userid = $1',
+        [req.userId]
+      );
+      settings = result.rows[0];
+      // Map PostgreSQL lowercase columns to camelCase
+      if (settings) {
+        settings = {
+          botToken: settings.bottoken,
+          channelId: settings.channelid,
+          isActive: settings.isactive,
+        };
+      }
+    }
 
     if (!settings) {
       console.log(`No Slack settings found for user: ${req.userId}`);
@@ -740,9 +757,9 @@ router.get('/status', getUserId, async (req, res) => {
     }
 
     const status = {
-      connected: settings.isactive && !!settings.bottoken && !!settings.channelid,
-      tokenConfigured: !!settings.bottoken,
-      channelConfigured: !!settings.channelid
+      connected: settings.isActive && !!settings.botToken && !!settings.channelId,
+      tokenConfigured: !!settings.botToken,
+      channelConfigured: !!settings.channelId
     };
     
     console.log(`Slack status for user ${req.userId}:`, status);

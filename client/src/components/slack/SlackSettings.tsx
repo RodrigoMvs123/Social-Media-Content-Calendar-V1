@@ -66,11 +66,11 @@ const SlackSettings = () => {
       setSelectedChannelId(slackSettings.channelId || '');
       // Load token from environment if configured (for persistence)
       if (slackSettings.hasToken) {
-        const envToken = process.env.SLACK_BOT_TOKEN || localStorage.getItem('slack_bot_token');
-        if (envToken) {
-          setBotToken(envToken);
+        const storedToken = localStorage.getItem('slack_bot_token');
+        if (storedToken) {
+          setBotToken(storedToken);
           setValidationResult({ valid: true, botInfo: { team: 'Your Workspace', user: 'Bot' } });
-          loadChannels(envToken);
+          loadChannels(storedToken);
         }
       }
     }

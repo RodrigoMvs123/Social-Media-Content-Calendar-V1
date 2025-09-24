@@ -17,7 +17,7 @@ const EmptyState = ({ onCreatePost, onGenerateWithAI }: EmptyStateProps) => {
         Get started by creating your first social media post or generate content with AI.
       </p>
       <div className="flex flex-col sm:flex-row justify-center gap-3">
-        <Button onClick={onCreatePost}>
+        <Button onClick={() => onCreatePost()}>
           Create your first post
         </Button>
         {onGenerateWithAI && (

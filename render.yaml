@@ -3,7 +3,7 @@ services:
     name: social-media-calendar
     env: node
     plan: free
-    buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install
+    buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install && tsc
     startCommand: node server/init-database.js && cd server && npm run start
     healthCheckPath: /api/health
     envVars:

@@ -131,19 +131,118 @@ router.post('/', async (req, res) => {
       };
     }
     
-    // Send scheduled notification if post is scheduled or ready
+    // Send Slack notification if enabled
     const finalStatus = status || 'scheduled';
-    if (finalStatus === 'scheduled' || finalStatus === 'ready') {
-      try {
-        console.log(`🔔 Post created with ${finalStatus} status, sending notification...`);
-        const { notifyPostScheduled } = require('./notification-service');
-        await notifyPostScheduled(userId, post);
-        console.log('✅ Scheduled notification process completed');
-      } catch (notifyError) {
-        console.error('❌ Error sending scheduled notification:', notifyError);
+    try {
+      console.log(`🔔 Post created with ${finalStatus} status, checking Slack notifications...`);
+      
+      // Get user's Slack settings and preferences
+      let slackSettings;
+      if (dbType === 'sqlite') {
+        const database = await getDb();
+        slackSettings = await database.get(
+          'SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1',
+          [userId]
+        );
+        await database.close();
+      } else {
+        const result = await db.query(
+          'SELECT * FROM slack_settings WHERE userid = $1 AND isactive = true',
+          [userId]
+        );
+        slackSettings = result.rows[0];
+        if (slackSettings) {
+          slackSettings = {
+            botToken: slackSettings.bottoken,
+            channelId: slackSettings.channelid,
+            channelName: slackSettings.channelname,
+            slackScheduled: slackSettings.slackscheduled,
+            slackPublished: slackSettings.slackpublished,
+            slackFailed: slackSettings.slackfailed
+          };
+        }
       }
-    } else {
-      console.log('🔕 Post status does not trigger notifications. Status:', finalStatus);
+      
+      console.log('🔧 Slack settings found:', {
+        hasSettings: !!slackSettings,
+        hasToken: !!(slackSettings && slackSettings.botToken),
+        hasChannel: !!(slackSettings && slackSettings.channelId),
+        slackScheduled: slackSettings?.slackScheduled,
+        status: finalStatus
+      });
+      
+      // Send notification based on status and preferences
+      if (slackSettings && slackSettings.botToken && slackSettings.channelId) {
+        let shouldNotify = false;
+        
+        if ((finalStatus === 'scheduled' || finalStatus === 'ready') && slackSettings.slackScheduled) {
+          shouldNotify = true;
+          console.log('✅ Will send scheduled notification');
+        } else if (finalStatus === 'published' && slackSettings.slackPublished) {
+          shouldNotify = true;
+          console.log('✅ Will send published notification');
+        }
+        
+        if (shouldNotify) {
+          const { WebClient } = require('@slack/web-api');
+          const slack = new WebClient(slackSettings.botToken);
+          
+          // Format message
+          const statusDisplay = finalStatus === 'ready' ? 'Ready to Publish' : finalStatus;
+          const scheduledDate = new Date(post.scheduledTime);
+          const formattedTime = scheduledDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Sao_Paulo'
+          }) + ' at ' + scheduledDate.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'America/Sao_Paulo'
+          });
+          
+          const message = `📅 *New post ${finalStatus}*\n\n` +
+            `*Platform:* ${post.platform}\n` +
+            `*Scheduled for:* ${formattedTime}\n` +
+            `*Content:* ${post.content}\n` +
+            `*Status:* ${statusDisplay}`;
+          
+          // Send to Slack
+          const result = await slack.chat.postMessage({
+            channel: slackSettings.channelId,
+            text: message,
+            mrkdwn: true
+          });
+          
+          console.log('✅ Slack notification sent successfully:', result.ts);
+          
+          // Store Slack timestamp for future deletion
+          if (result.ok && result.ts) {
+            if (dbType === 'sqlite') {
+              const database = await getDb();
+              await database.run(
+                'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+                [result.ts, post.id]
+              );
+              await database.close();
+            } else {
+              await db.query(
+                'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
+                [result.ts, post.id]
+              );
+            }
+            console.log('✅ Slack timestamp stored:', result.ts);
+          }
+        } else {
+          console.log('🔕 Slack notifications disabled for this status:', finalStatus);
+        }
+      } else {
+        console.log('🔕 No Slack configuration found');
+      }
+    } catch (notifyError) {
+      console.error('❌ Error sending Slack notification:', notifyError);
     }
     
     res.status(201).json(post);

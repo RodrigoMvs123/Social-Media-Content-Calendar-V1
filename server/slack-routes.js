@@ -4,6 +4,29 @@ const { RTMClient } = require('@slack/rtm-api');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+// Encryption setup
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+if (!ENCRYPTION_KEY) {
+  console.warn('Warning: ENCRYPTION_KEY is not set. Using a default key for development. This is not secure for production.');
+}
+const algorithm = 'aes-256-cbc';
+const key = crypto.createHash('sha256').update(String(ENCRYPTION_KEY)).digest('base64').substr(0, 32);
+
+const encrypt = (text) => {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  const encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
+  return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
+};
+
+const decrypt = (hash) => {
+  const [iv, encrypted] = hash.split(':');
+  const decipher = crypto.createDecipheriv(algorithm, key, Buffer.from(iv, 'hex'));
+  const decrypted = Buffer.concat([decipher.update(Buffer.from(encrypted, 'hex')), decipher.final()]);
+  return decrypted.toString();
+};
 
 // Initialize RTM client for real-time message deletion detection
 let rtmClient = null;
@@ -389,7 +412,12 @@ router.get('/settings', getUserId, async (req, res) => {
     
     if (!settings) {
       console.log('GET /api/slack/settings - No settings found for user:', req.userId);
-      return res.json({ configured: false });
+      return res.json({ 
+        configured: false,
+        slackScheduled: false,
+        slackPublished: false,
+        slackFailed: false
+      });
     }
 
     console.log('GET /api/slack/settings - Settings found:', settings);
@@ -399,9 +427,9 @@ router.get('/settings', getUserId, async (req, res) => {
       channelName: settings.channelName,
       isActive: settings.isActive,
       hasToken: !!settings.botToken,
-      slackScheduled: settings.slackScheduled ?? true,
-      slackPublished: settings.slackPublished ?? true,
-      slackFailed: settings.slackFailed ?? true
+      slackScheduled: settings.slackScheduled ?? false,
+      slackPublished: settings.slackPublished ?? false,
+      slackFailed: settings.slackFailed ?? false
     });
   } catch (error) {
     console.error('Error fetching Slack settings:', error);
@@ -454,30 +482,30 @@ router.post('/settings', getUserId, async (req, res) => {
 
     const now = new Date().toISOString();
 
+    const encryptedBotToken = encrypt(botToken);
+
     if (dbType === 'sqlite') {
       const database = await getDb();
-      // Upsert settings with default notification preferences
+      // Upsert settings with default notification preferences (false by default)
       await database.run(`
         INSERT OR REPLACE INTO slack_settings 
         (userId, botToken, channelId, channelName, isActive, slackScheduled, slackPublished, slackFailed, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, 1, 1, 1, 1, ?, ?)
-      `, [req.userId, botToken, channelId, channelName, now, now]);
+        VALUES (?, ?, ?, ?, 1, 0, 0, 0, ?, ?)
+      `, [req.userId, encryptedBotToken, channelId, channelName, now, now]);
+      await database.close();
     } else {
-      // First try to update existing record
-      const updateResult = await db.query(`
-        UPDATE slack_settings 
-        SET bottoken = $2, channelid = $3, channelname = $4, isactive = $5, updatedat = $6
-        WHERE userid = $1
-      `, [req.userId, botToken, channelId, channelName, true, now]);
-      
-      // If no rows updated, insert new record
-      if (updateResult.rowCount === 0) {
-        await db.query(`
-          INSERT INTO slack_settings 
-          (userid, bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        `, [req.userId, botToken, channelId, channelName, true, true, true, true, now, now]);
-      }
+      // Use ON CONFLICT for PostgreSQL
+      await db.query(`
+        INSERT INTO slack_settings 
+        (userid, bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
+        VALUES ($1, $2, $3, $4, true, false, false, false, $5, $6)
+        ON CONFLICT (userid) DO UPDATE SET
+          bottoken = EXCLUDED.bottoken,
+          channelid = EXCLUDED.channelid,
+          channelname = EXCLUDED.channelname,
+          isactive = EXCLUDED.isactive,
+          updatedat = EXCLUDED.updatedat
+      `, [req.userId, encryptedBotToken, channelId, channelName, now, now]);
     }
 
     res.json({ success: true, message: 'Slack settings saved successfully' });
@@ -508,45 +536,50 @@ router.post('/preferences', getUserId, async (req, res) => {
     if (dbType === 'sqlite') {
       const database = await getDb();
       
-      // First try to insert if record doesn't exist
-      try {
+      // Check if record exists
+      const existing = await database.get(
+        'SELECT * FROM slack_settings WHERE userId = ?',
+        [req.userId]
+      );
+      
+      if (existing) {
+        // Update existing record, preserving botToken and channelId
         await database.run(`
-          INSERT OR IGNORE INTO slack_settings (userId, slackScheduled, slackPublished, slackFailed, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [req.userId, slackScheduled, slackPublished, slackFailed, now, now]);
-      } catch (insertError) {
-        console.log('🔧 Insert failed, will try update:', insertError.message);
+          UPDATE slack_settings 
+          SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
+          WHERE userId = ?
+        `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
+      } else {
+        // Create new record with default Slack configuration
+        const botToken = process.env.SLACK_BOT_TOKEN;
+        const channelId = process.env.SLACK_CHANNEL_ID;
+        
+        await database.run(`
+          INSERT INTO slack_settings 
+          (userId, botToken, channelId, channelName, slackScheduled, slackPublished, slackFailed, isActive, createdAt, updatedAt)
+          VALUES (?, ?, ?, '#social', ?, ?, ?, 1, ?, ?)
+        `, [req.userId, botToken, channelId, slackScheduled, slackPublished, slackFailed, now, now]);
       }
       
-      // Then update
-      const result = await database.run(`
-        UPDATE slack_settings 
-        SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
-        WHERE userId = ?
-      `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
-      
-      console.log('🔧 SQLite update result:', { changes: result.changes });
+      console.log('🔧 SQLite upsert result:', { changes: result.changes });
+      await database.close();
       
     } else {
-      // PostgreSQL - First try to insert if record doesn't exist
-      try {
-        await db.query(`
-          INSERT INTO slack_settings (userid, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (userid) DO NOTHING
-        `, [req.userId, slackScheduled, slackPublished, slackFailed, now, now]);
-      } catch (insertError) {
-        console.log('🔧 Insert failed, will try update:', insertError.message);
-      }
+      // PostgreSQL - auto-configure with environment variables for new users
+      const botToken = process.env.SLACK_BOT_TOKEN;
+      const channelId = process.env.SLACK_CHANNEL_ID;
       
-      // Then update
       const result = await db.query(`
-        UPDATE slack_settings 
-        SET slackscheduled = $1, slackpublished = $2, slackfailed = $3, updatedat = $4
-        WHERE userid = $5
-      `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
+        INSERT INTO slack_settings (userid, bottoken, channelid, channelname, slackscheduled, slackpublished, slackfailed, isactive, createdat, updatedat)
+        VALUES ($1, $2, $3, '#social', $4, $5, $6, true, $7, $8)
+        ON CONFLICT (userid) DO UPDATE SET
+          slackscheduled = EXCLUDED.slackscheduled,
+          slackpublished = EXCLUDED.slackpublished,
+          slackfailed = EXCLUDED.slackfailed,
+          updatedat = EXCLUDED.updatedat
+      `, [req.userId, botToken, channelId, slackScheduled, slackPublished, slackFailed, now, now]);
       
-      console.log('🔧 PostgreSQL update result:', { rowCount: result.rowCount });
+      console.log('🔧 Auto-configured Slack for user:', req.userId);
     }
     
     console.log('✅ Slack preferences updated successfully');
@@ -589,7 +622,9 @@ router.post('/test', getUserId, async (req, res) => {
       return res.status(400).json({ error: 'No Slack settings found' });
     }
 
-    const slack = new WebClient(settings.botToken);
+    const decryptedBotToken = decrypt(settings.botToken);
+
+    const slack = new WebClient(decryptedBotToken);
     
     // Send test message
     await slack.chat.postMessage({

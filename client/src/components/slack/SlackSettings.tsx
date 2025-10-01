@@ -70,34 +70,33 @@ const SlackSettings = () => {
 
   // Load existing settings when component mounts
   useEffect(() => {
-    if (slackSettings?.configured) {
-      setSelectedChannelId(slackSettings.channelId || '');
-    }
+    const load = async () => {
+      const storedToken = localStorage.getItem('slack_bot_token');
+      const storedChannelId = localStorage.getItem('slack_selected_channel_id');
 
-    const storedToken = localStorage.getItem('slack_bot_token');
-    if (storedToken) {
-      setBotToken(storedToken);
-      if (slackSettings?.hasToken) {
-        setValidationResult({ valid: true, botInfo: { team: 'Your Workspace', user: 'Bot' } });
-        loadChannels(storedToken);
+      if (storedToken) {
+        setBotToken(storedToken);
+        await validateBotToken(storedToken);
+        if (storedChannelId) {
+          setSelectedChannelId(storedChannelId);
+        }
       }
-    }
-    
-    const storedChannelId = localStorage.getItem('slack_selected_channel_id');
-    if (storedChannelId) {
-      setSelectedChannelId(storedChannelId);
-    }
+
+      if (slackSettings?.configured) {
+        setSelectedChannelId(slackSettings.channelId || '');
+      }
+    };
+
+    load();
   }, [slackSettings]);
 
-  // Save selectedChannelId to localStorage
   useEffect(() => {
     if (selectedChannelId) {
       localStorage.setItem('slack_selected_channel_id', selectedChannelId);
-    } else {
-      // If channel is deselected, remove it from storage
-      localStorage.removeItem('slack_selected_channel_id');
     }
   }, [selectedChannelId]);
+
+  
 
   // Validate bot token
   const validateBotToken = async (token: string) => {

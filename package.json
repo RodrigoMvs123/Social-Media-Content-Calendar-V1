@@ -11,7 +11,8 @@
     "build": "cd client && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rm -rf node_modules package-lock.json dist build .next .cache && npm install",
-    "fresh-start": "npm run clean && npm start"
+    "fresh-start": "npm run clean && npm start",
+    "postinstall": "npm install --prefix client && npm install --prefix server"
   },
   "keywords": [
     "social media",

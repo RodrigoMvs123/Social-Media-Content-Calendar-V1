@@ -35,9 +35,33 @@ if (dbType === 'sqlite') {
   const { Pool } = require('pg');
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
   });
   console.log('✅ PostgreSQL connected for posts');
+  
+  // Create posts table if it doesn't exist
+  (async () => {
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id SERIAL PRIMARY KEY,
+          userid INTEGER DEFAULT 1,
+          platform VARCHAR(50) NOT NULL,
+          content TEXT NOT NULL,
+          scheduledtime TIMESTAMP NOT NULL,
+          status VARCHAR(20) DEFAULT 'scheduled',
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          publishedat TIMESTAMP,
+          media TEXT,
+          slackmessagets TEXT
+        )
+      `);
+      console.log('✅ Posts table ready');
+    } catch (error) {
+      console.error('❌ Error creating posts table:', error);
+    }
+  })();
 }
 
 // Table initialization handled by init-database.js or index.js

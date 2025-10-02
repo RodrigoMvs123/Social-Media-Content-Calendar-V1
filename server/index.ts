@@ -80,21 +80,16 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Routes
-if (dbType === 'sqlite') {
-  console.log('Using SQLite with JWT authentication');
-  app.use('/api/auth', authRoutesSqlite);
-  app.use('/api/posts', postsRoutesSqlite);
-  app.use('/api/analytics', analyticsRoutesSqlite);
-  app.use('/api/slack', slackRoutes);
-  app.use('/api/notifications', notificationRoutes);
-  app.use('/api/oauth', oauthRoutes);
-} else {
-  const authRoutesPostgres = require('./auth-routes');
-  const postsRoutes = require('./posts-routes');
-  app.use('/api/auth', authRoutesPostgres);
-  app.use('/api/posts', postsRoutes);
-}
+// Use hybrid routes that auto-detect database type
+const authRoutesHybrid = require('./auth-routes-hybrid');
+const postsRoutes = require('./posts-routes');
+
+console.log(`Using hybrid routes with ${dbType.toUpperCase()} database`);
+app.use('/api/auth', authRoutesHybrid);
+app.use('/api/posts', postsRoutes);
+app.use('/api/slack', slackRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/oauth', oauthRoutes);
 app.use('/api/media', mediaRoutes);
 
 // Health check endpoint
@@ -408,21 +403,11 @@ app.get('/slack-test', (req, res) => {
 // Start post scheduler
 startPostScheduler();
 
-// Start server with automatic port finding
-async function startServer() {
-  try {
-    const availablePort = await findFreePort(port);
-    app.listen(availablePort, () => {
-      console.log(`Server running on port ${availablePort}`);
-      console.log(`\n🔗 For Slack Events Webhook, use: http://localhost:${availablePort}/api/slack/events`);
-      console.log(`📝 With ngrok: ngrok http ${availablePort}, then use the ngrok URL + /api/slack/events\n`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-}
-
-startServer();
+// Start server on configured port
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+  console.log(`\n🔗 For Slack Events Webhook, use: http://localhost:${port}/api/slack/events`);
+  console.log(`📝 With ngrok: ngrok http ${port}, then use the ngrok URL + /api/slack/events\n`);
+});
 
 export default app;

@@ -78,6 +78,21 @@ async function initializeDatabase() {
       `);
       console.log('✅ Slack settings table ready');
       
+      // Create notification_preferences table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+          id SERIAL PRIMARY KEY,
+          userid INTEGER NOT NULL UNIQUE,
+          emaildigest BOOLEAN DEFAULT false,
+          emailpostpublished BOOLEAN DEFAULT false,
+          emailpostfailed BOOLEAN DEFAULT false,
+          browsernotifications BOOLEAN DEFAULT true,
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ Notification preferences table ready');
+      
       // Insert default user if not exists
       const userCheck = await client.query('SELECT id FROM users WHERE email = $1', ['demo@example.com']);
       if (userCheck.rows.length === 0) {

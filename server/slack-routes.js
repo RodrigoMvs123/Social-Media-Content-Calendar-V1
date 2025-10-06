@@ -1,6 +1,5 @@
 const express = require('express');
 const { WebClient } = require('@slack/web-api');
-const { RTMClient } = require('@slack/rtm-api');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const jwt = require('jsonwebtoken');
@@ -28,43 +27,9 @@ const decrypt = (hash) => {
   return decrypted.toString();
 };
 
-// Initialize RTM client for real-time message deletion detection
-let rtmClient = null;
-if (process.env.SLACK_BOT_TOKEN) {
-  rtmClient = new RTMClient(process.env.SLACK_BOT_TOKEN);
-  
-  rtmClient.on('message', async (event) => {
-    if (event.subtype === 'message_deleted' && event.deleted_ts) {
-      console.log('🗑️ RTM: Message deleted, timestamp:', event.deleted_ts);
-      
-      try {
-        if (dbType === 'sqlite') {
-          const database = await getDb();
-          const result = await database.run(
-            'DELETE FROM posts WHERE slackMessageTs = ?',
-            [event.deleted_ts]
-          );
-          console.log(`🗑️ RTM: Deleted ${result.changes} post(s) from SQLite`);
-          await database.close();
-        } else {
-          const result = await db.query(
-            'DELETE FROM posts WHERE slackmessagets = $1',
-            [event.deleted_ts]
-          );
-          console.log(`🗑️ RTM: Deleted ${result.rowCount} post(s) from PostgreSQL`);
-        }
-      } catch (error) {
-        console.error('❌ RTM: Error deleting post:', error);
-      }
-    }
-  });
-  
-  rtmClient.start().then(() => {
-    console.log('✅ Slack RTM client connected for message deletion detection');
-  }).catch(error => {
-    console.error('❌ Slack RTM connection failed:', error.message);
-  });
-}
+// Note: RTM API requires user tokens, not bot tokens
+// We'll use webhook events instead for real-time message deletion detection
+console.log('ℹ️ Using webhook events for Slack message deletion detection');
 
 const router = express.Router();
 
@@ -544,39 +509,56 @@ router.post('/preferences', getUserId, async (req, res) => {
       
       if (existing) {
         // Update existing record, preserving botToken and channelId
-        await database.run(`
+        const result = await database.run(`
           UPDATE slack_settings 
           SET slackScheduled = ?, slackPublished = ?, slackFailed = ?, updatedAt = ?
           WHERE userId = ?
         `, [slackScheduled, slackPublished, slackFailed, now, req.userId]);
+        console.log('🔧 SQLite update result:', { changes: result.changes });
       } else {
         // Create new record with default Slack configuration
         const botToken = process.env.SLACK_BOT_TOKEN;
         const channelId = process.env.SLACK_CHANNEL_ID;
         
-        await database.run(`
+        if (!botToken || !channelId) {
+          console.log('⚠️ No environment Slack configuration found');
+          return res.status(400).json({ error: 'Slack not configured in environment' });
+        }
+        
+        const result = await database.run(`
           INSERT INTO slack_settings 
           (userId, botToken, channelId, channelName, slackScheduled, slackPublished, slackFailed, isActive, createdAt, updatedAt)
           VALUES (?, ?, ?, '#social', ?, ?, ?, 1, ?, ?)
-        `, [req.userId, botToken, channelId, slackScheduled, slackPublished, slackFailed, now, now]);
+        `, [req.userId, botToken, channelId, slackScheduled || false, slackPublished || false, slackFailed || false, now, now]);
+        console.log('🔧 SQLite insert result:', { lastID: result.lastID });
+        console.log('✅ Auto-configured Slack for user:', req.userId);
       }
       
-      console.log('🔧 SQLite upsert result:', { changes: result.changes });
+
       await database.close();
       
     } else {
-      // PostgreSQL - Use ON CONFLICT to handle both insert and update
+      // PostgreSQL - auto-configure with environment variables for new users
+      const botToken = process.env.SLACK_BOT_TOKEN;
+      const channelId = process.env.SLACK_CHANNEL_ID;
+      
+      if (!botToken || !channelId) {
+        console.log('⚠️ No environment Slack configuration found');
+        return res.status(400).json({ error: 'Slack not configured in environment' });
+      }
+      
       const result = await db.query(`
-        INSERT INTO slack_settings (userid, slackscheduled, slackpublished, slackfailed, createdat, updatedat, isactive)
-        VALUES ($1, $2, $3, $4, $5, $6, true)
+        INSERT INTO slack_settings (userid, bottoken, channelid, channelname, slackscheduled, slackpublished, slackfailed, isactive, createdat, updatedat)
+        VALUES ($1, $2, $3, '#social', $4, $5, $6, true, $7, $8)
         ON CONFLICT (userid) DO UPDATE SET
           slackscheduled = EXCLUDED.slackscheduled,
           slackpublished = EXCLUDED.slackpublished,
           slackfailed = EXCLUDED.slackfailed,
           updatedat = EXCLUDED.updatedat
-      `, [req.userId, slackScheduled, slackPublished, slackFailed, now, now]);
+      `, [req.userId, botToken, channelId, slackScheduled || false, slackPublished || false, slackFailed || false, now, now]);
       
-      console.log('🔧 PostgreSQL upsert result:', { rowCount: result.rowCount });
+      console.log('🔧 Auto-configured Slack for user:', req.userId);
+      console.log('✅ PostgreSQL upsert result:', { rowCount: result.rowCount });
     }
     
     console.log('✅ Slack preferences updated successfully');
@@ -585,6 +567,41 @@ router.post('/preferences', getUserId, async (req, res) => {
     console.error('❌ Error updating Slack preferences:', error);
     console.error('❌ Error stack:', error.stack);
     res.status(500).json({ error: 'Failed to update preferences', details: error.message });
+  }
+});
+
+// POST /api/slack/test-notification - Test notification with environment settings
+router.post('/test-notification', async (req, res) => {
+  try {
+    const botToken = process.env.SLACK_BOT_TOKEN;
+    const channelId = process.env.SLACK_CHANNEL_ID;
+    
+    if (!botToken || !channelId) {
+      return res.status(400).json({ error: 'Slack not configured in environment' });
+    }
+    
+    const { WebClient } = require('@slack/web-api');
+    const slack = new WebClient(botToken);
+    
+    const message = `🧪 *Test Notification*\n\n` +
+      `*Platform:* Test Platform\n` +
+      `*Content:* This is a test notification from the Social Media Calendar\n` +
+      `*Time:* ${new Date().toISOString()}`;
+    
+    const result = await slack.chat.postMessage({
+      channel: channelId,
+      text: message,
+      mrkdwn: true
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Test notification sent!',
+      timestamp: result.ts
+    });
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    res.status(400).json({ error: 'Failed to send test notification', details: error.message });
   }
 });
 
@@ -656,6 +673,30 @@ router.get('/events', (req, res) => {
       '6. If not verified, check server logs for errors'
     ]
   });
+});
+
+// GET /api/slack/debug-settings - Debug endpoint to check Slack settings
+router.get('/debug-settings', async (req, res) => {
+  try {
+    let settings = [];
+    
+    if (dbType === 'sqlite') {
+      const database = await getDb();
+      settings = await database.all('SELECT * FROM slack_settings');
+      await database.close();
+    } else {
+      const result = await db.query('SELECT * FROM slack_settings');
+      settings = result.rows;
+    }
+    
+    res.json({
+      database_type: dbType,
+      total_settings: settings.length,
+      settings: settings
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // GET /api/slack/debug - Debug endpoint to check posts with Slack timestamps
@@ -751,10 +792,11 @@ router.post('/events', async (req, res) => {
   }
 });
 
-// GET /api/slack/status - Get connection status
-router.get('/status', getUserId, async (req, res) => {
+// GET /api/slack/status - Get connection status (no auth required for debugging)
+router.get('/status', async (req, res) => {
+  const userId = 1; // Default user for debugging
   try {
-    console.log(`Checking Slack status for user: ${req.userId}`);
+    console.log(`Checking Slack status for user: ${userId}`);
     
     // Add cache control headers
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -766,13 +808,13 @@ router.get('/status', getUserId, async (req, res) => {
       const database = await getDb(); // Use getDb() for SQLite
       settings = await database.get(
         'SELECT botToken, channelId, isActive FROM slack_settings WHERE userId = ?',
-        [req.userId]
+        [userId]
       );
       await database.close(); // Close the database connection
     } else {
       const result = await db.query(
         'SELECT bottoken, channelid, isactive FROM slack_settings WHERE userid = $1',
-        [req.userId]
+        [userId]
       );
       settings = result.rows[0];
       // Map PostgreSQL lowercase columns to camelCase
@@ -786,7 +828,7 @@ router.get('/status', getUserId, async (req, res) => {
     }
 
     if (!settings) {
-      console.log(`No Slack settings found for user: ${req.userId}`);
+      console.log(`No Slack settings found for user: ${userId}`);
       return res.json({
         connected: false,
         tokenConfigured: false,
@@ -800,7 +842,7 @@ router.get('/status', getUserId, async (req, res) => {
       channelConfigured: !!settings.channelId
     };
     
-    console.log(`Slack status for user ${req.userId}:`, status);
+    console.log(`Slack status for user ${userId}:`, status);
     res.json(status);
   } catch (error) {
     console.error('Error checking Slack status:', error);

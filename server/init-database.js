@@ -43,9 +43,21 @@ async function initializeDatabase() {
           createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           publishedat TIMESTAMP,
-          media TEXT
+          media TEXT,
+          slackmessagets TEXT
         )
       `);
+      
+      // Add slackmessagets column if it doesn't exist
+      try {
+        await client.query(`
+          ALTER TABLE posts ADD COLUMN IF NOT EXISTS slackmessagets TEXT
+        `);
+        console.log('✅ Posts table updated with slackmessagets column');
+      } catch (alterError) {
+        console.log('ℹ️ slackmessagets column already exists or alter failed:', alterError.message);
+      }
+      
       console.log('✅ Posts table ready');
       
       // Create slack_settings table
@@ -65,6 +77,21 @@ async function initializeDatabase() {
         )
       `);
       console.log('✅ Slack settings table ready');
+      
+      // Create notification_preferences table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+          id SERIAL PRIMARY KEY,
+          userid INTEGER NOT NULL UNIQUE,
+          emaildigest BOOLEAN DEFAULT false,
+          emailpostpublished BOOLEAN DEFAULT false,
+          emailpostfailed BOOLEAN DEFAULT false,
+          browsernotifications BOOLEAN DEFAULT true,
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ Notification preferences table ready');
       
       // Insert default user if not exists
       const userCheck = await client.query('SELECT id FROM users WHERE email = $1', ['demo@example.com']);

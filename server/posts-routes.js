@@ -1,5 +1,48 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const router = express.Router();
+
+// Decryption function for Slack tokens
+const decrypt = (hash) => {
+  try {
+    const algorithm = 'aes-256-cbc';
+    const key = crypto.createHash('sha256').update(String(process.env.ENCRYPTION_KEY)).digest('base64').substr(0, 32);
+    const [iv, encrypted] = hash.split(':');
+    const decipher = crypto.createDecipheriv(algorithm, key, Buffer.from(iv, 'hex'));
+    const decrypted = Buffer.concat([decipher.update(Buffer.from(encrypted, 'hex')), decipher.final()]);
+    return decrypted.toString();
+  } catch (error) {
+    console.error('Decryption error:', error.message);
+    return hash; // Return original if decryption fails
+  }
+};
+
+// Middleware to get user ID from token
+const getUserId = (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    // Default to user ID 1 for demo purposes
+    req.userId = 1;
+    console.log('🔧 No token provided, using default user ID: 1');
+    next();
+    return;
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+    req.userId = decoded.userId || decoded.id || 1;
+    console.log('🔧 Authenticated user ID:', req.userId);
+    next();
+  } catch (error) {
+    console.error('🔧 JWT verification failed:', error.message);
+    req.userId = 1; // Fallback to default user
+    next();
+  }
+};
+
+// Apply getUserId middleware to all routes
+router.use(getUserId);
 
 // Database setup - hybrid approach
 const dbType = process.env.DB_TYPE || 'sqlite';
@@ -35,9 +78,33 @@ if (dbType === 'sqlite') {
   const { Pool } = require('pg');
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
   });
   console.log('✅ PostgreSQL connected for posts');
+  
+  // Create posts table if it doesn't exist
+  (async () => {
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id SERIAL PRIMARY KEY,
+          userid INTEGER DEFAULT 1,
+          platform VARCHAR(50) NOT NULL,
+          content TEXT NOT NULL,
+          scheduledtime TIMESTAMP NOT NULL,
+          status VARCHAR(20) DEFAULT 'scheduled',
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          publishedat TIMESTAMP,
+          media TEXT,
+          slackmessagets TEXT
+        )
+      `);
+      console.log('✅ Posts table ready');
+    } catch (error) {
+      console.error('❌ Error creating posts table:', error);
+    }
+  })();
 }
 
 // Table initialization handled by init-database.js or index.js
@@ -88,7 +155,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { content, platform, scheduledTime, status, media } = req.body;
-    const userId = req.user?.id || 1;
+    const userId = req.userId;
     const now = new Date().toISOString();
     
     console.log('Creating post:', { content, platform, scheduledTime, status });
@@ -131,19 +198,133 @@ router.post('/', async (req, res) => {
       };
     }
     
-    // Send scheduled notification if post is scheduled or ready
+    // Send Slack notification if enabled
     const finalStatus = status || 'scheduled';
-    if (finalStatus === 'scheduled' || finalStatus === 'ready') {
-      try {
-        console.log(`🔔 Post created with ${finalStatus} status, sending notification...`);
-        const { notifyPostScheduled } = require('./notification-service');
-        await notifyPostScheduled(userId, post);
-        console.log('✅ Scheduled notification process completed');
-      } catch (notifyError) {
-        console.error('❌ Error sending scheduled notification:', notifyError);
+    try {
+      console.log(`🔔 Post created with ${finalStatus} status, checking Slack notifications...`);
+      
+      // Get user's Slack settings and preferences
+      let slackSettings;
+      if (dbType === 'sqlite') {
+        const database = await getDb();
+        slackSettings = await database.get(
+          'SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1',
+          [userId]
+        );
+        await database.close();
+      } else {
+        const result = await db.query(
+          'SELECT * FROM slack_settings WHERE userid = $1 AND isactive = true',
+          [userId]
+        );
+        slackSettings = result.rows[0];
+        if (slackSettings) {
+          slackSettings = {
+            botToken: slackSettings.bottoken,
+            channelId: slackSettings.channelid,
+            channelName: slackSettings.channelname,
+            slackScheduled: slackSettings.slackscheduled,
+            slackPublished: slackSettings.slackpublished,
+            slackFailed: slackSettings.slackfailed
+          };
+        }
       }
-    } else {
-      console.log('🔕 Post status does not trigger notifications. Status:', finalStatus);
+      
+      console.log('🔧 Slack settings found:', {
+        hasSettings: !!slackSettings,
+        hasToken: !!(slackSettings && slackSettings.botToken),
+        hasChannel: !!(slackSettings && slackSettings.channelId),
+        slackScheduled: slackSettings?.slackScheduled,
+        status: finalStatus
+      });
+      
+      // Send notification based on status and preferences
+      if (slackSettings && slackSettings.botToken && slackSettings.channelId) {
+        let shouldNotify = false;
+        
+        if ((finalStatus === 'scheduled' || finalStatus === 'ready') && slackSettings.slackScheduled) {
+          shouldNotify = true;
+          console.log('✅ Will send scheduled notification');
+        } else if (finalStatus === 'published' && slackSettings.slackPublished) {
+          shouldNotify = true;
+          console.log('✅ Will send published notification');
+        }
+        
+        if (shouldNotify) {
+          const { WebClient } = require('@slack/web-api');
+          
+          // Handle both encrypted user tokens and plain environment tokens
+          let actualBotToken = slackSettings.botToken;
+          try {
+            // Try to decrypt if it looks like an encrypted token
+            if (slackSettings.botToken.includes(':')) {
+              actualBotToken = decrypt(slackSettings.botToken);
+              console.log('🔐 Using decrypted user token');
+            } else {
+              console.log('🔧 Using environment token');
+            }
+          } catch (decryptError) {
+            console.log('⚠️ Decryption failed, using token as-is:', decryptError.message);
+          }
+          
+          const slack = new WebClient(actualBotToken);
+          
+          // Format message
+          const statusDisplay = finalStatus === 'ready' ? 'Ready to Publish' : finalStatus;
+          const scheduledDate = new Date(post.scheduledTime);
+          const formattedTime = scheduledDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: 'America/Sao_Paulo'
+          }) + ' at ' + scheduledDate.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'America/Sao_Paulo'
+          });
+          
+          const message = `📅 *New post ${finalStatus}*\n\n` +
+            `*Platform:* ${post.platform}\n` +
+            `*Scheduled for:* ${formattedTime}\n` +
+            `*Content:* ${post.content}\n` +
+            `*Status:* ${statusDisplay}`;
+          
+          // Send to Slack
+          const result = await slack.chat.postMessage({
+            channel: slackSettings.channelId,
+            text: message,
+            mrkdwn: true
+          });
+          
+          console.log('✅ Slack notification sent successfully:', result.ts);
+          
+          // Store Slack timestamp for future deletion
+          if (result.ok && result.ts) {
+            if (dbType === 'sqlite') {
+              const database = await getDb();
+              await database.run(
+                'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+                [result.ts, post.id]
+              );
+              await database.close();
+            } else {
+              await db.query(
+                'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
+                [result.ts, post.id]
+              );
+            }
+            console.log('✅ Slack timestamp stored:', result.ts);
+          }
+        } else {
+          console.log('🔕 Slack notifications disabled for this status:', finalStatus);
+        }
+      } else {
+        console.log('🔕 No Slack configuration found');
+      }
+    } catch (notifyError) {
+      console.error('❌ Error sending Slack notification:', notifyError);
     }
     
     res.status(201).json(post);
@@ -318,7 +499,7 @@ router.delete('/:id', async (req, res) => {
         console.log('🗑️ Found Slack timestamp, deleting message:', slackTs);
         
         // Get user's Slack settings
-        const userId = 1; // Default user
+        const userId = req.userId || 1;
         let slackSettings;
         
         if (dbType === 'sqlite') {
@@ -327,6 +508,7 @@ router.delete('/:id', async (req, res) => {
             'SELECT botToken, channelId FROM slack_settings WHERE userId = ?',
             [userId]
           );
+          await database.close();
         } else {
           const result = await db.query(
             'SELECT bottoken, channelid FROM slack_settings WHERE userid = $1',
@@ -343,7 +525,21 @@ router.delete('/:id', async (req, res) => {
         
         if (slackSettings && slackSettings.botToken && slackSettings.channelId) {
           const { WebClient } = require('@slack/web-api');
-          const slack = new WebClient(slackSettings.botToken);
+          
+          // Handle both encrypted user tokens and plain environment tokens
+          let actualBotToken = slackSettings.botToken;
+          try {
+            if (slackSettings.botToken.includes(':')) {
+              actualBotToken = decrypt(slackSettings.botToken);
+              console.log('🔐 Using decrypted user token for deletion');
+            } else {
+              console.log('🔧 Using environment token for deletion');
+            }
+          } catch (decryptError) {
+            console.log('⚠️ Decryption failed, using token as-is:', decryptError.message);
+          }
+          
+          const slack = new WebClient(actualBotToken);
           
           console.log('🗑️ Attempting to delete Slack message from channel:', slackSettings.channelId);
           
@@ -399,7 +595,7 @@ router.post('/sync-slack-deletions', async (req, res) => {
     
     // Get Slack settings
     let slackSettings;
-    const userId = 1;
+    const userId = req.userId || 1;
     
     if (dbType === 'sqlite') {
       const database = await getDb();
@@ -407,6 +603,7 @@ router.post('/sync-slack-deletions', async (req, res) => {
         'SELECT botToken, channelId FROM slack_settings WHERE userId = ?',
         [userId]
       );
+      await database.close();
     } else {
       const result = await db.query(
         'SELECT bottoken, channelid FROM slack_settings WHERE userid = $1',
@@ -426,7 +623,21 @@ router.post('/sync-slack-deletions', async (req, res) => {
     }
     
     const { WebClient } = require('@slack/web-api');
-    const slack = new WebClient(slackSettings.botToken);
+    
+    // Handle both encrypted user tokens and plain environment tokens
+    let actualBotToken = slackSettings.botToken;
+    try {
+      if (slackSettings.botToken.includes(':')) {
+        actualBotToken = decrypt(slackSettings.botToken);
+        console.log('🔐 Using decrypted user token for sync');
+      } else {
+        console.log('🔧 Using environment token for sync');
+      }
+    } catch (decryptError) {
+      console.log('⚠️ Decryption failed, using token as-is:', decryptError.message);
+    }
+    
+    const slack = new WebClient(actualBotToken);
     let deletedCount = 0;
     
     // Check each post's Slack message

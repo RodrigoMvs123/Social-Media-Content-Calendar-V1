@@ -253,19 +253,9 @@ router.post('/', async (req, res) => {
         if (shouldNotify) {
           const { WebClient } = require('@slack/web-api');
           
-          // Handle both encrypted user tokens and plain environment tokens
-          let actualBotToken = slackSettings.botToken;
-          try {
-            // Try to decrypt if it looks like an encrypted token
-            if (slackSettings.botToken.includes(':')) {
-              actualBotToken = decrypt(slackSettings.botToken);
-              console.log('🔐 Using decrypted user token');
-            } else {
-              console.log('🔧 Using environment token');
-            }
-          } catch (decryptError) {
-            console.log('⚠️ Decryption failed, using token as-is:', decryptError.message);
-          }
+          // Use environment token directly for auto-configured settings
+          let actualBotToken = process.env.SLACK_BOT_TOKEN;
+          console.log('🔧 Using environment token for notification');
           
           const slack = new WebClient(actualBotToken);
           
@@ -526,18 +516,9 @@ router.delete('/:id', async (req, res) => {
         if (slackSettings && slackSettings.botToken && slackSettings.channelId) {
           const { WebClient } = require('@slack/web-api');
           
-          // Handle both encrypted user tokens and plain environment tokens
-          let actualBotToken = slackSettings.botToken;
-          try {
-            if (slackSettings.botToken.includes(':')) {
-              actualBotToken = decrypt(slackSettings.botToken);
-              console.log('🔐 Using decrypted user token for deletion');
-            } else {
-              console.log('🔧 Using environment token for deletion');
-            }
-          } catch (decryptError) {
-            console.log('⚠️ Decryption failed, using token as-is:', decryptError.message);
-          }
+          // Use environment token directly
+          let actualBotToken = process.env.SLACK_BOT_TOKEN;
+          console.log('🔧 Using environment token for deletion');
           
           const slack = new WebClient(actualBotToken);
           
@@ -624,18 +605,9 @@ router.post('/sync-slack-deletions', async (req, res) => {
     
     const { WebClient } = require('@slack/web-api');
     
-    // Handle both encrypted user tokens and plain environment tokens
-    let actualBotToken = slackSettings.botToken;
-    try {
-      if (slackSettings.botToken.includes(':')) {
-        actualBotToken = decrypt(slackSettings.botToken);
-        console.log('🔐 Using decrypted user token for sync');
-      } else {
-        console.log('🔧 Using environment token for sync');
-      }
-    } catch (decryptError) {
-      console.log('⚠️ Decryption failed, using token as-is:', decryptError.message);
-    }
+    // Use environment token directly
+    let actualBotToken = process.env.SLACK_BOT_TOKEN;
+    console.log('🔧 Using environment token for sync');
     
     const slack = new WebClient(actualBotToken);
     let deletedCount = 0;

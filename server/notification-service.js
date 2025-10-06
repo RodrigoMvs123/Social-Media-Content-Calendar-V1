@@ -93,22 +93,24 @@ async function getUserNotificationSettings(userId) {
 // Send Slack notification
 async function sendSlackNotification(slackSettings, message) {
   try {
-    if (!slackSettings || !slackSettings.botToken || !slackSettings.channelId) {
-      console.log('❌ Missing Slack settings:', { 
-        hasSettings: !!slackSettings, 
-        hasToken: !!slackSettings?.botToken, 
-        hasChannel: !!slackSettings?.channelId 
+    const botToken = process.env.SLACK_BOT_TOKEN;
+    const channelId = slackSettings?.channelId || process.env.SLACK_CHANNEL_ID;
+    
+    if (!botToken || !channelId) {
+      console.log('❌ Missing Slack configuration:', { 
+        hasToken: !!botToken, 
+        hasChannel: !!channelId 
       });
       return null;
     }
     
-    console.log('📤 Sending Slack notification to channel:', slackSettings.channelId);
+    console.log('📤 Sending Slack notification to channel:', channelId);
     console.log('📝 Message:', message);
     
-    const slack = new WebClient(slackSettings.botToken);
+    const slack = new WebClient(botToken);
     
     const result = await slack.chat.postMessage({
-      channel: slackSettings.channelId,
+      channel: channelId,
       text: message,
       mrkdwn: true
     });

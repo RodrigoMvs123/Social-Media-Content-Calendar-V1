@@ -28,7 +28,16 @@ async function syncSlackDeletions() {
     
     if (dbType === 'sqlite') {
       const database = await getDb();
-      posts = await database.all('SELECT id, slackMessageTs FROM posts WHERE slackMessageTs IS NOT NULL');
+      try {
+        posts = await database.all('SELECT id, slackMessageTs FROM posts WHERE slackMessageTs IS NOT NULL');
+      } catch (error) {
+        if (error.message.includes('no such column: slackMessageTs')) {
+          // Column doesn't exist yet, skip sync
+          await database.close();
+          return;
+        }
+        throw error;
+      }
       await database.close();
     } else {
       const result = await db.query('SELECT id, slackmessagets FROM posts WHERE slackmessagets IS NOT NULL');

@@ -10,7 +10,7 @@ dotenv.config();
 
 // Create Express app
 const app = express();
-const port = parseInt(process.env.PORT || '3001', 10);
+const port = parseInt(process.env.PORT || '3000', 10);
 
 console.log('Starting Social Media Content Calendar Server...');
 console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -34,6 +34,92 @@ if (dbType === 'sqlite') {
       password TEXT NOT NULL,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      content TEXT NOT NULL,
+      scheduledTime TEXT NOT NULL,
+      status TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      media TEXT,
+      slackMessageTs TEXT
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS slack_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId TEXT NOT NULL UNIQUE,
+      botToken TEXT,
+      channelId TEXT,
+      channelName TEXT,
+      isActive BOOLEAN DEFAULT 1,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      slackScheduled BOOLEAN DEFAULT 0,
+      slackPublished BOOLEAN DEFAULT 0,
+      slackFailed BOOLEAN DEFAULT 0
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS notification_preferences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId TEXT NOT NULL UNIQUE,
+      emailDigest BOOLEAN DEFAULT 0,
+      emailPostPublished BOOLEAN DEFAULT 0,
+      emailPostFailed BOOLEAN DEFAULT 0,
+      browserNotifications BOOLEAN DEFAULT 1,
+      updatedAt TEXT NOT NULL
+    )`);
+    
+    // Create your user account
+    const bcrypt = require('bcrypt');
+    const now = new Date().toISOString();
+    bcrypt.hash('RodrigoMMM324!', 10, (err, hash) => {
+      if (err) {
+        console.error('Error hashing password:', err);
+        return;
+      }
+      db.run(
+        'INSERT OR IGNORE INTO users (name, email, password, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+        ['Rodrigo', 'rodrigomvsrodrigo@gmail.com', hash, now, now],
+        function(err) {
+          if (err) {
+            console.log('User already exists or error:', err.message);
+          } else if (this.changes > 0) {
+            console.log('✅ User Rodrigo created with ID:', this.lastID);
+            
+            // Create default notification preferences for the new user
+            db.run(
+              'INSERT OR IGNORE INTO notification_preferences (userId, emailDigest, emailPostPublished, emailPostFailed, browserNotifications, updatedAt) VALUES (?, 0, 0, 0, 1, ?)',
+              [this.lastID, now],
+              function(prefErr) {
+                if (prefErr) {
+                  console.log('Error creating notification preferences:', prefErr.message);
+                } else {
+                  console.log('✅ Notification preferences created for user:', this.lastID);
+                }
+              }
+            );
+          } else {
+            console.log('✅ User Rodrigo already exists');
+            
+            // Ensure notification preferences exist for existing user
+            db.run(
+              'INSERT OR IGNORE INTO notification_preferences (userId, emailDigest, emailPostPublished, emailPostFailed, browserNotifications, updatedAt) VALUES (?, 0, 0, 0, 1, ?)',
+              ['2', now],
+              function(prefErr) {
+                if (prefErr) {
+                  console.log('Error creating notification preferences:', prefErr.message);
+                } else if (this.changes > 0) {
+                  console.log('✅ Notification preferences created for existing user');
+                }
+              }
+            );
+          }
+        }
+      );
+    });
   });
   console.log('✅ SQLite database initialized');
 } else {

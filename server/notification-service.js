@@ -35,7 +35,19 @@ async function getUserNotificationSettings(userId) {
     
     if (dbType === 'sqlite') {
       user = await db.get('SELECT email FROM users WHERE id = ?', [userId]);
-      preferences = await db.get('SELECT * FROM notification_preferences WHERE userId = ?', [userId]);
+      
+      // Try to get preferences, but handle missing table gracefully
+      try {
+        preferences = await db.get('SELECT * FROM notification_preferences WHERE userId = ?', [userId]);
+      } catch (error) {
+        if (error.message.includes('no such table: notification_preferences')) {
+          console.log('📋 notification_preferences table not found, using defaults');
+          preferences = {};
+        } else {
+          throw error;
+        }
+      }
+      
       slackSettings = await db.get('SELECT * FROM slack_settings WHERE userId = ? AND isActive = 1', [userId]);
     } else {
       // PostgreSQL queries

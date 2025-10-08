@@ -441,5 +441,101 @@ To use it:
 - ✅ **SSL Certificates**: HTTPS by default
 - ✅ **Custom Domains**: Add your own domain
 
+## 🐳 Docker Deployment
+
+The application supports Docker containerization for consistent deployment across environments.
+
+### Step 1: Docker Files
+
+Docker files in the root directory:
+- `Dockerfile` - Multi-stage build configuration
+- `docker-compose.yml` - Hybrid database deployment
+- `.dockerignore` - Exclude unnecessary files
+
+### Step 2: Create or Edit Environment Files
+
+**Create or edit both of these `.env` files:**
+1. **Root folder**: `/Social-Media-Content-Calendar-V1/.env`
+2. **Server folder**: `/Social-Media-Content-Calendar-V1/server/.env`
+
+**Both .env files should contain the same content:**
+
+**For SQLite (Local Development):**
+```bash
+DB_TYPE=sqlite
+NODE_ENV=production
+DB_PATH=./data.sqlite
+```
+
+**For PostgreSQL (Production):**
+> YOUR_PASSWORD_HERE should be replaced with your password of choice.
+```bash
+DB_TYPE=postgres
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD_HERE@postgres:5432/social_media_calendar?sslmode=disable
+```
+
+### Step 3: Build and Run
+
+**Option A: Automatic (Recommended)**
+```bash
+docker-compose up
+
+# Access at: http://localhost:3000 (local VS Code)
+# Or: https://your-codespace-url-3000.app.github.dev/ (Codespaces)
+```
+
+**Option B: Manual**
+```bash
+# 1. Build the Docker image manually
+docker build -t social-media-content-calendar-v1-web-app .
+
+# 2. Verify image was created
+docker images | grep social-media-content-calendar
+
+# 3. Run with Docker Compose
+docker-compose up
+
+# Access at: http://localhost:3000 (local VS Code)
+# Or: https://your-codespace-url-3000.app.github.dev/ (Codespaces)
+```
+
+### Step 3: Update Render Settings
+
+In your Render Dashboard, update the service settings:
+
+**Build Command:**
+```bash
+docker build -t social-media-content-calendar-v1-web-app .
+```
+
+**Start Command:**
+```bash
+docker run -p 10000:3000 social-media-content-calendar-v1-web-app
+```
+
+### Step 4: Deploy to Render
+
+```bash
+# Commit Docker files
+git add -A && git commit -m "Add Docker support"
+
+# Push to trigger deployment
+git push origin docker-deployment
+
+# Render will automatically:
+# 1. Build your Docker image
+# 2. Deploy the container
+# 3. Keep same endpoint: https://social-media-content-calendar-v1.onrender.com
+```
+
+### Docker Benefits
+
+- ✅ **Consistent Environment**: Same setup everywhere
+- ✅ **Easy Local Testing**: `docker-compose up`
+- ✅ **Portable Deployment**: Run on any Docker platform
+- ✅ **Isolated Dependencies**: No conflicts with host system
+- ✅ **Production Ready**: Optimized multi-stage builds
+
 
 

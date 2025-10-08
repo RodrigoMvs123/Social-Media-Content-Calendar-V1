@@ -117,13 +117,62 @@ async function initializeDatabase() {
     }
   } else {
     // SQLite initialization
-    const { SQLiteAdapter } = require('./sqlite-db');
+    const sqlite3 = require('sqlite3');
+    const { open } = require('sqlite');
     const dbPath = process.env.DB_PATH || './data.sqlite';
     console.log(`🔍 SQLite DB Path: ${dbPath}`);
-    const sqliteAdapter = new SQLiteAdapter(dbPath);
+    
+    const db = await open({
+      filename: dbPath,
+      driver: sqlite3.Database
+    });
 
     try {
-      await sqliteAdapter.initialize();
+      // Create tables with proper schema
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          email TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          password TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        );
+        
+        CREATE TABLE IF NOT EXISTS posts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          content TEXT NOT NULL,
+          scheduledTime TEXT NOT NULL,
+          status TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          media TEXT,
+          slackMessageTs TEXT
+        );
+        
+        CREATE TABLE IF NOT EXISTS notification_preferences (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId TEXT NOT NULL UNIQUE,
+          emailDigest BOOLEAN DEFAULT 0,
+          emailPostPublished BOOLEAN DEFAULT 0,
+          emailPostFailed BOOLEAN DEFAULT 0,
+          browserNotifications BOOLEAN DEFAULT 1,
+          updatedAt TEXT NOT NULL
+        );
+        
+        CREATE TABLE IF NOT EXISTS slack_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId TEXT NOT NULL UNIQUE,
+          botToken TEXT,
+          channelId TEXT,
+          channelName TEXT,
+          isActive BOOLEAN DEFAULT 1,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        );
+      `);
       console.log('✅ SQLite tables created');
 
       if (fs.existsSync(dbPath)) {
@@ -134,21 +183,21 @@ async function initializeDatabase() {
       }
 
       // Insert default user if not exists
-      const userCheck = await sqliteAdapter.users.findByEmail('demo@example.com');
+      const userCheck = await db.get('SELECT id FROM users WHERE email = ?', ['demo@example.com']);
       if (!userCheck) {
         const bcrypt = require('bcrypt');
         const hashedPassword = await bcrypt.hash('demo123', 10);
-        await sqliteAdapter.users.create({
-          email: 'demo@example.com',
-          name: 'Demo User',
-          password: hashedPassword,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+        const now = new Date().toISOString();
+        await db.run(
+          'INSERT INTO users (email, name, password, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+          ['demo@example.com', 'Demo User', hashedPassword, now, now]
+        );
         console.log('✅ Default user created');
       } else {
         console.log('✅ Default user exists');
       }
+      
+      await db.close();
       console.log('🎉 SQLite database initialization complete!');
     } catch (error) {
       console.error('❌ Database initialization failed:', error.message);

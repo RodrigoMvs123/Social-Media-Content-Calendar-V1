@@ -1,0 +1,44 @@
+# Node modules (will be installed in container)
+node_modules
+client/node_modules
+server/node_modules
+
+# Git files
+.git
+.gitignore
+
+# Environment files (mounted as volumes)
+.env.docker
+.env.docker.example
+.env.sqlite
+
+# Development files
+.nyc_output
+coverage
+.DS_Store
+*.log
+npm-debug.log
+
+# Docker files (not needed in container)
+Dockerfile
+.dockerignore
+docker-run.sh
+DOCKER_IMPLEMENTATION.txt
+
+# Build artifacts (client/dist needed for production)
+build/
+out/
+
+# Database files (use volumes)
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

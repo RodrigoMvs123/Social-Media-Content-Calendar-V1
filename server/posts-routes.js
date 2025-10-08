@@ -513,29 +513,30 @@ router.delete('/:id', async (req, res) => {
           }
         }
         
-        if (slackSettings && slackSettings.botToken && slackSettings.channelId) {
+        // Use environment tokens if available, regardless of database settings
+        const botToken = process.env.SLACK_BOT_TOKEN;
+        const channelId = slackSettings?.channelId || process.env.SLACK_CHANNEL_ID;
+        
+        if (botToken && channelId) {
           const { WebClient } = require('@slack/web-api');
           
-          // Use environment token directly
-          let actualBotToken = process.env.SLACK_BOT_TOKEN;
           console.log('🔧 Using environment token for deletion');
+          const slack = new WebClient(botToken);
           
-          const slack = new WebClient(actualBotToken);
-          
-          console.log('🗑️ Attempting to delete Slack message from channel:', slackSettings.channelId);
+          console.log('🗑️ Attempting to delete Slack message from channel:', channelId);
           
           await slack.chat.delete({
-            channel: slackSettings.channelId,
+            channel: channelId,
             ts: slackTs
           });
           
           console.log('✅ Slack message deleted successfully');
         } else {
-          console.log('🔕 No Slack settings found, skipping message deletion');
-          console.log('🔕 Settings debug:', {
-            hasSettings: !!slackSettings,
-            hasToken: !!(slackSettings && slackSettings.botToken),
-            hasChannel: !!(slackSettings && slackSettings.channelId),
+          console.log('🔕 No Slack configuration found, skipping message deletion');
+          console.log('🔕 Config debug:', {
+            hasEnvToken: !!botToken,
+            hasDbChannel: !!(slackSettings && slackSettings.channelId),
+            hasEnvChannel: !!process.env.SLACK_CHANNEL_ID,
             userId: userId
           });
         }

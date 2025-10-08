@@ -591,21 +591,6 @@ bash docker-run.sh
 - `notification_preferences` - User notification settings
 - `social_accounts` - Connected social media accounts
 
-### Production Deployment
-
-#### Render.com Deployment
-
-```bash
-# 1. Push to GitHub
-git push origin docker-deployment
-
-# 2. In Render Dashboard:
-# - Connect GitHub repository
-# - Select Docker deployment
-# - Set environment variables
-# - Deploy automatically
-```
-
 #### Manual Production Setup
 
 ```bash

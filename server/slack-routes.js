@@ -529,7 +529,7 @@ router.post('/preferences', getUserId, async (req, res) => {
           INSERT INTO slack_settings 
           (userId, botToken, channelId, channelName, slackScheduled, slackPublished, slackFailed, isActive, createdAt, updatedAt)
           VALUES (?, ?, ?, '#social', ?, ?, ?, 1, ?, ?)
-        `, [req.userId, botToken, channelId, slackScheduled || false, slackPublished || false, slackFailed || false, now, now]);
+        `, [req.userId, botToken, channelId, slackScheduled ?? true, slackPublished ?? true, slackFailed ?? true, now, now]);
         console.log('🔧 SQLite insert result:', { lastID: result.lastID });
         console.log('✅ Auto-configured Slack for user:', req.userId);
       }
@@ -555,7 +555,7 @@ router.post('/preferences', getUserId, async (req, res) => {
           slackpublished = EXCLUDED.slackpublished,
           slackfailed = EXCLUDED.slackfailed,
           updatedat = EXCLUDED.updatedat
-      `, [req.userId, botToken, channelId, slackScheduled || false, slackPublished || false, slackFailed || false, now, now]);
+      `, [req.userId, botToken, channelId, slackScheduled ?? true, slackPublished ?? true, slackFailed ?? true, now, now]);
       
       console.log('🔧 Auto-configured Slack for user:', req.userId);
       console.log('✅ PostgreSQL upsert result:', { rowCount: result.rowCount });

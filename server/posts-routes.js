@@ -312,7 +312,72 @@ router.post('/', async (req, res) => {
           console.log('🔕 Slack notifications disabled for this status:', finalStatus);
         }
       } else {
-        console.log('🔕 No Slack configuration found');
+        // Auto-configure Slack if environment variables are available
+        const envBotToken = process.env.SLACK_BOT_TOKEN;
+        const envChannelId = process.env.SLACK_CHANNEL_ID;
+        
+        if (envBotToken && envChannelId) {
+          console.log('🔧 Auto-configuring Slack from environment variables');
+          
+          // Create Slack settings for user
+          const now = new Date().toISOString();
+          
+          if (dbType === 'sqlite') {
+            const database = await getDb();
+            await database.run(`
+              INSERT OR REPLACE INTO slack_settings 
+              (userId, botToken, channelId, channelName, slackScheduled, slackPublished, slackFailed, isActive, createdAt, updatedAt)
+              VALUES (?, ?, ?, '#social', 1, 1, 1, 1, ?, ?)
+            `, [userId, envBotToken, envChannelId, now, now]);
+            await database.close();
+            console.log('✅ Auto-configured Slack settings for user:', userId);
+            
+            // Now send the notification
+            const { WebClient } = require('@slack/web-api');
+            const slack = new WebClient(envBotToken);
+            
+            const statusDisplay = finalStatus === 'ready' ? 'Ready to Publish' : finalStatus;
+            const scheduledDate = new Date(post.scheduledTime);
+            const formattedTime = scheduledDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              timeZone: 'America/Sao_Paulo'
+            }) + ' at ' + scheduledDate.toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'America/Sao_Paulo'
+            });
+            
+            const message = `📅 *New post ${finalStatus}*\n\n` +
+              `*Platform:* ${post.platform}\n` +
+              `*Scheduled for:* ${formattedTime}\n` +
+              `*Content:* ${post.content}\n` +
+              `*Status:* ${statusDisplay}`;
+            
+            const result = await slack.chat.postMessage({
+              channel: envChannelId,
+              text: message,
+              mrkdwn: true
+            });
+            
+            console.log('✅ Auto-configured Slack notification sent:', result.ts);
+            
+            // Store timestamp
+            if (result.ok && result.ts) {
+              const database2 = await getDb();
+              await database2.run(
+                'UPDATE posts SET slackMessageTs = ? WHERE id = ?',
+                [result.ts, post.id]
+              );
+              await database2.close();
+            }
+          }
+        } else {
+          console.log('🔕 No Slack configuration found');
+        }
       }
     } catch (notifyError) {
       console.error('❌ Error sending Slack notification:', notifyError);

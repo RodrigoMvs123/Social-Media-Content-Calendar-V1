@@ -17,7 +17,7 @@ async function queryUsers() {
     console.log('Connected to PostgreSQL database');
     
     // Query all users
-    const result = await client.query('SELECT id, name, email, createdat FROM users');
+    const result = await client.query('SELECT id, content, platform, user_id FROM posts');
     console.log('Users in database:');
     console.table(result.rows);
     

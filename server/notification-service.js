@@ -56,26 +56,26 @@ async function getUserNotificationSettings(userId) {
       
       // Check if notification_preferences table exists, if not skip it
       try {
-        const prefsResult = await db.query('SELECT * FROM notification_preferences WHERE userid = $1', [userId]);
+        const prefsResult = await db.query('SELECT * FROM notification_preferences WHERE user_id = $1', [userId]);
         preferences = prefsResult.rows[0];
       } catch (error) {
         console.log('📋 notification_preferences table not found, skipping');
         preferences = {};
       }
       
-      const slackResult = await db.query('SELECT * FROM slack_settings WHERE userid = $1 AND isactive = true', [userId]);
+      const slackResult = await db.query('SELECT * FROM slack_settings WHERE user_id = $1 AND is_active = true', [userId]);
       const rawSlackSettings = slackResult.rows[0];
       
-      // Map PostgreSQL lowercase columns to camelCase
+      // Map PostgreSQL columns to camelCase
       if (rawSlackSettings) {
         slackSettings = {
-          botToken: rawSlackSettings.bottoken,
-          channelId: rawSlackSettings.channelid,
-          channelName: rawSlackSettings.channelname,
-          isActive: rawSlackSettings.isactive,
-          slackScheduled: rawSlackSettings.slackscheduled,
-          slackPublished: rawSlackSettings.slackpublished,
-          slackFailed: rawSlackSettings.slackfailed
+          botToken: rawSlackSettings.bot_token,
+          channelId: rawSlackSettings.channel_id,
+          channelName: rawSlackSettings.channel_name,
+          isActive: rawSlackSettings.is_active,
+          slackScheduled: rawSlackSettings.slack_scheduled,
+          slackPublished: rawSlackSettings.slack_published,
+          slackFailed: rawSlackSettings.slack_failed
         };
       }
     }

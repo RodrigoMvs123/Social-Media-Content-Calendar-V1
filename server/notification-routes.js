@@ -70,7 +70,7 @@ router.get('/', auth, async (req, res) => {
       res.json(formattedPreferences);
     } else {
       const result = await db.query(
-        'SELECT * FROM notification_preferences WHERE userid = $1',
+        'SELECT * FROM notification_preferences WHERE user_id = $1',
         [userId]
       );
       preferences = result.rows[0];
@@ -79,13 +79,13 @@ router.get('/', auth, async (req, res) => {
       if (!preferences) {
         await db.query(
           `INSERT INTO notification_preferences 
-           (userid, emaildigest, emailpostpublished, emailpostfailed, browsernotifications, updatedat)
+           (user_id, email_digest, email_post_published, email_post_failed, browser_notifications, updated_at)
            VALUES ($1, $2, $3, $4, $5, NOW())`,
           [userId, false, false, false, true]
         );
         
         const newResult = await db.query(
-          'SELECT * FROM notification_preferences WHERE userid = $1',
+          'SELECT * FROM notification_preferences WHERE user_id = $1',
           [userId]
         );
         preferences = newResult.rows[0];
@@ -93,12 +93,12 @@ router.get('/', auth, async (req, res) => {
       
       // Map PostgreSQL columns to camelCase
       const formattedPreferences = {
-        userId: preferences.userid,
-        emailDigest: preferences.emaildigest,
-        emailPostPublished: preferences.emailpostpublished,
-        emailPostFailed: preferences.emailpostfailed,
-        browserNotifications: preferences.browsernotifications,
-        updatedAt: preferences.updatedat
+        userId: preferences.user_id,
+        emailDigest: preferences.email_digest,
+        emailPostPublished: preferences.email_post_published,
+        emailPostFailed: preferences.email_post_failed,
+        browserNotifications: preferences.browser_notifications,
+        updatedAt: preferences.updated_at
       };
       
       res.json(formattedPreferences);
@@ -159,32 +159,32 @@ router.post('/', auth, async (req, res) => {
       // PostgreSQL upsert
       await db.query(
         `INSERT INTO notification_preferences 
-         (userid, emaildigest, emailpostpublished, emailpostfailed, browsernotifications, updatedat)
+         (user_id, email_digest, email_post_published, email_post_failed, browser_notifications, updated_at)
          VALUES ($1, $2, $3, $4, $5, NOW())
-         ON CONFLICT (userid) DO UPDATE SET
-           emaildigest = EXCLUDED.emaildigest,
-           emailpostpublished = EXCLUDED.emailpostpublished,
-           emailpostfailed = EXCLUDED.emailpostfailed,
-           browsernotifications = EXCLUDED.browsernotifications,
-           updatedat = EXCLUDED.updatedat`,
+         ON CONFLICT (user_id) DO UPDATE SET
+           email_digest = EXCLUDED.email_digest,
+           email_post_published = EXCLUDED.email_post_published,
+           email_post_failed = EXCLUDED.email_post_failed,
+           browser_notifications = EXCLUDED.browser_notifications,
+           updated_at = NOW()`,
         [userId, emailDigest, emailPostPublished, emailPostFailed, browserNotifications]
       );
       
       // Get updated preferences
       const result = await db.query(
-        'SELECT * FROM notification_preferences WHERE userid = $1',
+        'SELECT * FROM notification_preferences WHERE user_id = $1',
         [userId]
       );
       const updatedPreferences = result.rows[0];
       
       // Map PostgreSQL columns to camelCase
       const formattedPreferences = {
-        userId: updatedPreferences.userid,
-        emailDigest: updatedPreferences.emaildigest,
-        emailPostPublished: updatedPreferences.emailpostpublished,
-        emailPostFailed: updatedPreferences.emailpostfailed,
-        browserNotifications: updatedPreferences.browsernotifications,
-        updatedAt: updatedPreferences.updatedat
+        userId: updatedPreferences.user_id,
+        emailDigest: updatedPreferences.email_digest,
+        emailPostPublished: updatedPreferences.email_post_published,
+        emailPostFailed: updatedPreferences.email_post_failed,
+        browserNotifications: updatedPreferences.browser_notifications,
+        updatedAt: updatedPreferences.updated_at
       };
       
       res.json(formattedPreferences);

@@ -654,5 +654,230 @@ docker-compose logs app-postgres | grep "Server running"
 - ✅ **Scalable Architecture** (container orchestration ready)
 - ✅ **Development Friendly** (fast iteration, volume persistence)
 
+## Cross-Database Migration System
+
+The application includes a powerful cross-database migration system that allows you to seamlessly migrate user data between SQLite and PostgreSQL databases while maintaining data integrity and preserving all functionality including Slack notifications.
+
+### Features
+
+- ✅ **Bidirectional Migration**: SQLite ↔ PostgreSQL
+- ✅ **Data Integrity**: Checksum validation and record count verification
+- ✅ **Automatic Backup**: Creates backup files before migration
+- ✅ **Real-time Sync**: Live replication between databases
+- ✅ **Column Mapping**: Automatic translation between database formats
+- ✅ **Rollback Support**: Restore from backup if needed
+- ✅ **CLI Interface**: Command-line migration tool with help and validation
+
+### Quick Migration Guide
+
+#### Prerequisites
+
+1. **Configure both databases** in your `.env` files:
+   ```bash
+   # For PostgreSQL
+   DB_TYPE=postgres
+   DATABASE_URL=postgresql://user:pass@host:port/db
+   
+   # For SQLite
+   DB_TYPE=sqlite
+   DB_PATH=./data.sqlite
+   
+   # Enable migration features
+   ENABLE_DB_FALLBACK=true
+   ENABLE_REAL_TIME_SYNC=true
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+#### Migration Commands
+
+**Basic Migration:**
+```bash
+# SQLite to PostgreSQL
+./migrate.sh --user-id 1 --from sqlite --to postgres
+
+# PostgreSQL to SQLite
+./migrate.sh --user-id 1 --from postgres --to sqlite
+```
+
+**Full Migration with Backup and Validation:**
+```bash
+# Complete migration with safety features
+./migrate.sh --user-id 1 --from postgres --to sqlite --backup --validate
+```
+
+**CLI Help and Information:**
+```bash
+# Show help and usage examples
+bash migrate.sh --help
+
+# List available database types and status
+bash migrate.sh --list
+
+# Alternative short options
+bash migrate.sh -u 1 -f postgres -t sqlite -b -v
+```
+
+**Available Options:**
+- `-u, --user-id`: User ID to migrate (required)
+- `-f, --from`: Source database (sqlite|postgres)
+- `-t, --to`: Target database (sqlite|postgres)
+- `-b, --backup`: Create backup before migration
+- `-v, --validate`: Validate migration success
+- `-l, --list`: List available database types
+- `-h, --help`: Show help message
+
+### Migration Process
+
+The migration system follows a 4-step process:
+
+1. **📤 Data Export**: Extracts user data from source database
+2. **💾 Backup Creation**: Creates JSON backup file (if --backup flag used)
+3. **📥 Data Import**: Imports data to target database with column mapping
+4. **✅ Validation**: Verifies migration success (if --validate flag used)
+
+### Use Cases
+
+#### Scenario 1: Development to Production
+```bash
+# Migrate from local SQLite to production PostgreSQL
+./migrate.sh --user-id 1 --from sqlite --to postgres --backup --validate
+```
+
+#### Scenario 2: Production Backup
+```bash
+# Backup PostgreSQL data to SQLite for local development
+./migrate.sh --user-id 1 --from postgres --to sqlite --backup
+```
+
+#### Scenario 3: Database Provider Switch
+```bash
+# Switch from PostgreSQL free tier to SQLite
+./migrate.sh --user-id 1 --from postgres --to sqlite --backup --validate
+```
+
+### Post-Migration Steps
+
+#### 1. Update Environment Configuration
+
+After successful migration, update your `.env` files:
+
+**For SQLite:**
+```bash
+DB_TYPE=sqlite
+DB_PATH=./data.sqlite
+# Comment out DATABASE_URL
+# DATABASE_URL=postgresql://...
+```
+
+**For PostgreSQL:**
+```bash
+DB_TYPE=postgres
+DATABASE_URL=postgresql://user:pass@host:port/db
+# Remove DB_PATH
+```
+
+#### 2. Reset User Password (if needed)
+
+Migrated users have temporary passwords. Reset using:
+
+```bash
+# Generate new password hash
+node -e "const bcrypt = require('bcrypt'); bcrypt.hash('your_new_password', 10).then(hash => console.log(hash))"
+
+# Update in SQLite
+sqlite3 data.sqlite "UPDATE users SET password = 'generated_hash' WHERE id = 1;"
+
+# Update in PostgreSQL
+psql $DATABASE_URL -c "UPDATE users SET password = 'generated_hash' WHERE id = 1;"
+```
+
+#### 3. Restart Application
+
+```bash
+# Kill existing processes
+lsof -ti:3000,3001,3002 | xargs -r kill -9
+
+# Start with new database
+npm run dev
+```
+
+### Data Preserved During Migration
+
+- ✅ **User Accounts**: Name, email, preferences
+- ✅ **Social Media Posts**: Content, scheduling, status
+- ✅ **Notification Settings**: Email and browser preferences
+- ✅ **Slack Integration**: Bot tokens, channel settings, message timestamps
+- ✅ **Social Accounts**: Platform connections (tokens need reconnection)
+
+### Troubleshooting
+
+**Common Issues:**
+
+1. **Column Name Mismatch**:
+   - PostgreSQL uses `userid`, SQLite uses `userId`
+   - Migration automatically handles column mapping
+
+2. **ID Conflicts**:
+   - Auto-increment IDs are regenerated in target database
+   - Original IDs are preserved in backup files
+
+3. **Connection Errors**:
+   ```bash
+   # Check database connectivity
+   # PostgreSQL
+   psql $DATABASE_URL -c "SELECT 1;"
+   
+   # SQLite
+   sqlite3 data.sqlite "SELECT 1;"
+   ```
+
+4. **Permission Errors**:
+   ```bash
+   # Make migration script executable
+   chmod +x migrate.sh
+   ```
+
+### Migration Logs
+
+The migration tool provides detailed logging:
+
+```
+🚀 Cross-Database Migration Tool
+================================
+👤 User ID: 1
+📤 From: postgres
+📥 To: sqlite
+💾 Backup: Yes
+✅ Validate: Yes
+
+📤 Step 1: Exporting data from source database...
+✅ Data export completed: 3 records
+
+💾 Step 2: Creating backup...
+💾 Export saved to: ./migration-backup-1-2025-11-03T11-59-01-726Z.json
+
+📥 Step 3: Importing data to target database...
+✅ Data import completed: 3 records imported
+
+✅ Step 4: Validating migration...
+✅ Migration completed successfully!
+```
+
+### Best Practices
+
+1. **Always use --backup flag** for production migrations
+2. **Test migrations** with non-critical user accounts first
+3. **Verify connectivity** to both databases before migration
+4. **Update .env files** after successful migration
+5. **Reset user passwords** after migration
+6. **Monitor logs** for any sync errors
+7. **Keep backup files** for rollback capability
+
+The cross-database migration system ensures you can switch between database providers without losing any data or functionality, making your application truly database-agnostic.
+
 
 

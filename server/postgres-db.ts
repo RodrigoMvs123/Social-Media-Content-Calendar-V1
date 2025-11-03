@@ -1,7 +1,8 @@
-import { DatabaseAdapter } from './db-adapter';
+import { DatabaseAdapter, SocialAccount, User } from './db-adapter';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 import path from 'path';
+import { syncService } from '../cross-db-persistence/services/RealTimeSyncService';
 
 // Force reload environment variables
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -106,27 +107,34 @@ export class PostgresAdapter implements DatabaseAdapter {
   }
 
   // Users
-  async users = {
-    create: async (user: any) => {
+  users = {
+    create: async (user: User): Promise<User> => {
       const { name, email, password, createdAt, updatedAt } = user;
       const result = await this.pool.query(
         'INSERT INTO users (name, email, password, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING *',
         [name, email, password, createdAt, updatedAt]
       );
-      return result.rows[0];
+      const newUser = result.rows[0];
+      syncService.emitChange({
+        operation: 'create',
+        table: 'users',
+        id: newUser.id,
+        data: newUser,
+      });
+      return newUser;
     },
 
-    findByEmail: async (email: string) => {
+    findByEmail: async (email: string): Promise<User | null> => {
       const result = await this.pool.query('SELECT * FROM users WHERE email = $1', [email]);
       return result.rows[0];
     },
 
-    findById: async (id: string) => {
+    findById: async (id: string): Promise<User | null> => {
       const result = await this.pool.query('SELECT * FROM users WHERE id = $1', [id]);
       return result.rows[0];
     },
 
-    update: async (user: any) => {
+    update: async (user: Partial<User>): Promise<User> => {
       const { id, name, email, password, updatedAt } = user;
       const fields = [];
       const values = [];
@@ -157,26 +165,50 @@ export class PostgresAdapter implements DatabaseAdapter {
       values.push(id);
 
       const result = await this.pool.query(
-        `UPDATE users SET ${fields.join(', ')} WHERE id = $${valueIndex - 1} RETURNING *`,
+        `UPDATE users SET ${fields.join(', ')} WHERE id = $${valueIndex} RETURNING *`,
         values
       );
-      return result.rows[0];
+      const updatedUser = result.rows[0];
+      syncService.emitChange({
+        operation: 'update',
+        table: 'users',
+        id: updatedUser.id,
+        data: updatedUser,
+      });
+      return updatedUser;
+    },
+
+    delete: async (id: string | number): Promise<void> => {
+      await this.pool.query('DELETE FROM users WHERE id = $1', [id]);
+      syncService.emitChange({
+        operation: 'delete',
+        table: 'users',
+        id: id,
+      });
     }
   };
 
   // Posts
-  async posts = {
+  posts = {
     create: async (post: any) => {
       const { userId, content, platform, scheduledTime, status, createdAt, updatedAt } = post;
       const result = await this.pool.query(
-        'INSERT INTO posts (user_id, content, platform, scheduled_time, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+        'INSERT INTO posts (userid, content, platform, scheduledtime, status, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
         [userId, content, platform, scheduledTime, status || 'scheduled', createdAt, updatedAt]
       );
-      return result.rows[0];
+      const newPost = result.rows[0];
+      syncService.emitChange({
+        operation: 'create',
+        table: 'posts',
+        id: newPost.id,
+        data: newPost,
+        userId: newPost.userid,
+      });
+      return newPost;
     },
 
     findAll: async (userId: string) => {
-      const result = await this.pool.query('SELECT * FROM posts WHERE user_id = $1 ORDER BY scheduled_time', [userId]);
+      const result = await this.pool.query('SELECT * FROM posts WHERE userid = $1 ORDER BY scheduledtime', [userId]);
       return result.rows;
     },
 
@@ -222,40 +254,63 @@ export class PostgresAdapter implements DatabaseAdapter {
       values.push(id);
 
       const result = await this.pool.query(
-        `UPDATE posts SET ${fields.join(', ')} WHERE id = $${valueIndex - 1} RETURNING *`,
+        `UPDATE posts SET ${fields.join(', ')} WHERE id = $${valueIndex} RETURNING *`,
         values
       );
-      return result.rows[0];
+      const updatedPost = result.rows[0];
+      syncService.emitChange({
+        operation: 'update',
+        table: 'posts',
+        id: updatedPost.id,
+        data: updatedPost,
+        userId: updatedPost.user_id,
+      });
+      return updatedPost;
     },
 
-    delete: async (id: string) => {
+    delete: async (id: string): Promise<void> => {
+      const result = await this.pool.query('SELECT user_id FROM posts WHERE id = $1', [id]);
+      const post = result.rows[0];
       await this.pool.query('DELETE FROM posts WHERE id = $1', [id]);
-      return { success: true };
+      syncService.emitChange({
+        operation: 'delete',
+        table: 'posts',
+        id: id,
+        userId: post ? post.user_id : undefined,
+      });
     }
   };
 
   // Social Accounts
-  async socialAccounts = {
-    create: async (account: any) => {
+  socialAccounts = {
+    create: async (account: SocialAccount): Promise<SocialAccount> => {
       const { userId, platform, username, accessToken, refreshToken, tokenExpiry, profileData, connected, connectedAt } = account;
       const result = await this.pool.query(
         'INSERT INTO social_accounts (user_id, platform, username, access_token, refresh_token, token_expiry, profile_data, connected, connected_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
         [userId, platform, username, accessToken, refreshToken, tokenExpiry, profileData, connected, connectedAt]
       );
-      return result.rows[0];
+      const newAccount = result.rows[0];
+      syncService.emitChange({
+        operation: 'create',
+        table: 'social_accounts',
+        id: newAccount.id,
+        data: newAccount,
+        userId: newAccount.user_id,
+      });
+      return newAccount;
     },
 
-    findAll: async (userId: string) => {
+    findAll: async (userId: string): Promise<SocialAccount[]> => {
       const result = await this.pool.query('SELECT * FROM social_accounts WHERE user_id = $1', [userId]);
       return result.rows;
     },
 
-    findByPlatform: async (userId: string, platform: string) => {
+    findByPlatform: async (userId: string, platform: string): Promise<SocialAccount | null> => {
       const result = await this.pool.query('SELECT * FROM social_accounts WHERE user_id = $1 AND platform = $2', [userId, platform]);
       return result.rows[0];
     },
 
-    update: async (account: any) => {
+    update: async (account: Partial<SocialAccount>): Promise<SocialAccount> => {
       const { userId, platform, username, accessToken, refreshToken, tokenExpiry, profileData, connected, connectedAt } = account;
       const fields = [];
       const values = [];
@@ -303,10 +358,11 @@ export class PostgresAdapter implements DatabaseAdapter {
         valueIndex++;
       }
 
-      if (fields.length === 0) {
-        // No fields to update
+      if (fields.length === 0 && userId && platform) {
         const existingAccount = await this.socialAccounts.findByPlatform(userId, platform);
-        return existingAccount;
+        if (existingAccount) {
+          return existingAccount;
+        }
       }
 
       values.push(userId);
@@ -317,24 +373,61 @@ export class PostgresAdapter implements DatabaseAdapter {
         values
       );
 
-      if (result.rows.length === 0) {
-        // Account doesn't exist, create it
-        return this.socialAccounts.create(account);
+      if (result.rows.length === 0 && userId && platform) {
+        return this.socialAccounts.create(account as SocialAccount);
       }
 
-      return result.rows[0];
+      const updatedAccount = result.rows[0];
+      syncService.emitChange({
+        operation: 'update',
+        table: 'social_accounts',
+        id: updatedAccount.id,
+        data: updatedAccount,
+        userId: updatedAccount.user_id,
+      });
+      return updatedAccount;
+    },
+
+    upsert: async (account: SocialAccount): Promise<SocialAccount> => {
+        const existing = await this.socialAccounts.findByPlatform(account.userId, account.platform);
+        if (existing) {
+            return this.socialAccounts.update(account);
+        } else {
+            return this.socialAccounts.create(account);
+        }
+    },
+
+    delete: async (userId: string, platform: string): Promise<void> => {
+        const accountToDelete = await this.socialAccounts.findByPlatform(userId, platform);
+        if(accountToDelete){
+            await this.pool.query('DELETE FROM social_accounts WHERE user_id = $1 AND platform = $2', [userId, platform]);
+            syncService.emitChange({
+                operation: 'delete',
+                table: 'social_accounts',
+                id: accountToDelete.id,
+                userId: userId,
+            });
+        }
     }
   };
 
   // Notification Preferences
-  async notificationPreferences = {
+  notificationPreferences = {
     create: async (preferences: any) => {
       const { userId, emailDigest, emailPostPublished, emailPostFailed, browserNotifications, updatedAt } = preferences;
       const result = await this.pool.query(
         'INSERT INTO notification_preferences (user_id, email_digest, email_post_published, email_post_failed, browser_notifications, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
         [userId, emailDigest, emailPostPublished, emailPostFailed, browserNotifications, updatedAt]
       );
-      return result.rows[0];
+      const newPreferences = result.rows[0];
+      syncService.emitChange({
+        operation: 'create',
+        table: 'notification_preferences',
+        id: newPreferences.id,
+        data: newPreferences,
+        userId: newPreferences.user_id,
+      });
+      return newPreferences;
     },
 
     findByUserId: async (userId: string) => {
@@ -379,7 +472,7 @@ export class PostgresAdapter implements DatabaseAdapter {
       values.push(userId);
 
       const result = await this.pool.query(
-        `UPDATE notification_preferences SET ${fields.join(', ')} WHERE user_id = $${valueIndex - 1} RETURNING *`,
+        `UPDATE notification_preferences SET ${fields.join(', ')} WHERE user_id = $${valueIndex} RETURNING *`,
         values
       );
 
@@ -388,7 +481,71 @@ export class PostgresAdapter implements DatabaseAdapter {
         return this.notificationPreferences.create(preferences);
       }
 
-      return result.rows[0];
+      const updatedPreferences = result.rows[0];
+      syncService.emitChange({
+        operation: 'update',
+        table: 'notification_preferences',
+        id: updatedPreferences.id,
+        data: updatedPreferences,
+        userId: updatedPreferences.user_id,
+      });
+      return updatedPreferences;
     }
   };
+
+  async replicateCreate(table: string, data: any): Promise<any> {
+    // NOTE: This is a simplified generic implementation. It assumes 'id' is the primary key
+    // and may not handle all unique constraints correctly for all tables.
+    const columns = Object.keys(data);
+    const values = Object.values(data);
+    const valuePlaceholders = values.map((_, i) => `$${i + 1}`).join(', ');
+
+    // Using ON CONFLICT (id) DO UPDATE to handle cases where the record already exists.
+    // This makes the replication more robust.
+    const setClause = columns.map(col => `${col} = EXCLUDED.${col}`).join(', ');
+    const query = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${valuePlaceholders}) ON CONFLICT (id) DO UPDATE SET ${setClause} RETURNING *`;
+
+    try {
+      const result = await this.pool.query(query, values);
+      return result.rows[0];
+    } catch (error) {
+      console.error(`[REPLICATE] Error in replicateCreate for table ${table}:`, error);
+      // In a real-world scenario, you might want to try an UPDATE if the INSERT fails with a unique constraint violation
+      // that is not on the primary key. For now, we just log the error.
+      throw error;
+    }
+  }
+
+  async replicateUpdate(table: string, id: string | number, data: any): Promise<any> {
+    // NOTE: This is a simplified generic implementation.
+    const columns = Object.keys(data).filter(k => k !== 'id');
+    const values = columns.map(k => data[k]);
+    const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
+
+    const query = `UPDATE ${table} SET ${setClause} WHERE id = $${columns.length + 1} RETURNING *`;
+    
+    try {
+      const result = await this.pool.query(query, [...values, id]);
+      if (result.rows.length === 0) {
+        // If the update affected 0 rows, it means the record doesn't exist.
+        // We should probably create it.
+        return this.replicateCreate(table, { id, ...data });
+      }
+      return result.rows[0];
+    } catch (error) {
+      console.error(`[REPLICATE] Error in replicateUpdate for table ${table}:`, error);
+      throw error;
+    }
+  }
+
+  async replicateDelete(table: string, id: string | number): Promise<void> {
+    // NOTE: This is a simplified generic implementation.
+    const query = `DELETE FROM ${table} WHERE id = $1`;
+    try {
+      await this.pool.query(query, [id]);
+    } catch (error) {
+      console.error(`[REPLICATE] Error in replicateDelete for table ${table}:`, error);
+      throw error;
+    }
+  }
 }

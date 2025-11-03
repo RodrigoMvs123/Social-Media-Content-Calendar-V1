@@ -113,9 +113,10 @@ if (dbType === 'sqlite') {
 router.get('/', async (req, res) => {
   try {
     let posts = [];
+    const userId = req.userId;
     
     if (dbType === 'sqlite') {
-      const rows = await db.all('SELECT * FROM posts ORDER BY scheduledTime DESC');
+      const rows = await db.all('SELECT * FROM posts WHERE userId = ? ORDER BY scheduledTime DESC', [userId]);
       posts = rows.map(row => ({
         id: row.id,
         userId: row.userId,
@@ -129,7 +130,7 @@ router.get('/', async (req, res) => {
         slackMessageTs: row.slackMessageTs
       }));
     } else {
-      const result = await db.query('SELECT * FROM posts ORDER BY scheduledtime DESC');
+      const result = await db.query('SELECT * FROM posts WHERE userid = $1 ORDER BY scheduledtime DESC', [userId]);
       posts = result.rows.map(row => ({
         id: row.id,
         userId: row.userid,
@@ -214,18 +215,18 @@ router.post('/', async (req, res) => {
         await database.close();
       } else {
         const result = await db.query(
-          'SELECT * FROM slack_settings WHERE userid = $1 AND isactive = true',
+          'SELECT * FROM slack_settings WHERE user_id = $1 AND is_active = true',
           [userId]
         );
         slackSettings = result.rows[0];
         if (slackSettings) {
           slackSettings = {
-            botToken: slackSettings.bottoken,
-            channelId: slackSettings.channelid,
-            channelName: slackSettings.channelname,
-            slackScheduled: slackSettings.slackscheduled,
-            slackPublished: slackSettings.slackpublished,
-            slackFailed: slackSettings.slackfailed
+            botToken: slackSettings.bot_token,
+            channelId: slackSettings.channel_id,
+            channelName: slackSettings.channel_name,
+            slackScheduled: slackSettings.slack_scheduled,
+            slackPublished: slackSettings.slack_published,
+            slackFailed: slackSettings.slack_failed
           };
         }
       }
@@ -328,10 +329,11 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.userId;
     let post;
     
     if (dbType === 'sqlite') {
-      const row = await db.get('SELECT * FROM posts WHERE id = ?', [id]);
+      const row = await db.get('SELECT * FROM posts WHERE id = ? AND userId = ?', [id, userId]);
       if (!row) {
         return res.status(404).json({ error: 'Post not found' });
       }
@@ -348,7 +350,7 @@ router.get('/:id', async (req, res) => {
         updatedAt: row.updatedAt
       };
     } else {
-      const result = await db.query('SELECT * FROM posts WHERE id = $1', [id]);
+      const result = await db.query('SELECT * FROM posts WHERE id = $1 AND userid = $2', [id, userId]);
       if (result.rows.length === 0) {
         return res.status(404).json({ error: 'Post not found' });
       }
@@ -377,6 +379,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.userId;
     const { content, platform, scheduledTime, status, media } = req.body;
     const now = new Date().toISOString();
     
@@ -391,8 +394,8 @@ router.put('/:id', async (req, res) => {
          status = COALESCE(?, status), 
          media = COALESCE(?, media),
          updatedAt = ? 
-         WHERE id = ?`,
-        [content, platform, scheduledTime, status, media ? JSON.stringify(media) : null, now, id]
+         WHERE id = ? AND userId = ?`,
+        [content, platform, scheduledTime, status, media ? JSON.stringify(media) : null, now, id, userId]
       );
       
       if (result.changes === 0) {
@@ -421,9 +424,9 @@ router.put('/:id', async (req, res) => {
          status = COALESCE($4, status), 
          media = COALESCE($5, media),
          updatedat = NOW() 
-         WHERE id = $6 
+         WHERE id = $6 AND userid = $7
          RETURNING *`,
-        [content, platform, scheduledTime, status, media ? JSON.stringify(media) : null, id]
+        [content, platform, scheduledTime, status, media ? JSON.stringify(media) : null, id, userId]
       );
       
       if (result.rows.length === 0) {
@@ -454,29 +457,30 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.userId;
     let deletedPost = null;
     
     console.log(`🗑️ Deleting post ${id}...`);
     
     // First get the post to check for Slack message timestamp
     if (dbType === 'sqlite') {
-      deletedPost = await db.get('SELECT * FROM posts WHERE id = ?', [id]);
+      deletedPost = await db.get('SELECT * FROM posts WHERE id = ? AND userId = ?', [id, userId]);
       if (!deletedPost) {
         return res.status(404).json({ error: 'Post not found' });
       }
       
-      const result = await db.run('DELETE FROM posts WHERE id = ?', [id]);
+      const result = await db.run('DELETE FROM posts WHERE id = ? AND userId = ?', [id, userId]);
       if (result.changes === 0) {
         return res.status(404).json({ error: 'Post not found' });
       }
     } else {
-      const getResult = await db.query('SELECT * FROM posts WHERE id = $1', [id]);
+      const getResult = await db.query('SELECT * FROM posts WHERE id = $1 AND userid = $2', [id, userId]);
       if (getResult.rows.length === 0) {
         return res.status(404).json({ error: 'Post not found' });
       }
       deletedPost = getResult.rows[0];
       
-      const result = await db.query('DELETE FROM posts WHERE id = $1', [id]);
+      const result = await db.query('DELETE FROM posts WHERE id = $1 AND userid = $2', [id, userId]);
       if (result.rowCount === 0) {
         return res.status(404).json({ error: 'Post not found' });
       }
@@ -489,7 +493,6 @@ router.delete('/:id', async (req, res) => {
         console.log('🗑️ Found Slack timestamp, deleting message:', slackTs);
         
         // Get user's Slack settings
-        const userId = req.userId || 1;
         let slackSettings;
         
         if (dbType === 'sqlite') {
@@ -501,14 +504,14 @@ router.delete('/:id', async (req, res) => {
           await database.close();
         } else {
           const result = await db.query(
-            'SELECT bottoken, channelid FROM slack_settings WHERE userid = $1',
+            'SELECT bot_token, channel_id FROM slack_settings WHERE user_id = $1',
             [userId]
           );
           slackSettings = result.rows[0];
           if (slackSettings) {
             slackSettings = {
-              botToken: slackSettings.bottoken,
-              channelId: slackSettings.channelid
+              botToken: slackSettings.bot_token,
+              channelId: slackSettings.channel_id
             };
           }
         }
@@ -588,14 +591,14 @@ router.post('/sync-slack-deletions', async (req, res) => {
       await database.close();
     } else {
       const result = await db.query(
-        'SELECT bottoken, channelid FROM slack_settings WHERE userid = $1',
+        'SELECT bot_token, channel_id FROM slack_settings WHERE user_id = $1',
         [userId]
       );
       slackSettings = result.rows[0];
       if (slackSettings) {
         slackSettings = {
-          botToken: slackSettings.bottoken,
-          channelId: slackSettings.channelid
+          botToken: slackSettings.bot_token,
+          channelId: slackSettings.channel_id
         };
       }
     }

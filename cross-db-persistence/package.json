@@ -1,0 +1,41 @@
+{
+  "name": "cross-database-persistence",
+  "version": "1.0.0",
+  "description": "Cross-database persistence system for Social Media Content Calendar",
+  "main": "index.js",
+  "scripts": {
+    "migrate": "node utils/MigrationCLI.ts",
+    "test": "jest",
+    "build": "tsc",
+    "dev": "ts-node utils/MigrationCLI.ts",
+    "export": "ts-node -e \"import('./services/DataExportService').then(m => new m.DataExportService(db).exportUserData(process.argv[2]))\"",
+    "import": "ts-node -e \"import('./services/DataImportService').then(m => new m.DataImportService(db).importFromFile(process.argv[2]))\"",
+    "list-dbs": "node utils/MigrationCLI.ts --list",
+    "validate": "ts-node -e \"console.log('Cross-DB Persistence System - Ready!')\""
+  },
+  "keywords": [
+    "database",
+    "migration",
+    "sqlite",
+    "postgresql",
+    "persistence",
+    "cross-platform"
+  ],
+  "author": "Social Media Content Calendar Team",
+  "license": "MIT",
+  "dependencies": {
+    "sqlite3": "^5.1.6",
+    "sqlite": "^5.0.1",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

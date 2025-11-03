@@ -12,7 +12,12 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rm -rf node_modules package-lock.json dist build .next .cache && npm install",
     "fresh-start": "npm run clean && npm start",
-    "postinstall": "npm install --prefix client && npm install --prefix server"
+    "postinstall": "npm install --prefix client && npm install --prefix server",
+    "migrate": "ts-node cross-db-persistence/utils/MigrationCLI.ts",
+    "migrate:demo": "ts-node cross-db-persistence/demo.ts",
+    "migrate:list": "ts-node cross-db-persistence/utils/MigrationCLI.ts --list",
+    "db:export": "ts-node -e \"require('./cross-db-persistence/services/DataExportService').DataExportService\"",
+    "db:import": "ts-node -e \"require('./cross-db-persistence/services/DataImportService').DataImportService\""
   },
   "keywords": [
     "social media",

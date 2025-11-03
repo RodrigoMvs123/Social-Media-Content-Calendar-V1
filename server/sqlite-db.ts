@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import { DatabaseAdapter, SocialAccount, Post, User, NotificationPreference } from './db-adapter';
+import { syncService } from '../cross-db-persistence/services/RealTimeSyncService';
 
 // SQLite implementation of the database adapter
 export class SQLiteAdapter implements DatabaseAdapter {
@@ -42,6 +43,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
         status TEXT NOT NULL,
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
+        publishedAt TEXT,
         media TEXT,
         slackMessageTs TEXT
       );
@@ -58,7 +60,10 @@ export class SQLiteAdapter implements DatabaseAdapter {
       CREATE TABLE IF NOT EXISTS notification_preferences (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId TEXT NOT NULL UNIQUE,
-        browserNotifications BOOLEAN NOT NULL DEFAULT 1,
+        emailDigest BOOLEAN DEFAULT 1,
+        emailPostPublished BOOLEAN DEFAULT 1,
+        emailPostFailed BOOLEAN DEFAULT 1,
+        browserNotifications BOOLEAN NOT NULL DEFAULT 0,
         updatedAt TEXT NOT NULL
       );
       
@@ -70,7 +75,10 @@ export class SQLiteAdapter implements DatabaseAdapter {
         channelName TEXT,
         isActive BOOLEAN NOT NULL DEFAULT 1,
         createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
+        updatedAt TEXT NOT NULL,
+        slackScheduled BOOLEAN DEFAULT 1,
+        slackPublished BOOLEAN DEFAULT 1,
+        slackFailed BOOLEAN DEFAULT 1
       );
       
       CREATE TABLE IF NOT EXISTS slack_message_timestamps (
@@ -114,7 +122,15 @@ export class SQLiteAdapter implements DatabaseAdapter {
         account.connectedAt, account.profileData
       );
       
-      return { ...account, id: result.lastID };
+      const newAccount = { ...account, id: result.lastID };
+      syncService.emitChange({
+        operation: 'create',
+        table: 'social_accounts',
+        id: newAccount.id,
+        data: newAccount,
+        userId: newAccount.userId,
+      });
+      return newAccount;
     },
     
     update: async (account: Partial<SocialAccount>): Promise<SocialAccount> => {
@@ -134,7 +150,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
       });
       
       if (fields.length === 0) {
-        throw new Error('No fields to update');
+        return this.socialAccounts.findByPlatform(account.userId, account.platform) as Promise<SocialAccount>;
       }
       
       values.push(account.userId, account.platform);
@@ -144,7 +160,15 @@ export class SQLiteAdapter implements DatabaseAdapter {
         ...values
       );
       
-      return this.socialAccounts.findByPlatform(account.userId, account.platform) as Promise<SocialAccount>;
+      const updatedAccount = await this.socialAccounts.findByPlatform(account.userId, account.platform) as SocialAccount;
+      syncService.emitChange({
+        operation: 'update',
+        table: 'social_accounts',
+        id: updatedAccount.id,
+        data: updatedAccount,
+        userId: updatedAccount.userId,
+      });
+      return updatedAccount;
     },
     
     upsert: async (account: SocialAccount): Promise<SocialAccount> => {
@@ -161,10 +185,19 @@ export class SQLiteAdapter implements DatabaseAdapter {
     
     delete: async (userId: string, platform: string): Promise<void> => {
       if (!this.db) throw new Error('Database not initialized');
-      await this.db.run(
-        'DELETE FROM social_accounts WHERE userId = ? AND platform = ?',
-        userId, platform
-      );
+      const accountToDelete = await this.socialAccounts.findByPlatform(userId, platform);
+      if(accountToDelete){
+        await this.db.run(
+          'DELETE FROM social_accounts WHERE userId = ? AND platform = ?',
+          userId, platform
+        );
+        syncService.emitChange({
+          operation: 'delete',
+          table: 'social_accounts',
+          id: accountToDelete.id,
+          userId: userId,
+        });
+      }
     }
   };
   
@@ -223,7 +256,15 @@ export class SQLiteAdapter implements DatabaseAdapter {
         post.status, post.createdAt || now, post.updatedAt || now, mediaJson
       );
       
-      return { ...post, id: result.lastID };
+      const newPost = { ...post, id: result.lastID };
+      syncService.emitChange({
+        operation: 'create',
+        table: 'posts',
+        id: newPost.id,
+        data: newPost,
+        userId: newPost.userId,
+      });
+      return newPost;
     },
     
     update: async (post: Partial<Post>): Promise<Post> => {
@@ -259,12 +300,29 @@ export class SQLiteAdapter implements DatabaseAdapter {
         ...values
       );
       
-      return this.posts.findById(post.id) as Promise<Post>;
+      const updatedPost = await this.posts.findById(post.id) as Post;
+      syncService.emitChange({
+        operation: 'update',
+        table: 'posts',
+        id: updatedPost.id,
+        data: updatedPost,
+        userId: updatedPost.userId,
+      });
+      return updatedPost;
     },
     
     delete: async (id: number | string): Promise<void> => {
       if (!this.db) throw new Error('Database not initialized');
-      await this.db.run('DELETE FROM posts WHERE id = ?', id);
+      const postToDelete = await this.posts.findById(id);
+      if(postToDelete){
+        await this.db.run('DELETE FROM posts WHERE id = ?', id);
+        syncService.emitChange({
+          operation: 'delete',
+          table: 'posts',
+          id: id,
+          userId: postToDelete.userId,
+        });
+      }
     }
   };
   
@@ -298,7 +356,14 @@ export class SQLiteAdapter implements DatabaseAdapter {
         user.email, user.name, user.password, user.createdAt || now, user.updatedAt || now
       );
       
-      return { ...user, id: result.lastID };
+      const newUser = { ...user, id: result.lastID };
+      syncService.emitChange({
+        operation: 'create',
+        table: 'users',
+        id: newUser.id,
+        data: newUser,
+      });
+      return newUser;
     },
     
     update: async (user: Partial<User>): Promise<User> => {
@@ -328,12 +393,27 @@ export class SQLiteAdapter implements DatabaseAdapter {
         ...values
       );
       
-      return this.users.findById(user.id) as Promise<User>;
+      const updatedUser = await this.users.findById(user.id) as User;
+      syncService.emitChange({
+        operation: 'update',
+        table: 'users',
+        id: updatedUser.id,
+        data: updatedUser,
+      });
+      return updatedUser;
     },
     
     delete: async (id: number | string): Promise<void> => {
       if (!this.db) throw new Error('Database not initialized');
-      await this.db.run('DELETE FROM users WHERE id = ?', id);
+      const userToDelete = await this.users.findById(id);
+      if(userToDelete){
+        await this.db.run('DELETE FROM users WHERE id = ?', id);
+        syncService.emitChange({
+          operation: 'delete',
+          table: 'users',
+          id: id,
+        });
+      }
     }
   };
   
@@ -363,7 +443,15 @@ export class SQLiteAdapter implements DatabaseAdapter {
         preference.updatedAt || now
       );
       
-      return { ...preference, id: result.lastID };
+      const newPreference = { ...preference, id: result.lastID };
+      syncService.emitChange({
+        operation: 'create',
+        table: 'notification_preferences',
+        id: newPreference.id,
+        data: newPreference,
+        userId: newPreference.userId,
+      });
+      return newPreference;
     },
     
     update: async (preference: Partial<NotificationPreference>): Promise<NotificationPreference> => {
@@ -413,7 +501,44 @@ export class SQLiteAdapter implements DatabaseAdapter {
         });
       }
       
-      return this.notificationPreferences.findByUserId(preference.userId) as Promise<NotificationPreference>;
+      const updatedPreference = await this.notificationPreferences.findByUserId(preference.userId) as NotificationPreference;
+      syncService.emitChange({
+        operation: 'update',
+        table: 'notification_preferences',
+        id: updatedPreference.id,
+        data: updatedPreference,
+        userId: updatedPreference.userId,
+      });
+      return updatedPreference;
     }
   };
+
+  async replicateCreate(table: string, data: any): Promise<any> {
+    if (!this.db) throw new Error('Database not initialized');
+    const columns = Object.keys(data);
+    const values = Object.values(data);
+    const placeholders = columns.map(() => '?').join(',');
+    const query = `INSERT OR REPLACE INTO ${table} (${columns.join(',')}) VALUES (${placeholders})`;
+    const result = await this.db.run(query, ...values);
+    return { ...data, id: result.lastID };
+  }
+
+  async replicateUpdate(table: string, id: string | number, data: any): Promise<any> {
+    if (!this.db) throw new Error('Database not initialized');
+    const columns = Object.keys(data).filter(k => k !== 'id');
+    const values = columns.map(k => data[k]);
+    const setClause = columns.map(col => `${col} = ?`).join(',');
+    const query = `UPDATE ${table} SET ${setClause} WHERE id = ?`;
+    const result = await this.db.run(query, ...values, id);
+    if (result.changes === 0) {
+      return this.replicateCreate(table, { id, ...data });
+    }
+    return this.db.get(`SELECT * FROM ${table} WHERE id = ?`, id);
+  }
+
+  async replicateDelete(table: string, id: string | number): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    const query = `DELETE FROM ${table} WHERE id = ?`;
+    await this.db.run(query, id);
+  }
 }

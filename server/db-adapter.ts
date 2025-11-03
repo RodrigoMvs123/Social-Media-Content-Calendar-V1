@@ -84,4 +84,9 @@ export interface DatabaseAdapter {
   
   // Database initialization
   initialize: () => Promise<void>;
+
+  // Replication methods
+  replicateCreate(table: string, data: any): Promise<any>;
+  replicateUpdate(table: string, id: string | number, data: any): Promise<any>;
+  replicateDelete(table: string, id: string | number): Promise<void>;
 }

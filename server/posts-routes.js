@@ -3,6 +3,16 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const router = express.Router();
 
+// Import simple sync service
+let simpleSyncService;
+try {
+  const { simpleSyncService: importedSyncService } = require('./simple-sync');
+  simpleSyncService = importedSyncService;
+  console.log('✅ Simple sync service loaded for posts routes');
+} catch (error) {
+  console.log('⚠️ Simple sync service not available:', error.message);
+}
+
 // Decryption function for Slack tokens
 const decrypt = (hash) => {
   try {
@@ -383,6 +393,25 @@ router.post('/', async (req, res) => {
       console.error('❌ Error sending Slack notification:', notifyError);
     }
     
+    // Sync to other database if enabled
+    if (simpleSyncService && process.env.ENABLE_REAL_TIME_SYNC === 'true') {
+      try {
+        await simpleSyncService.syncPost('create', {
+          id: post.id,
+          userId: post.userId,
+          platform: post.platform,
+          content: post.content,
+          scheduledTime: post.scheduledTime,
+          status: post.status,
+          createdAt: post.createdAt,
+          updatedAt: post.updatedAt,
+          media: post.media
+        });
+      } catch (syncError) {
+        console.error('[SYNC] Failed to sync create:', syncError.message);
+      }
+    }
+    
     res.status(201).json(post);
   } catch (error) {
     console.error('Error creating post:', error);
@@ -511,6 +540,25 @@ router.put('/:id', async (req, res) => {
       };
     }
     
+    // Sync to other database if enabled
+    if (simpleSyncService && process.env.ENABLE_REAL_TIME_SYNC === 'true') {
+      try {
+        await simpleSyncService.syncPost('update', {
+          id: post.id,
+          userId: post.userId,
+          platform: post.platform,
+          content: post.content,
+          scheduledTime: post.scheduledTime,
+          status: post.status,
+          createdAt: post.createdAt,
+          updatedAt: post.updatedAt,
+          media: post.media
+        });
+      } catch (syncError) {
+        console.error('[SYNC] Failed to sync update:', syncError.message);
+      }
+    }
+    
     res.json(post);
   } catch (error) {
     console.error('Error updating post:', error);
@@ -614,6 +662,15 @@ router.delete('/:id', async (req, res) => {
       }
     } else {
       console.log('🔕 No Slack timestamp found for post, skipping message deletion');
+    }
+    
+    // Sync to other database if enabled
+    if (simpleSyncService && process.env.ENABLE_REAL_TIME_SYNC === 'true') {
+      try {
+        await simpleSyncService.syncPost('delete', { id: id });
+      } catch (syncError) {
+        console.error('[SYNC] Failed to sync delete:', syncError.message);
+      }
     }
     
     console.log('✅ Post deleted successfully from database');

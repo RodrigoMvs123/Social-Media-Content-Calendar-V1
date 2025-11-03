@@ -81,7 +81,7 @@ router.get('/', auth, async (req, res) => {
           `INSERT INTO notification_preferences 
            (user_id, email_digest, email_post_published, email_post_failed, browser_notifications, updated_at)
            VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [userId, false, false, false, true]
+          [parseInt(userId), false, false, false, true]
         );
         
         const newResult = await db.query(

@@ -75,6 +75,38 @@ This application supports two database options:
 
 The application will automatically use the database specified in your environment variables.
 
+## Database Switching
+
+The application supports seamless switching between SQLite and PostgreSQL with universal user authentication:
+
+### Quick Commands
+
+```bash
+# Switch to SQLite only
+node switch-database.js sqlite
+
+# Switch to PostgreSQL only
+node switch-database.js postgres
+
+# Check posts in SQLite
+node check-sqlite-posts.js
+
+# Check posts in PostgreSQL
+node check-postgres-posts.js
+
+# Check current user status
+node check-current-user.js
+```
+
+### Features
+
+- ✅ **Universal Authentication**: Same user account works across both databases
+- ✅ **One-Command Switch**: Instantly switch between database types
+- ✅ **Data Persistence**: User accounts and posts maintained across switches
+- ✅ **No Manual Migration**: System automatically handles user authentication
+
+After switching databases, restart your server to apply changes.
+
 ## AI Content Generation
 
 The application supports both OpenAI and Claude APIs for generating social media content:

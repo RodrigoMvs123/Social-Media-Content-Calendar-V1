@@ -1,0 +1,42 @@
+{
+  "userId": "2",
+  "exportDate": "2025-11-03T17:36:20.474Z",
+  "version": "1.0.0",
+  "data": {
+    "user": {
+      "id": 2,
+      "email": "rodrigomvsoares@gmail.com",
+      "name": "Rodrigo M. V. Soares",
+      "createdAt": "2025-11-03T17:15:51.435Z",
+      "updatedAt": "2025-11-03T17:15:51.435Z"
+    },
+    "posts": [
+      {
+        "id": 7,
+        "userId": "2",
+        "platform": "Instagram",
+        "content": "Databse check !",
+        "scheduledTime": "2025-11-03T17:17:00.000Z",
+        "status": "published",
+        "createdAt": "2025-11-03T17:16:55.164Z",
+        "updatedAt": "2025-11-03T17:17:11.559Z",
+        "media": null,
+        "slackMessageTs": "1762190231.653399"
+      }
+    ],
+    "socialAccounts": [],
+    "notificationPreferences": {
+      "id": 9,
+      "userId": "2",
+      "browserNotifications": 1,
+      "updatedAt": "[object Object]",
+      "emailPostFailed": 0,
+      "emailDigest": 0,
+      "emailPostPublished": 0
+    }
+  },
+  "metadata": {
+    "totalRecords": 3,
+    "checksum": "a2796a88a4ab3db8"
+  }
+}

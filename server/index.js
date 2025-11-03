@@ -254,6 +254,10 @@ app.use('/api', socialMediaRoutes);
 require('./slack-sync');
 console.log('✅ Slack deletion sync started');
 
+// Import Universal Authentication Service
+const { CrossDatabaseAuthService } = require('./services/CrossDatabaseAuthService');
+const universalAuth = new CrossDatabaseAuthService();
+
 // Authentication routes
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -263,46 +267,33 @@ app.post('/api/auth/login', async (req, res) => {
   }
   
   try {
-    let user;
+    console.log(`🔐 Universal login attempt: ${email}`);
     
-    if (dbType === 'sqlite') {
-      user = await new Promise((resolve, reject) => {
-        db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
+    const authResult = await universalAuth.authenticateUser(email, password);
+    
+    if (authResult.success) {
+      const token = jwt.sign(
+        { userId: authResult.user.id, email: authResult.user.email },
+        process.env.JWT_SECRET || 'fallback-secret',
+        { expiresIn: '24h' }
+      );
+      
+      console.log(`✅ Login successful: ${email} (${authResult.source}${authResult.migrated ? ' - migrated' : ''})`);
+      
+      res.json({
+        success: true,
+        user: authResult.user,
+        token,
+        source: authResult.source,
+        migrated: authResult.migrated,
+        message: authResult.message
       });
     } else {
-      const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-      user = result.rows[0];
+      console.log(`❌ Login failed: ${email} - ${authResult.error}`);
+      res.status(401).json({ error: authResult.error });
     }
-    
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
-    );
-    
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      },
-      token
-    });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Universal login error:', error);
     res.status(500).json({ error: 'Authentication error' });
   }
 });
@@ -315,57 +306,32 @@ app.post('/api/auth/register', async (req, res) => {
   }
   
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    let userId;
+    console.log(`📝 Universal registration attempt: ${email}`);
     
-    if (dbType === 'sqlite') {
-      userId = await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-          [name, email, hashedPassword],
-          function(err) {
-            if (err) {
-              if (err.message.includes('UNIQUE constraint failed')) {
-                reject(new Error('Email already exists'));
-              } else {
-                reject(err);
-              }
-            } else {
-              resolve(this.lastID);
-            }
-          }
-        );
+    const registerResult = await universalAuth.registerUser({ name, email, password });
+    
+    if (registerResult.success) {
+      const token = jwt.sign(
+        { userId: registerResult.user.id, email: registerResult.user.email },
+        process.env.JWT_SECRET || 'fallback-secret',
+        { expiresIn: '24h' }
+      );
+      
+      console.log(`✅ Registration successful: ${email} (${registerResult.database})`);
+      
+      res.json({
+        success: true,
+        user: registerResult.user,
+        token,
+        database: registerResult.database
       });
     } else {
-      const result = await db.query(
-        'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id',
-        [name, email, hashedPassword]
-      );
-      userId = result.rows[0].id;
+      console.log(`❌ Registration failed: ${email} - ${registerResult.error}`);
+      res.status(400).json({ error: registerResult.error });
     }
-    
-    const token = jwt.sign(
-      { userId, email },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '24h' }
-    );
-    
-    res.json({
-      success: true,
-      user: {
-        id: userId,
-        email,
-        name
-      },
-      token
-    });
   } catch (error) {
-    console.error('Registration error:', error);
-    if (error.message === 'Email already exists') {
-      res.status(400).json({ error: 'Email already exists' });
-    } else {
-      res.status(500).json({ error: 'Registration error' });
-    }
+    console.error('❌ Universal registration error:', error);
+    res.status(500).json({ error: 'Registration error' });
   }
 });
 
@@ -457,6 +423,33 @@ app.get('/api/me', (req, res) => {
     email: 'demo@example.com',
     authenticated: true
   });
+});
+
+// Universal user lookup endpoint
+app.get('/api/auth/find-user/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    console.log(`🔍 Universal user lookup: ${email}`);
+    
+    const userInfo = await universalAuth.findUserAcrossDBs(email);
+    
+    if (userInfo) {
+      res.json({
+        found: true,
+        database: userInfo.sourceDB,
+        user: {
+          id: userInfo.user.id,
+          email: userInfo.user.email,
+          name: userInfo.user.name
+        }
+      });
+    } else {
+      res.json({ found: false });
+    }
+  } catch (error) {
+    console.error('❌ User lookup error:', error);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
 });
 
 // Add missing API routes to prevent 404s

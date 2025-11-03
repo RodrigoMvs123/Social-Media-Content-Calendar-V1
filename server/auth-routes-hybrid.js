@@ -145,62 +145,44 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login endpoint
+// Import Universal Authentication Service
+const { CrossDatabaseAuthService } = require('./services/CrossDatabaseAuthService');
+const universalAuth = new CrossDatabaseAuthService();
+
+// Login endpoint with Universal Authentication
 router.post('/login', async (req, res) => {
   try {
-    if (!db) {
-      console.error('❌ Database not initialized for login');
-      return res.status(500).json({ error: 'Database not initialized' });
-    }
-    
     if (!JWT_SECRET) {
       console.error('❌ JWT_SECRET not configured');
       return res.status(500).json({ error: 'Server configuration error' });
     }
     
     const { email, password } = req.body;
-    console.log('Login request received:', { email });
+    console.log('🔍 Universal login request:', { email });
     
-    // Find user by email
-    let user;
-    if (dbType === 'sqlite') {
-      user = await db.get('SELECT * FROM users WHERE email = ?', email);
+    // Use Universal Authentication
+    const authResult = await universalAuth.authenticateUser(email, password);
+    
+    if (authResult.success) {
+      // Generate token
+      const token = generateToken(authResult.user);
+      
+      console.log(`✅ Universal login successful: ${email} (${authResult.source}${authResult.migrated ? ' - migrated' : ''})`);
+      
+      res.json({
+        success: true,
+        user: authResult.user,
+        token,
+        source: authResult.source,
+        migrated: authResult.migrated,
+        message: authResult.message
+      });
     } else {
-      const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-      user = result.rows[0];
+      console.log(`❌ Universal login failed: ${email} - ${authResult.error}`);
+      res.status(401).json({ error: authResult.error });
     }
-    
-    if (!user) {
-      console.log('User not found:', email);
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    // Check password
-    const validPassword = await bcrypt.compare(password, user.password);
-    
-    if (!validPassword) {
-      console.log('Invalid password for user:', email);
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    // Generate token
-    const token = generateToken(user);
-    
-    // User response
-    const userResponse = {
-      id: user.id,
-      name: user.name,
-      email: user.email
-    };
-    
-    console.log('User logged in successfully:', userResponse);
-    res.json({
-      success: true,
-      user: userResponse,
-      token
-    });
   } catch (error) {
-    console.error('Error logging in:', error);
+    console.error('❌ Universal login error:', error);
     res.status(500).json({ error: 'Authentication error' });
   }
 });

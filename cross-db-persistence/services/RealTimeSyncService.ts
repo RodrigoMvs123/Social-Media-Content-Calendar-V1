@@ -57,11 +57,20 @@ class RealTimeSyncService {
     const config = DatabaseConfigManager.getRuntimeConfig();
     this.primaryType = config.currentType;
 
-    // Simple one-way sync: postgres -> sqlite
+    // Bidirectional sync: determine secondary database
     if (this.primaryType === 'postgres') {
       this.secondaryType = 'sqlite';
+    } else if (this.primaryType === 'sqlite') {
+      this.secondaryType = 'postgres';
     } else {
-      console.log('⚠️ Real-time sync is only supported from PostgreSQL to SQLite in this version.');
+      console.log('⚠️ Real-time sync requires either PostgreSQL or SQLite as primary database.');
+      this.isEnabled = false;
+      return;
+    }
+
+    // Check if secondary database connection is available
+    if (this.secondaryType === 'postgres' && !process.env.DATABASE_URL) {
+      console.log('ℹ️ PostgreSQL connection not available for sync (DATABASE_URL not set)');
       this.isEnabled = false;
       return;
     }
@@ -71,7 +80,7 @@ class RealTimeSyncService {
       this.eventEmitter.on('dataChange', this.handleDataChange.bind(this));
       console.log(`✅ Real-Time Sync enabled: ${this.primaryType} -> ${this.secondaryType}`);
     } catch (error) {
-      console.error('❌ Failed to initialize secondary database for sync:', error);
+      console.log(`ℹ️ Secondary database (${this.secondaryType}) not available for sync`);
       this.isEnabled = false;
     }
   }
@@ -81,16 +90,23 @@ class RealTimeSyncService {
 
     console.log(`[SYNC] Received event: ${event.operation} on ${event.table} for id ${event.id}`);
 
-    // Convert data keys to camelCase for SQLite adapter
-    const camelCaseData = event.data ? keysToCamel(event.data) : undefined;
+    // Convert data based on target database type
+    let processedData = event.data;
+    if (this.secondaryType === 'sqlite' && event.data) {
+      // Convert snake_case to camelCase for SQLite
+      processedData = keysToCamel(event.data);
+    } else if (this.secondaryType === 'postgres' && event.data) {
+      // Keep snake_case for PostgreSQL or convert if needed
+      processedData = event.data;
+    }
 
     try {
       switch (event.operation) {
         case 'create':
-          await this.secondaryDb.replicateCreate(event.table, camelCaseData);
+          await this.secondaryDb.replicateCreate(event.table, processedData);
           break;
         case 'update':
-          await this.secondaryDb.replicateUpdate(event.table, event.id, camelCaseData);
+          await this.secondaryDb.replicateUpdate(event.table, event.id, processedData);
           break;
         case 'delete':
           await this.secondaryDb.replicateDelete(event.table, event.id);

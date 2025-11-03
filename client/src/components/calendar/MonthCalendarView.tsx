@@ -39,9 +39,14 @@ const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({ posts, onDateClic
 
   const handleDateClick = (day: Date) => {
     setSelectedDate(day);
-    const postsOnDay = posts.filter(post => 
-      isSameDay(new Date(post.scheduledTime), day)
-    );
+    const postsOnDay = posts.filter(post => {
+      try {
+        const postDate = new Date(post.scheduledTime);
+        return !isNaN(postDate.getTime()) && isSameDay(postDate, day);
+      } catch (error) {
+        return false;
+      }
+    });
     
     if (onDateClick) {
       onDateClick(day, postsOnDay);
@@ -50,11 +55,21 @@ const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({ posts, onDateClic
 
   // Group posts by date
   const postsByDate = posts.reduce((acc, post) => {
-    const date = format(new Date(post.scheduledTime), 'yyyy-MM-dd');
-    if (!acc[date]) {
-      acc[date] = [];
+    try {
+      const postDate = new Date(post.scheduledTime);
+      // Check if date is valid
+      if (isNaN(postDate.getTime())) {
+        console.warn('Invalid date for post:', post.id, post.scheduledTime);
+        return acc;
+      }
+      const date = format(postDate, 'yyyy-MM-dd');
+      if (!acc[date]) {
+        acc[date] = [];
+      }
+      acc[date].push(post);
+    } catch (error) {
+      console.warn('Error processing date for post:', post.id, error);
     }
-    acc[date].push(post);
     return acc;
   }, {} as Record<string, Post[]>);
 

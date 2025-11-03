@@ -355,21 +355,21 @@ router.get('/settings', getUserId, async (req, res) => {
       await database.close();
     } else {
       const result = await db.query(
-        'SELECT bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed FROM slack_settings WHERE userid = $1',
+        'SELECT bot_token, channel_id, channel_name, is_active, slack_scheduled, slack_published, slack_failed FROM slack_settings WHERE user_id = $1',
         [req.userId]
       );
       settings = result.rows[0];
       
-      // Map PostgreSQL lowercase columns to camelCase
+      // Map PostgreSQL columns to camelCase
       if (settings) {
         settings = {
-          botToken: settings.bottoken,
-          channelId: settings.channelid,
-          channelName: settings.channelname,
-          isActive: settings.isactive,
-          slackScheduled: settings.slackscheduled,
-          slackPublished: settings.slackpublished,
-          slackFailed: settings.slackfailed
+          botToken: settings.bot_token,
+          channelId: settings.channel_id,
+          channelName: settings.channel_name,
+          isActive: settings.is_active,
+          slackScheduled: settings.slack_scheduled,
+          slackPublished: settings.slack_published,
+          slackFailed: settings.slack_failed
         };
       }
       console.log('GET /api/slack/settings - PostgreSQL query result:', settings);
@@ -413,7 +413,7 @@ router.delete('/disconnect', getUserId, async (req, res) => {
       );
     } else {
       await db.query(
-        'DELETE FROM slack_settings WHERE userid = $1',
+        'DELETE FROM slack_settings WHERE user_id = $1',
         [req.userId]
       );
     }
@@ -462,14 +462,14 @@ router.post('/settings', getUserId, async (req, res) => {
       // Use ON CONFLICT for PostgreSQL
       await db.query(`
         INSERT INTO slack_settings 
-        (userid, bottoken, channelid, channelname, isactive, slackscheduled, slackpublished, slackfailed, createdat, updatedat)
+        (user_id, bot_token, channel_id, channel_name, is_active, slack_scheduled, slack_published, slack_failed, created_at, updated_at)
         VALUES ($1, $2, $3, $4, true, false, false, false, $5, $6)
-        ON CONFLICT (userid) DO UPDATE SET
-          bottoken = EXCLUDED.bottoken,
-          channelid = EXCLUDED.channelid,
-          channelname = EXCLUDED.channelname,
-          isactive = EXCLUDED.isactive,
-          updatedat = EXCLUDED.updatedat
+        ON CONFLICT (user_id) DO UPDATE SET
+          bot_token = EXCLUDED.bot_token,
+          channel_id = EXCLUDED.channel_id,
+          channel_name = EXCLUDED.channel_name,
+          is_active = EXCLUDED.is_active,
+          updated_at = EXCLUDED.updated_at
       `, [req.userId, encryptedBotToken, channelId, channelName, now, now]);
     }
 
@@ -548,13 +548,13 @@ router.post('/preferences', getUserId, async (req, res) => {
       }
       
       const result = await db.query(`
-        INSERT INTO slack_settings (userid, bottoken, channelid, channelname, slackscheduled, slackpublished, slackfailed, isactive, createdat, updatedat)
+        INSERT INTO slack_settings (user_id, bot_token, channel_id, channel_name, slack_scheduled, slack_published, slack_failed, is_active, created_at, updated_at)
         VALUES ($1, $2, $3, '#social', $4, $5, $6, true, $7, $8)
-        ON CONFLICT (userid) DO UPDATE SET
-          slackscheduled = EXCLUDED.slackscheduled,
-          slackpublished = EXCLUDED.slackpublished,
-          slackfailed = EXCLUDED.slackfailed,
-          updatedat = EXCLUDED.updatedat
+        ON CONFLICT (user_id) DO UPDATE SET
+          slack_scheduled = EXCLUDED.slack_scheduled,
+          slack_published = EXCLUDED.slack_published,
+          slack_failed = EXCLUDED.slack_failed,
+          updated_at = EXCLUDED.updated_at
       `, [req.userId, botToken, channelId, slackScheduled ?? true, slackPublished ?? true, slackFailed ?? true, now, now]);
       
       console.log('🔧 Auto-configured Slack for user:', req.userId);
@@ -618,16 +618,16 @@ router.post('/test', getUserId, async (req, res) => {
       );
     } else {
       const result = await db.query(
-        'SELECT bottoken, channelid, channelname FROM slack_settings WHERE userid = $1',
+        'SELECT bot_token, channel_id, channel_name FROM slack_settings WHERE user_id = $1',
         [req.userId]
       );
       settings = result.rows[0];
       
       if (settings) {
         settings = {
-          botToken: settings.bottoken,
-          channelId: settings.channelid,
-          channelName: settings.channelname
+          botToken: settings.bot_token,
+          channelId: settings.channel_id,
+          channelName: settings.channel_name
         };
       }
     }
@@ -813,16 +813,16 @@ router.get('/status', async (req, res) => {
       await database.close(); // Close the database connection
     } else {
       const result = await db.query(
-        'SELECT bottoken, channelid, isactive FROM slack_settings WHERE userid = $1',
+        'SELECT bot_token, channel_id, is_active FROM slack_settings WHERE user_id = $1',
         [userId]
       );
       settings = result.rows[0];
-      // Map PostgreSQL lowercase columns to camelCase
+      // Map PostgreSQL columns to camelCase
       if (settings) {
         settings = {
-          botToken: settings.bottoken,
-          channelId: settings.channelid,
-          isActive: settings.isactive,
+          botToken: settings.bot_token,
+          channelId: settings.channel_id,
+          isActive: settings.is_active,
         };
       }
     }

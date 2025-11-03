@@ -64,16 +64,16 @@ async function initializeDatabase() {
       await client.query(`
         CREATE TABLE IF NOT EXISTS slack_settings (
           id SERIAL PRIMARY KEY,
-          userid INTEGER NOT NULL UNIQUE,
-          bottoken TEXT,
-          channelid TEXT,
-          channelname TEXT,
-          isactive BOOLEAN DEFAULT true,
-          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          slackscheduled BOOLEAN DEFAULT true,
-          slackpublished BOOLEAN DEFAULT true,
-          slackfailed BOOLEAN DEFAULT true
+          user_id INTEGER NOT NULL UNIQUE,
+          bot_token TEXT,
+          channel_id TEXT,
+          channel_name TEXT,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          slack_scheduled BOOLEAN DEFAULT true,
+          slack_published BOOLEAN DEFAULT true,
+          slack_failed BOOLEAN DEFAULT true
         )
       `);
       console.log('✅ Slack settings table ready');
@@ -82,13 +82,13 @@ async function initializeDatabase() {
       await client.query(`
         CREATE TABLE IF NOT EXISTS notification_preferences (
           id SERIAL PRIMARY KEY,
-          userid INTEGER NOT NULL UNIQUE,
-          emaildigest BOOLEAN DEFAULT false,
-          emailpostpublished BOOLEAN DEFAULT false,
-          emailpostfailed BOOLEAN DEFAULT false,
-          browsernotifications BOOLEAN DEFAULT true,
-          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          user_id INTEGER NOT NULL UNIQUE,
+          email_digest BOOLEAN DEFAULT false,
+          email_post_published BOOLEAN DEFAULT false,
+          email_post_failed BOOLEAN DEFAULT false,
+          browser_notifications BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
       console.log('✅ Notification preferences table ready');

@@ -9,8 +9,8 @@ async function syncPostgresToSqlite() {
     
     // Connect to PostgreSQL
     const postgresDb = new Pool({
-      connectionString: 'postgresql://social_media_content_calendar_v1_gb1j_user:YWKH33BfX7mTsOfUaC9EuyBHOrhKmjSn@dpg-d448nnemcj7s73bvup4g-a.virginia-postgres.render.com/social_media_content_calendar_v1_gb1j?sslmode=require',
-      ssl: { rejectUnauthorized: false }
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL?.includes('render.com') ? { rejectUnauthorized: false } : false
     });
     
     // Connect to SQLite

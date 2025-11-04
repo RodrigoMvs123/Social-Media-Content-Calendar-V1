@@ -170,9 +170,29 @@ async function initializeDatabase() {
           channelName TEXT,
           isActive BOOLEAN DEFAULT 1,
           createdAt TEXT NOT NULL,
-          updatedAt TEXT NOT NULL
+          updatedAt TEXT NOT NULL,
+          slackScheduled BOOLEAN DEFAULT 1,
+          slackPublished BOOLEAN DEFAULT 1,
+          slackFailed BOOLEAN DEFAULT 1
         );
       `);
+      
+      // Add missing columns to existing tables
+      try {
+        await db.exec(`ALTER TABLE users ADD COLUMN updatedAt TEXT;`);
+        console.log('✅ Added updatedAt column to users table');
+      } catch (e) {
+        console.log('ℹ️ updatedAt column already exists in users table');
+      }
+      
+      try {
+        await db.exec(`ALTER TABLE slack_settings ADD COLUMN slackScheduled BOOLEAN DEFAULT 1;`);
+        await db.exec(`ALTER TABLE slack_settings ADD COLUMN slackPublished BOOLEAN DEFAULT 1;`);
+        await db.exec(`ALTER TABLE slack_settings ADD COLUMN slackFailed BOOLEAN DEFAULT 1;`);
+        console.log('✅ Added Slack notification columns');
+      } catch (e) {
+        console.log('ℹ️ Slack notification columns already exist');
+      }
       console.log('✅ SQLite tables created');
 
       if (fs.existsSync(dbPath)) {

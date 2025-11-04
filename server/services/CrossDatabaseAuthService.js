@@ -1,10 +1,11 @@
 const bcrypt = require('bcrypt');
-const { DatabaseFactory } = require('../../cross-db-persistence/database/DatabaseFactory');
-const { DataMigrationService } = require('../../cross-db-persistence/services/DataMigrationService');
+// Use direct database connections instead of TypeScript modules in production
+// const { DatabaseFactory } = require('../../cross-db-persistence/database/DatabaseFactory');
+// const { DataMigrationService } = require('../../cross-db-persistence/services/DataMigrationService');
 
 class CrossDatabaseAuthService {
   constructor() {
-    this.migrationService = new DataMigrationService();
+    // this.migrationService = new DataMigrationService();
   }
 
   /**
@@ -166,18 +167,42 @@ class CrossDatabaseAuthService {
     
     // Create user in current database
     const currentDBType = process.env.DB_TYPE || 'sqlite';
-    const db = await DatabaseFactory.getInstance({ type: currentDBType });
-    
     const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date().toISOString();
     
-    const newUser = await db.users.create({
-      email,
-      name,
-      password: hashedPassword,
-      createdAt: now,
-      updatedAt: now
-    });
+    let newUser;
+    
+    if (currentDBType === 'sqlite') {
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      
+      const db = await open({
+        filename: process.env.DB_PATH || './data.sqlite',
+        driver: sqlite3.Database
+      });
+      
+      const result = await db.run(
+        'INSERT INTO users (name, email, password, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
+        [name, email, hashedPassword, now, now]
+      );
+      
+      newUser = await db.get('SELECT * FROM users WHERE id = ?', result.lastID);
+      await db.close();
+    } else if (currentDBType === 'postgres') {
+      const { Pool } = require('pg');
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+      
+      const result = await pool.query(
+        'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *',
+        [name, email, hashedPassword]
+      );
+      
+      newUser = result.rows[0];
+      await pool.end();
+    }
     
     console.log(`✅ User registered in ${currentDBType}:`, email);
     

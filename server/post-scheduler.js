@@ -15,6 +15,23 @@ async function initializeDb() {
         filename: process.env.DB_PATH || './data.sqlite',
         driver: sqlite3.Database
       });
+      
+      // Ensure posts table exists
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          content TEXT NOT NULL,
+          scheduledTime TEXT NOT NULL,
+          status TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          media TEXT,
+          slackMessageTs TEXT
+        )
+      `);
+      
       console.log('✅ Post scheduler connected to SQLite');
     } else {
       const { Pool } = require('pg');
@@ -22,6 +39,24 @@ async function initializeDb() {
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false }
       });
+      
+      // Ensure posts table exists
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS posts (
+          id SERIAL PRIMARY KEY,
+          userid INTEGER DEFAULT 1,
+          platform VARCHAR(50) NOT NULL,
+          content TEXT NOT NULL,
+          scheduledtime TIMESTAMP NOT NULL,
+          status VARCHAR(20) DEFAULT 'scheduled',
+          createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updatedat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          publishedat TIMESTAMP,
+          media TEXT,
+          slackmessagets TEXT
+        )
+      `);
+      
       console.log('✅ Post scheduler connected to PostgreSQL');
     }
     return db;

@@ -80,9 +80,26 @@ const PostDetailsDialog = ({ post, open, onOpenChange }: PostDetailsDialogProps)
   
   if (!post) return null;
   
+  // Safe date parsing for Unix timestamps and date strings
+  const safeParseDate = (dateString: string): Date => {
+    try {
+      const numericValue = parseFloat(dateString);
+      if (!isNaN(numericValue) && numericValue > 1000000000) {
+        const timestamp = numericValue > 1000000000000 ? numericValue : numericValue * 1000;
+        const date = new Date(timestamp);
+        return !isNaN(date.getTime()) ? date : new Date();
+      }
+      const date = new Date(dateString);
+      return !isNaN(date.getTime()) ? date : new Date();
+    } catch {
+      return new Date();
+    }
+  };
+  
   const platformIconClass = getPlatformColor(post.platform);
-  const formattedDate = format(new Date(post.scheduledTime), 'MMMM d, yyyy');
-  const formattedTime = format(new Date(post.scheduledTime), 'HH:mm');
+  const scheduledDate = safeParseDate(post.scheduledTime);
+  const formattedDate = format(scheduledDate, 'MMMM d, yyyy');
+  const formattedTime = format(scheduledDate, 'HH:mm');
   const hasMedia = post.media && post.media.length > 0;
   
   const handleRemoveMedia = async (index: number) => {

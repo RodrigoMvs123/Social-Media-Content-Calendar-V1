@@ -7,6 +7,7 @@ class SimpleSyncService {
     this.isEnabled = process.env.ENABLE_REAL_TIME_SYNC === 'true';
     this.currentDbType = process.env.DB_TYPE || 'sqlite';
     this.targetDbType = this.currentDbType === 'sqlite' ? 'postgres' : 'sqlite';
+    this.initialized = false;
     
     if (this.isEnabled) {
       this.initializeTargetDb();
@@ -32,14 +33,19 @@ class SimpleSyncService {
         });
       }
       console.log(`✅ Simple sync initialized: ${this.currentDbType} -> ${this.targetDbType}`);
+      this.initialized = true;
     } catch (error) {
       console.log(`ℹ️ Simple sync disabled: ${this.targetDbType} database not available`);
       this.isEnabled = false;
+      this.initialized = false;
     }
   }
   
   async syncPost(operation, postData) {
-    if (!this.isEnabled || !this.targetDb) return;
+    if (!this.isEnabled || !this.initialized || !this.targetDb) {
+      console.log(`[SIMPLE-SYNC] Skipping sync - enabled: ${this.isEnabled}, initialized: ${this.initialized}, hasDb: ${!!this.targetDb}`);
+      return;
+    }
     
     console.log(`[SIMPLE-SYNC] ${operation} post ${postData.id} to ${this.targetDbType}`);
     
@@ -57,8 +63,35 @@ class SimpleSyncService {
     }
   }
   
+  normalizeScheduledTime(scheduledTime) {
+    if (!scheduledTime) return null;
+    
+    // If it's already a Unix timestamp, return as is
+    if (typeof scheduledTime === 'number' || /^\d+(\.\d+)?$/.test(scheduledTime)) {
+      return scheduledTime;
+    }
+    
+    // If it's an ISO string, convert to Unix timestamp
+    if (typeof scheduledTime === 'string' && scheduledTime.includes('T')) {
+      const date = new Date(scheduledTime);
+      return date.getTime();
+    }
+    
+    return scheduledTime;
+  }
+  
   async createPost(postData) {
+    const normalizedScheduledTime = this.normalizeScheduledTime(postData.scheduledTime);
+    
     if (this.targetDbType === 'postgres') {
+      // Convert Unix timestamp to PostgreSQL timestamp
+      let pgTimestamp;
+      if (normalizedScheduledTime && !isNaN(normalizedScheduledTime)) {
+        pgTimestamp = new Date(parseInt(normalizedScheduledTime)).toISOString();
+      } else {
+        pgTimestamp = normalizedScheduledTime;
+      }
+      
       // Convert camelCase to snake_case for PostgreSQL
       await this.targetDb.query(`
         INSERT INTO posts (id, userid, platform, content, scheduledtime, status, createdat, updatedat, media, slackmessagets)
@@ -76,7 +109,7 @@ class SimpleSyncService {
         postData.userId,
         postData.platform,
         postData.content,
-        postData.scheduledTime,
+        pgTimestamp,
         postData.status,
         postData.createdAt,
         postData.updatedAt,
@@ -93,7 +126,7 @@ class SimpleSyncService {
         postData.userId,
         postData.platform,
         postData.content,
-        postData.scheduledTime,
+        normalizedScheduledTime,
         postData.status,
         postData.createdAt,
         postData.updatedAt,

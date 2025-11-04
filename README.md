@@ -44,8 +44,43 @@ The application is deployed and available at:
    cp .env.example server/.env
    ```
    
-   **Step 2:** Edit both `.env` files and replace the placeholders with your actual credentials:
+   **Step 2:** Edit both `.env` files with your configuration. Here's a complete example:
+   
+   ```bash
+   # Environment Configuration
+   NODE_ENV=development
+   
+   # Database Configuration (PostgreSQL)
+   DATABASE_URL=postgresql://username:password@host:port/database?sslmode=require
+   DB_TYPE=sqlite
+   DB_PATH=./data.sqlite
+   
+   # Universal Authentication & Sync Features
+   ENABLE_DB_FALLBACK=true
+   ENABLE_REAL_TIME_SYNC=true
+   USE_MOCK_DATA=false
+   
+   # Security
+   JWT_SECRET=your_jwt_secret_here
+   ENCRYPTION_KEY=your_encryption_key_here
+   
+   # CORS Configuration
+   CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002
+   
+   # AI Content Generation (choose one)
+   OPENAI_API_KEY=sk-proj-your_openai_api_key_here
+   GOOGLE_API_KEY=your_google_api_key_here
+   
+   # Slack Integration (optional)
+   SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+   SLACK_SIGNING_SECRET=your_slack_signing_secret
+   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your/webhook/url
+   SLACK_CHANNEL_ID=your_channel_id
+   ```
+   
+   **Required Configuration:**
    - Database settings (PostgreSQL or SQLite)
+   - JWT_SECRET and ENCRYPTION_KEY for security
    - OpenAI API key OR Claude API key (for AI content generation)
    - Social media OAuth credentials (for platform integration)
    - Slack settings (optional)
@@ -74,6 +109,44 @@ This application supports two database options:
    - Data stored in a local file
 
 The application will automatically use the database specified in your environment variables.
+
+## Universal Authentication System
+
+The application features a revolutionary **Universal Authentication System** that allows users to seamlessly access their accounts across both SQLite and PostgreSQL databases without any manual intervention.
+
+### How It Works
+
+1. **Cross-Database User Detection**: When you log in, the system automatically searches for your account in both databases
+2. **Automatic Migration**: If your account exists in the non-active database, it's automatically migrated to the current database
+3. **Seamless Experience**: Users never need to recreate accounts or lose access when switching database types
+4. **Real-Time Sync**: Changes are synchronized between databases in real-time when both are available
+
+### Key Features
+
+- ✅ **Zero User Intervention**: No manual account recreation needed
+- ✅ **Cross-Database Compatibility**: Same login works with SQLite or PostgreSQL
+- ✅ **Automatic Account Migration**: Accounts are migrated on-demand during login
+- ✅ **Data Integrity**: All user data, posts, and settings are preserved
+- ✅ **Real-Time Synchronization**: Changes sync between databases automatically
+- ✅ **Fallback Support**: System gracefully handles database unavailability
+
+### User Experience
+
+```
+1. User logs in with email/password
+2. System checks current database (e.g., SQLite)
+3. If account not found, checks other database (PostgreSQL)
+4. Account automatically migrated to current database
+5. User gains immediate access with all data intact
+```
+
+### Technical Implementation
+
+- **Database Factory Pattern**: Unified interface for both database types
+- **Smart Authentication**: Searches across all available databases
+- **Automatic Schema Mapping**: Handles column name differences (userId vs user_id)
+- **Bidirectional Sync**: Real-time synchronization between database types
+- **Error Resilience**: Graceful handling of connection failures
 
 ## Database Switching
 

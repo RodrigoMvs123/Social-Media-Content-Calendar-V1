@@ -36,13 +36,29 @@ const EditPostDialog = ({ open, onOpenChange, post, onPostUpdated }: EditPostDia
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Safe date parsing for Unix timestamps and date strings
+  const safeParseDate = (dateString: string): Date => {
+    try {
+      const numericValue = parseFloat(dateString);
+      if (!isNaN(numericValue) && numericValue > 1000000000) {
+        const timestamp = numericValue > 1000000000000 ? numericValue : numericValue * 1000;
+        const date = new Date(timestamp);
+        return !isNaN(date.getTime()) ? date : new Date();
+      }
+      const date = new Date(dateString);
+      return !isNaN(date.getTime()) ? date : new Date();
+    } catch {
+      return new Date();
+    }
+  };
+
   useEffect(() => {
     if (post) {
       setContent(post.content);
       setPlatform(post.platform);
       setCharCount(post.content.length);
       
-      const scheduledDate = new Date(post.scheduledTime);
+      const scheduledDate = safeParseDate(post.scheduledTime);
       setDate(format(scheduledDate, 'yyyy-MM-dd'));
       setTime(format(scheduledDate, 'HH:mm'));
       

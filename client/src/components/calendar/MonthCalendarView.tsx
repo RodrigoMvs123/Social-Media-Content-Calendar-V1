@@ -37,15 +37,27 @@ const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({ posts, onDateClic
     setCurrentMonth(subMonths(currentMonth, 1));
   };
 
+  // Safe date parsing for Unix timestamps and date strings
+  const safeParseDate = (dateString: string): Date | null => {
+    try {
+      const numericValue = parseFloat(dateString);
+      if (!isNaN(numericValue) && numericValue > 1000000000) {
+        const timestamp = numericValue > 1000000000000 ? numericValue : numericValue * 1000;
+        const date = new Date(timestamp);
+        return !isNaN(date.getTime()) ? date : null;
+      }
+      const date = new Date(dateString);
+      return !isNaN(date.getTime()) ? date : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleDateClick = (day: Date) => {
     setSelectedDate(day);
     const postsOnDay = posts.filter(post => {
-      try {
-        const postDate = new Date(post.scheduledTime);
-        return !isNaN(postDate.getTime()) && isSameDay(postDate, day);
-      } catch (error) {
-        return false;
-      }
+      const postDate = safeParseDate(post.scheduledTime);
+      return postDate && isSameDay(postDate, day);
     });
     
     if (onDateClick) {
@@ -55,20 +67,13 @@ const MonthCalendarView: React.FC<MonthCalendarViewProps> = ({ posts, onDateClic
 
   // Group posts by date
   const postsByDate = posts.reduce((acc, post) => {
-    try {
-      const postDate = new Date(post.scheduledTime);
-      // Check if date is valid
-      if (isNaN(postDate.getTime())) {
-        console.warn('Invalid date for post:', post.id, post.scheduledTime);
-        return acc;
-      }
+    const postDate = safeParseDate(post.scheduledTime);
+    if (postDate) {
       const date = format(postDate, 'yyyy-MM-dd');
       if (!acc[date]) {
         acc[date] = [];
       }
       acc[date].push(post);
-    } catch (error) {
-      console.warn('Error processing date for post:', post.id, error);
     }
     return acc;
   }, {} as Record<string, Post[]>);

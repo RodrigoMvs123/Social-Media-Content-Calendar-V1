@@ -86,7 +86,35 @@ const PostItem = ({ post, viewType }: PostItemProps) => {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const platformIconClass = getPlatformColor(post.platform);
-  const formattedTime = format(new Date(post.scheduledTime), 'HH:mm');
+  // Safe date parsing to handle both Unix timestamps and date strings
+  const safeParseDate = (dateString: string): Date => {
+    try {
+      // Check if it's a Unix timestamp (numeric string)
+      const numericValue = parseFloat(dateString);
+      if (!isNaN(numericValue) && numericValue > 1000000000) {
+        // It's a Unix timestamp (in milliseconds if > 1000000000000, otherwise seconds)
+        const timestamp = numericValue > 1000000000000 ? numericValue : numericValue * 1000;
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+      
+      // Try parsing as regular date string
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+      
+      console.warn('Invalid date detected:', dateString);
+      return new Date(); // Fallback to current date
+    } catch (error) {
+      console.error('Error parsing date:', dateString, error);
+      return new Date(); // Fallback to current date
+    }
+  };
+  
+  const formattedTime = format(safeParseDate(post.scheduledTime), 'HH:mm');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   

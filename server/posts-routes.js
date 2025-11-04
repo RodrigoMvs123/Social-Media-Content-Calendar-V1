@@ -126,7 +126,7 @@ router.get('/', async (req, res) => {
     const userId = req.userId;
     
     if (dbType === 'sqlite') {
-      const rows = await db.all('SELECT * FROM posts WHERE userId = ? ORDER BY scheduledTime DESC', [userId]);
+      const rows = await db.all('SELECT * FROM posts WHERE userId = ? ORDER BY CAST(scheduledTime AS REAL) DESC', [userId]);
       posts = rows.map(row => ({
         id: row.id,
         userId: row.userId,
@@ -383,6 +383,60 @@ router.post('/', async (req, res) => {
                 [result.ts, post.id]
               );
               await database2.close();
+            }
+          } else {
+            // PostgreSQL auto-configuration
+            await db.query(`
+              INSERT INTO slack_settings 
+              (user_id, bot_token, channel_id, channel_name, slack_scheduled, slack_published, slack_failed, is_active, created_at, updated_at)
+              VALUES ($1, $2, $3, '#social', true, true, true, true, NOW(), NOW())
+              ON CONFLICT (user_id) DO UPDATE SET
+                bot_token = EXCLUDED.bot_token,
+                channel_id = EXCLUDED.channel_id,
+                updated_at = NOW()
+            `, [userId, envBotToken, envChannelId]);
+            
+            console.log('✅ Auto-configured Slack settings for PostgreSQL user:', userId);
+            
+            // Now send the notification
+            const { WebClient } = require('@slack/web-api');
+            const slack = new WebClient(envBotToken);
+            
+            const statusDisplay = finalStatus === 'ready' ? 'Ready to Publish' : finalStatus;
+            const scheduledDate = new Date(post.scheduledTime);
+            const formattedTime = scheduledDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              timeZone: 'America/Sao_Paulo'
+            }) + ' at ' + scheduledDate.toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'America/Sao_Paulo'
+            });
+            
+            const message = `📅 *New post ${finalStatus}*\n\n` +
+              `*Platform:* ${post.platform}\n` +
+              `*Scheduled for:* ${formattedTime}\n` +
+              `*Content:* ${post.content}\n` +
+              `*Status:* ${statusDisplay}`;
+            
+            const result = await slack.chat.postMessage({
+              channel: envChannelId,
+              text: message,
+              mrkdwn: true
+            });
+            
+            console.log('✅ Auto-configured PostgreSQL Slack notification sent:', result.ts);
+            
+            // Store timestamp
+            if (result.ok && result.ts) {
+              await db.query(
+                'UPDATE posts SET slackmessagets = $1 WHERE id = $2',
+                [result.ts, post.id]
+              );
             }
           }
         } else {

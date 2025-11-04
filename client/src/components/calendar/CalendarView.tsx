@@ -22,10 +22,33 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
                           (filters?.dateRange && filters.dateRange !== 'all') || 
                           (filters?.status && filters.status !== 'all') || 
                           (filters?.searchQuery && filters.searchQuery.trim() !== '');
-  // Helper function to safely parse dates
+  // Helper function to safely parse dates (handles both Unix timestamps and ISO strings)
   const safeParseDate = (dateString: string): Date => {
     try {
-      return parseISO(dateString);
+      // Check if it's a Unix timestamp (numeric string)
+      const numericValue = parseFloat(dateString);
+      if (!isNaN(numericValue) && numericValue > 1000000000) {
+        // It's a Unix timestamp (in milliseconds if > 1000000000000, otherwise seconds)
+        const timestamp = numericValue > 1000000000000 ? numericValue : numericValue * 1000;
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+      
+      // Try parsing as ISO string first
+      try {
+        return parseISO(dateString);
+      } catch {
+        // Fall back to regular Date constructor
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+      
+      console.error('Invalid date detected:', dateString);
+      return new Date(); // Fallback to current date
     } catch (error) {
       console.error('Error parsing date:', dateString, error);
       return new Date(); // Fallback to current date
@@ -47,13 +70,13 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
     const nextWeekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
     const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
     
-    // Filter out past posts if we're in dashboard view
+    // Filter out past posts if we're in dashboard view, but always show published posts
     const filteredByDatePosts = isCalendarView 
       ? [...posts] // Show all posts in calendar view
       : posts.filter(post => {
           const postDate = safeParseDate(post.scheduledTime);
-          // Keep posts that are today or in the future
-          return isToday(postDate) || isAfter(postDate, today);
+          // Always show published posts regardless of date, or posts that are today or in the future
+          return post.status === 'published' || isToday(postDate) || isAfter(postDate, today);
         });
     
     // Sort posts by scheduled time
@@ -61,7 +84,8 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
       return safeParseDate(a.scheduledTime).getTime() - safeParseDate(b.scheduledTime).getTime();
     });
     
-    // Group posts by Today, Tomorrow, This Week, Next Week, Later
+    // Group posts by Recently Published, Today, Tomorrow, This Week, Next Week, Later
+    const recentlyPublishedPosts: Post[] = [];
     const todayPosts: Post[] = [];
     const tomorrowPosts: Post[] = [];
     const thisWeekPosts: Post[] = [];
@@ -71,7 +95,10 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
     sortedPosts.forEach(post => {
       const postDate = safeParseDate(post.scheduledTime);
       
-      if (isToday(postDate)) {
+      // Published posts go to recently published section
+      if (post.status === 'published') {
+        recentlyPublishedPosts.push(post);
+      } else if (isToday(postDate)) {
         todayPosts.push(post);
       } else if (isTomorrow(postDate)) {
         tomorrowPosts.push(post);
@@ -110,6 +137,7 @@ const CalendarView = ({ posts, viewType, filters, onClearFilters }: CalendarView
     } else {
       // For 'all' or any other date filter, include all sections
       sections = [
+        { date: 'recently-published', title: 'Recently Published', posts: recentlyPublishedPosts },
         { date: format(today, 'yyyy-MM-dd'), title: 'Today', posts: todayPosts },
         { date: format(tomorrow, 'yyyy-MM-dd'), title: 'Tomorrow', posts: tomorrowPosts },
         { date: 'this-week', title: 'This Week', posts: thisWeekPosts },

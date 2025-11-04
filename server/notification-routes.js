@@ -71,7 +71,7 @@ router.get('/', auth, async (req, res) => {
     } else {
       const result = await db.query(
         'SELECT * FROM notification_preferences WHERE user_id = $1',
-        [userId]
+        [parseInt(userId)]
       );
       preferences = result.rows[0];
       
@@ -86,7 +86,7 @@ router.get('/', auth, async (req, res) => {
         
         const newResult = await db.query(
           'SELECT * FROM notification_preferences WHERE user_id = $1',
-          [userId]
+          [parseInt(userId)]
         );
         preferences = newResult.rows[0];
       }
@@ -173,7 +173,7 @@ router.post('/', auth, async (req, res) => {
       // Get updated preferences
       const result = await db.query(
         'SELECT * FROM notification_preferences WHERE user_id = $1',
-        [userId]
+        [parseInt(userId)]
       );
       const updatedPreferences = result.rows[0];
       

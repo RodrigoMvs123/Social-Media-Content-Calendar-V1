@@ -37,7 +37,7 @@ jobs:
         cd ../server && npm audit --audit-level=moderate || true
     
     - name: Run Snyk security scan
-      uses: snyk/actions/node@master
+      uses: snyk/actions/node@0.4.0
       continue-on-error: true
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

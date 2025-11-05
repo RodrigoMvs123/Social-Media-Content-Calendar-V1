@@ -20,6 +20,8 @@ echo ""
 echo "⚠️  Required Secrets (set in GitHub repo settings):"
 echo "- RENDER_SERVICE_ID (for deployment)"
 echo "- RENDER_API_KEY (for deployment)"
+echo "- RENDER_SERVICE_URL (for deployment health checks)"
+echo "- JWT_SECRET_TEST (for CI and PR testing)"
 echo "- SNYK_TOKEN (optional, for enhanced security)"
 
 echo ""

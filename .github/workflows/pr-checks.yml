@@ -49,7 +49,7 @@ jobs:
         NODE_ENV: test
         DB_TYPE: sqlite
         DB_PATH: ./test.sqlite
-        JWT_SECRET: test-secret
+        JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
     
     - name: Check bundle size
       id: bundle-size
@@ -61,31 +61,15 @@ jobs:
           echo "size=$size" >> $GITHUB_OUTPUT
         fi
     
-    - name: Comment PR
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const breaking = '${{ steps.breaking-changes.outputs.breaking }}';
-          const bundleSize = '${{ steps.bundle-size.outputs.size }}';
-          
-          let comment = '## 🤖 PR Validation Results\n\n';
-          comment += '✅ **Build Status**: Passed\n';
-          comment += `📦 **Bundle Size**: ${bundleSize || 'N/A'}\n`;
-          
-          if (breaking === 'true') {
-            comment += '\n⚠️ **Breaking Changes Detected**\n';
-            comment += 'This PR contains potential database schema changes. Please review carefully.\n';
-          }
-          
-          comment += '\n---\n';
-          comment += '*Automated by GitHub Actions*';
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
+    - name: Output PR Results
+      run: |
+        echo "## 🤖 PR Validation Results"
+        echo "✅ Build Status: Passed"
+        echo "📦 Bundle Size: ${{ steps.bundle-size.outputs.size || 'N/A' }}"
+        if [ "${{ steps.breaking-changes.outputs.breaking }}" = "true" ]; then
+          echo "⚠️ Breaking Changes Detected"
+          echo "This PR contains potential database schema changes."
+        fi
 
   size-check:
     runs-on: ubuntu-latest

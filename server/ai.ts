@@ -48,7 +48,7 @@ async function callClaudeAPI(prompt: string, platform: string, maxTokens: number
 async function callGeminiAPI(prompt: string, platform: string) {
   if (!gemini) throw new Error('Gemini not initialized');
   
-  const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
+  const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const charLimit = getPlatformCharLimit(platform);
   
   const fullPrompt = `Create a ${platform} social media post under ${charLimit} characters. Be concise, engaging, and platform-appropriate.\n\nPrompt: ${prompt}`;
@@ -163,7 +163,7 @@ export async function generateIdeas(topic: string) {
     // Try Gemini first, then Claude, then OpenAI
     if (hasGemini && gemini) {
       console.log('Using Gemini API for ideas');
-      const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
+      const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const result = await model.generateContent(`Generate exactly 5 short social media content ideas about ${topic}. Format as a numbered list.`);
       const geminiResponse = await result.response;
       response = geminiResponse.text();

@@ -14,6 +14,7 @@ import postsRoutesSqlite from './posts-routes-sqlite';
 import analyticsRoutesSqlite from './analytics-routes-sqlite';
 import slackRoutes from './slack-routes';
 import notificationRoutes from './notification-routes';
+import { generateContent, generateIdeas } from './ai';
 const oauthRoutes = require('./oauth-routes');
 const SocialMediaAPI = require('./social-media-api');
 const { createSocialAccountsTable } = require('./dev-tools/create-social-accounts-table');
@@ -91,6 +92,43 @@ app.use('/api/slack', slackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/media', mediaRoutes);
+
+// AI content generation endpoints
+app.post('/api/ai/generate', async (req, res) => {
+  try {
+    const { prompt, platform } = req.body;
+    
+    if (!prompt || !platform) {
+      return res.status(400).json({ error: 'Prompt and platform are required' });
+    }
+    
+    console.log(`🤖 AI content request: "${prompt}" for ${platform}`);
+    const content = await generateContent(prompt, platform);
+    
+    res.json({ content });
+  } catch (error) {
+    console.error('AI generation error:', error);
+    res.status(500).json({ error: 'Failed to generate content' });
+  }
+});
+
+app.post('/api/ai/ideas', async (req, res) => {
+  try {
+    const { topic } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+    
+    console.log(`💡 AI ideas request for topic: "${topic}"`);
+    const ideas = await generateIdeas(topic);
+    
+    res.json({ ideas });
+  } catch (error) {
+    console.error('AI ideas error:', error);
+    res.status(500).json({ error: 'Failed to generate ideas' });
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

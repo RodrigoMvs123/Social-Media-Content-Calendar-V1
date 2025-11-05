@@ -67,9 +67,10 @@ The application is deployed and available at:
    # CORS Configuration
    CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002
    
-   # AI Content Generation (choose one)
+   # AI Content Generation (choose one or multiple - Gemini recommended)
+   GOOGLE_API_KEY=your_google_gemini_api_key_here
    OPENAI_API_KEY=sk-proj-your_openai_api_key_here
-   GOOGLE_API_KEY=your_google_api_key_here
+   CLAUDE_API_KEY=your_claude_api_key_here
    
    # Slack Integration (optional)
    SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
@@ -182,9 +183,10 @@ After switching databases, restart your server to apply changes.
 
 ## AI Content Generation
 
-The application supports both OpenAI and Claude APIs for generating social media content:
+The application supports multiple AI APIs for generating social media content with **Gemini prioritized for generous free tier limits**:
 
-1. **Setup** (choose one):
+1. **Setup** (choose one or multiple):
+   - **Google Gemini** (Recommended): Get an API key from [Google AI Studio](https://makersuite.google.com/app/apikey) and add: `GOOGLE_API_KEY=your_gemini_api_key_here`
    - **OpenAI**: Get an API key from [OpenAI](https://platform.openai.com/) and add: `OPENAI_API_KEY=your_api_key_here`
    - **Claude**: Get an API key from [Anthropic](https://console.anthropic.com/) and add: `CLAUDE_API_KEY=your_api_key_here`
 
@@ -194,10 +196,12 @@ The application supports both OpenAI and Claude APIs for generating social media
    - Click "Generate Content"
    - Use the generated content for your social media posts
 
-3. **Rate Limiting**:
-   - The application includes built-in rate limiting and caching
-   - This helps manage API usage and stay within free tier limits
-   - Generated content is cached to avoid duplicate API calls
+3. **API Priority & Rate Limiting**:
+   - **Gemini** is tried first (generous free tier: 15 requests/minute, 1 million tokens/day)
+   - **Claude** is tried second (if Gemini unavailable)
+   - **OpenAI** is tried last (if others unavailable)
+   - Built-in fallback content when all APIs are unavailable
+   - Automatic error handling and graceful degradation
 
 ## Social Media Integration
 

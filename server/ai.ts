@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
 import path from 'path';
 
@@ -9,12 +10,15 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') }); // Load from root d
 // Check which AI service is configured
 const hasOpenAI = !!process.env.OPENAI_API_KEY;
 const hasClaude = !!process.env.CLAUDE_API_KEY;
+const hasGemini = !!process.env.GOOGLE_API_KEY;
 
-console.log(`AI Services - OpenAI: ${hasOpenAI ? 'Loaded' : 'NOT FOUND'}, Claude: ${hasClaude ? 'Loaded' : 'NOT FOUND'}`);
+console.log(`AI Services - OpenAI: ${hasOpenAI ? 'Loaded' : 'NOT FOUND'}, Claude: ${hasClaude ? 'Loaded' : 'NOT FOUND'}, Gemini: ${hasGemini ? 'Loaded' : 'NOT FOUND'}`);
 
 const openai = hasOpenAI ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
+
+const gemini = hasGemini ? new GoogleGenerativeAI(process.env.GOOGLE_API_KEY) : null;
 
 // Claude API call function
 async function callClaudeAPI(prompt: string, platform: string, maxTokens: number) {
@@ -40,6 +44,20 @@ async function callClaudeAPI(prompt: string, platform: string, maxTokens: number
   return data.content[0].text;
 }
 
+// Gemini API call function
+async function callGeminiAPI(prompt: string, platform: string) {
+  if (!gemini) throw new Error('Gemini not initialized');
+  
+  const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
+  const charLimit = getPlatformCharLimit(platform);
+  
+  const fullPrompt = `Create a ${platform} social media post under ${charLimit} characters. Be concise, engaging, and platform-appropriate.\n\nPrompt: ${prompt}`;
+  
+  const result = await model.generateContent(fullPrompt);
+  const response = await result.response;
+  return response.text();
+}
+
 function getPlatformCharLimit(platform: string): number {
   const limits = { 'x': 280, 'twitter': 280, 'linkedin': 3000, 'facebook': 2000, 'instagram': 2200 };
   return limits[platform.toLowerCase()] || 280;
@@ -47,7 +65,7 @@ function getPlatformCharLimit(platform: string): number {
 
 export async function generateContent(prompt: string, platform: string) {
   try {
-    if (!hasOpenAI && !hasClaude) {
+    if (!hasOpenAI && !hasClaude && !hasGemini) {
       console.warn('No AI API keys found - using fallback content');
       return getFallbackContent(prompt, platform);
     }
@@ -59,8 +77,11 @@ export async function generateContent(prompt: string, platform: string) {
     
     let content: string;
     
-    // Try Claude first if available, then OpenAI
-    if (hasClaude) {
+    // Try Gemini first (generous free tier), then Claude, then OpenAI
+    if (hasGemini) {
+      console.log('Using Gemini API (Google)');
+      content = await callGeminiAPI(prompt, platform);
+    } else if (hasClaude) {
       console.log('Using Claude API');
       content = await callClaudeAPI(prompt, platform, maxTokens);
     } else if (hasOpenAI && openai) {
@@ -88,13 +109,13 @@ export async function generateContent(prompt: string, platform: string) {
     console.log(`Generated content: ${content.length} characters`);
     return content;
   } catch (error: any) {
-    console.error('OpenAI API Error:', error.message);
+    console.error('AI API Error:', error.message);
     
     // Handle specific error types
     if (error.code === 'insufficient_quota') {
-      console.log('⚠️ OpenAI quota exceeded - using fallback content');
+      console.log('⚠️ AI quota exceeded - using fallback content');
     } else if (error.code === 'invalid_api_key') {
-      console.log('⚠️ Invalid OpenAI API key - using fallback content');
+      console.log('⚠️ Invalid AI API key - using fallback content');
     }
     
     return getFallbackContent(prompt, platform);
@@ -132,20 +153,27 @@ function getFallbackContent(prompt: string, platform: string): string {
 
 export async function generateIdeas(topic: string) {
   try {
-    if (!hasOpenAI && !hasClaude) {
+    if (!hasOpenAI && !hasClaude && !hasGemini) {
       console.warn('No AI API keys found - using fallback ideas');
       return getFallbackIdeas(topic);
     }
     
     let response: string;
     
-    if (hasClaude) {
+    // Try Gemini first, then Claude, then OpenAI
+    if (hasGemini && gemini) {
+      console.log('Using Gemini API for ideas');
+      const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
+      const result = await model.generateContent(`Generate exactly 5 short social media content ideas about ${topic}. Format as a numbered list.`);
+      const geminiResponse = await result.response;
+      response = geminiResponse.text();
+    } else if (hasClaude) {
       console.log('Using Claude API for ideas');
       const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.CLAUDE_API_KEY!,
+          'x-api-key': process.env.CLAUDE_API_KEY,
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
@@ -191,7 +219,7 @@ export async function generateIdeas(topic: string) {
 
     return ideas;
   } catch (error: any) {
-    console.error('OpenAI API Error for ideas:', error.message);
+    console.error('AI API Error for ideas:', error.message);
     return getFallbackIdeas(topic);
   }
 }

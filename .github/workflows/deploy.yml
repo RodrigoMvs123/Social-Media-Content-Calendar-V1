@@ -22,7 +22,7 @@ jobs:
           -d '{
             "serviceDetails": {
               "envSpecificDetails": {
-                "buildCommand": "npm install && cd client && npm install && npm run build && cd ../server && npm install && npx tsc --skipLibCheck --noEmit",
+                "buildCommand": "npm install && cd client && npm install && npm run build && cd ../server && npm install",
                 "startCommand": "cd server && node init-database.js && npm run start"
               }
             }

@@ -39,7 +39,7 @@ async function callClaudeAPI(prompt: string, platform: string, maxTokens: number
     })
   });
   
-  const data = await response.json();
+  const data = await response.json() as any;
   if (!response.ok) throw new Error(data.error?.message || 'Claude API error');
   return data.content[0].text;
 }
@@ -185,7 +185,7 @@ export async function generateIdeas(topic: string) {
           }]
         })
       });
-      const data = await claudeResponse.json();
+      const data = await claudeResponse.json() as any;
       if (!claudeResponse.ok) throw new Error(data.error?.message || 'Claude API error');
       response = data.content[0].text;
     } else if (hasOpenAI && openai) {

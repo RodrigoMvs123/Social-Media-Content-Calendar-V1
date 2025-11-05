@@ -1,35 +1,6 @@
-services:
-  - type: web
-    name: social-media-calendar
-    env: node
-    plan: free
-    branch: main
-    buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install && npx tsc --skipLibCheck
-    startCommand: cd server && node init-database.js && npm run start
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DB_TYPE
-        value: sqlite
-      - key: DB_PATH
-        value: /var/data/data.sqlite
-      - key: JWT_SECRET
-        sync: false
-      - key: CORS_ORIGINS
-        value: https://social-media-calendar.onrender.com
-      - key: SLACK_BOT_TOKEN
-        sync: false
-      - key: SLACK_CHANNEL_ID
-        sync: false
-      - key: SLACK_SIGNING_SECRET
-        sync: false
-      - key: SLACK_WEBHOOK_URL
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: GOOGLE_API_KEY
-        sync: false
-    disks:
-      - name: sqlite-data
-        mountPath: /var/data
+# This file is for reference only - deployment handled by GitHub Actions
+# Actual service: srv-d2ho0ibuibrs73a5ufu0
+# URL: https://social-media-content-calendar-v1.onrender.com
+
+# Configuration managed via GitHub Actions workflow
+# See .github/workflows/deploy.yml for deployment process

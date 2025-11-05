@@ -14,6 +14,20 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
     
+    - name: Update service configuration
+      run: |
+        curl -X PATCH "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}" \
+          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "serviceDetails": {
+              "envSpecificDetails": {
+                "buildCommand": "npm install && cd client && npm install && npm run build && cd ../server && npm install && npx tsc --skipLibCheck --noEmit",
+                "startCommand": "cd server && node init-database.js && npm run start"
+              }
+            }
+          }'
+    
     - name: Deploy to Render
       uses: johnbeynon/render-deploy-action@v0.0.8
       with:

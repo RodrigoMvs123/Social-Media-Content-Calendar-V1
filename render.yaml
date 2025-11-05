@@ -5,7 +5,7 @@ services:
     plan: free
     branch: main
     buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install && tsc
-    startCommand: node server/init-database.js && cd server && npm run start
+    startCommand: cd server && node init-database.js && npm run start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV

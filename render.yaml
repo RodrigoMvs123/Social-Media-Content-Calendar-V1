@@ -3,6 +3,7 @@ services:
     name: social-media-calendar
     env: node
     plan: free
+    branch: main
     buildCommand: npm install && cd client && npm install && npm run build && cd ../server && npm install && tsc
     startCommand: node server/init-database.js && cd server && npm run start
     healthCheckPath: /api/health
@@ -26,6 +27,8 @@ services:
       - key: SLACK_WEBHOOK_URL
         sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
         sync: false
     disks:
       - name: sqlite-data

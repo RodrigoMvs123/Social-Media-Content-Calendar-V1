@@ -1,0 +1,57 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd client && npm ci
+        cd ../server && npm ci
+    
+    - name: Lint code
+      run: |
+        cd client && npm run lint --if-present
+        cd ../server && npm run lint --if-present
+    
+    - name: Type check
+      run: |
+        cd client && npm run type-check --if-present
+    
+    - name: Build frontend
+      run: |
+        cd client && npm run build
+    
+    - name: Test backend
+      run: |
+        cd server && npm test --if-present
+      env:
+        NODE_ENV: test
+        DB_TYPE: sqlite
+        DB_PATH: ./test.sqlite
+        JWT_SECRET: test-secret
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-${{ matrix.node-version }}
+        path: client/dist/

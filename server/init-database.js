@@ -175,6 +175,26 @@ async function initializeDatabase() {
           slackPublished BOOLEAN DEFAULT 1,
           slackFailed BOOLEAN DEFAULT 1
         );
+        
+        CREATE TABLE IF NOT EXISTS social_accounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          userId TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          username TEXT,
+          accessToken TEXT,
+          refreshToken TEXT,
+          connected BOOLEAN DEFAULT 0,
+          connectedAt TEXT,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        );
+        
+        CREATE TABLE IF NOT EXISTS slack_message_timestamps (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          postId INTEGER NOT NULL,
+          slackTimestamp TEXT NOT NULL,
+          createdAt TEXT NOT NULL
+        );
       `);
       
       // Add missing columns to existing tables

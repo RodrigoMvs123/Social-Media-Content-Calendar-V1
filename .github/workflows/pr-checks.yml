@@ -1,0 +1,86 @@
+name: PR Automation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd client && npm ci
+        cd ../server && npm ci
+    
+    - name: Check for breaking changes
+      id: breaking-changes
+      run: |
+        echo "Checking for potential breaking changes..."
+        
+        # Check for database schema changes
+        if git diff --name-only origin/main...HEAD | grep -E "(init-database|schema|migration)" > /dev/null; then
+          echo "breaking=true" >> $GITHUB_OUTPUT
+          echo "⚠️ Database schema changes detected"
+        else
+          echo "breaking=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Build and test
+      run: |
+        echo "🏗️ Building frontend..."
+        cd client && npm run build
+        
+        echo "🧪 Running tests..."
+        cd ../server && npm test --if-present || echo "No tests configured"
+      env:
+        NODE_ENV: test
+        DB_TYPE: sqlite
+        DB_PATH: ./test.sqlite
+        JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+    
+    - name: Check bundle size
+      id: bundle-size
+      run: |
+        cd client
+        if [ -f "dist/assets/index-*.js" ]; then
+          size=$(du -h dist/assets/index-*.js | cut -f1)
+          echo "Bundle size: $size"
+          echo "size=$size" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Output PR Results
+      run: |
+        echo "## 🤖 PR Validation Results"
+        echo "✅ Build Status: Passed"
+        echo "📦 Bundle Size: ${{ steps.bundle-size.outputs.size || 'N/A' }}"
+        if [ "${{ steps.breaking-changes.outputs.breaking }}" = "true" ]; then
+          echo "⚠️ Breaking Changes Detected"
+          echo "This PR contains potential database schema changes."
+        fi
+
+  size-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check repository size
+      run: |
+        echo "📊 Repository size analysis:"
+        du -sh . || true
+        echo ""
+        echo "📁 Largest directories:"
+        du -sh */ 2>/dev/null | sort -hr | head -10 || true

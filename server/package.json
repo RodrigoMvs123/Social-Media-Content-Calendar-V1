@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "node index.js",
+    "start": "ts-node index.ts",
     "build": "echo 'Build complete - using ts-node for runtime'",
     "dev": "ts-node index.ts"
   },

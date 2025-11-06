@@ -26,17 +26,18 @@ dotenv.config();
 const app = express();
 const port = parseInt(process.env.PORT || '3001', 10);
 
-// Use DB_TYPE from environment variables
-let dbType = process.env.DB_TYPE || 'sqlite';
+// Use DB_TYPE from environment variables - default to postgres in production
+let dbType = process.env.DB_TYPE || (process.env.NODE_ENV === 'production' ? 'postgres' : 'sqlite');
 let dbAdapter;
+
+console.log(`🔧 Environment: ${process.env.NODE_ENV}`);
+console.log(`🔧 Database Type: ${dbType}`);
 
 if (dbType === 'sqlite') {
   console.log('Using SQLite database adapter');
   dbAdapter = new SQLiteAdapter(process.env.DB_PATH || './data.sqlite');
   dbAdapter.initialize().then(async () => {
     console.log('SQLite database initialized successfully');
-    // Initialize social accounts table
-    
   }).catch(err => {
     console.error('Failed to initialize SQLite database:', err);
   });
@@ -47,6 +48,7 @@ if (dbType === 'sqlite') {
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   };
   const pool = new Pool(dbConfig);
+  console.log('PostgreSQL pool created');
 }
 
 console.log('Database configuration (final):', [

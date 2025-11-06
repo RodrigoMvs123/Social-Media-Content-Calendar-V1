@@ -4,13 +4,6 @@ README.md
 
 A modern web application for planning and scheduling social media content across multiple platforms.
 
-## 🚀 Live Demo
-
-The application is deployed and available at:
-**https://social-media-content-calendar-v1.onrender.com/**
-
-*Note: This is a production deployment on Render.com with full functionality including PostgreSQL database, Slack integration, and AI content generation.*
-
 ## Technologies Used
 
 - React with TypeScript

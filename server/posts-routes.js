@@ -54,8 +54,15 @@ const getUserId = (req, res, next) => {
 // Apply getUserId middleware to all routes
 router.use(getUserId);
 
-// Database setup - hybrid approach
-const dbType = process.env.DB_TYPE || 'sqlite';
+// Database setup - hybrid approach (match main server logic)
+let dbType = process.env.DB_TYPE;
+if (!dbType) {
+  dbType = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+}
+if (process.env.NODE_ENV === 'production' && !dbType.includes('postgres')) {
+  console.log('🔧 POSTS: FORCING PostgreSQL in production');
+  dbType = 'postgres';
+}
 let db;
 
 // SQLite helper function

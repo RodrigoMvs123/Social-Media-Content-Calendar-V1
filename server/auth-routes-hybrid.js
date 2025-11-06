@@ -5,8 +5,15 @@ const jwt = require('jsonwebtoken');
 // Create router
 const router = express.Router();
 
-// Database setup - hybrid approach
-const dbType = process.env.DB_TYPE || 'sqlite';
+// Database setup - hybrid approach (match main server logic)
+let dbType = process.env.DB_TYPE;
+if (!dbType) {
+  dbType = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+}
+if (process.env.NODE_ENV === 'production' && !dbType.includes('postgres')) {
+  console.log('🔧 AUTH: FORCING PostgreSQL in production');
+  dbType = 'postgres';
+}
 let db;
 
 // JWT secret

@@ -40,7 +40,7 @@ jobs:
     - name: Health check
       run: |
         echo "Checking deployment health..."
-        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.RENDER_SERVICE_URL }}/api/health || echo "000")
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.RENDER_SERVICE_URL }}/health || echo "000")
         if [ "$response" = "200" ]; then
           echo "✅ Deployment successful - Health check passed"
         else

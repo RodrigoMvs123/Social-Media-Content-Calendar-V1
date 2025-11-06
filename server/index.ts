@@ -26,8 +26,15 @@ dotenv.config();
 const app = express();
 const port = parseInt(process.env.PORT || '3001', 10);
 
-// Use DB_TYPE from environment variables - default to postgres in production
-let dbType = process.env.DB_TYPE || (process.env.NODE_ENV === 'production' ? 'postgres' : 'sqlite');
+// Use DB_TYPE from environment variables - force postgres if DATABASE_URL exists
+let dbType = process.env.DB_TYPE;
+if (!dbType) {
+  dbType = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+}
+if (process.env.NODE_ENV === 'production' && !dbType.includes('postgres')) {
+  console.log('🔧 FORCING PostgreSQL in production');
+  dbType = 'postgres';
+}
 let dbAdapter;
 
 console.log(`🔧 Environment: ${process.env.NODE_ENV}`);

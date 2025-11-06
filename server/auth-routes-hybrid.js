@@ -187,4 +187,37 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Get current user endpoint (for token verification)
+router.get('/me', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.userId;
+    
+    // Get user from database
+    let user;
+    if (dbType === 'sqlite') {
+      user = await db.get('SELECT id, name, email FROM users WHERE id = ?', userId);
+    } else {
+      const result = await db.query('SELECT id, name, email FROM users WHERE id = $1', [userId]);
+      user = result.rows[0];
+    }
+    
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
 module.exports = router;

@@ -4,6 +4,13 @@ README.md
 
 A modern web application for planning and scheduling social media content across multiple platforms.
 
+🚀 Live Demo
+
+The application is deployed and available at:
+**https://social-media-content-calendar-v1.onrender.com/**
+
+*Note: This is a production deployment on Render.com with full functionality including PostgreSQL database, Slack integration, and AI content generation.*
+
 ## Technologies Used
 
 - React with TypeScript
@@ -107,6 +114,8 @@ The application will automatically use the database specified in your environmen
 ## Universal Authentication System
 
 The application features a revolutionary **Universal Authentication System** that allows users to seamlessly access their accounts across both SQLite and PostgreSQL databases without any manual intervention.
+
+> **⚠️ Important Note**: Universal Authentication is **only available in development** (`npm run dev`). In **production deployments** (Render, Docker, etc.), the system uses **PostgreSQL exclusively** for optimal performance and data consistency. If you need cross-database functionality in production, use the manual migration tools described below.
 
 ### How It Works
 
@@ -981,6 +990,35 @@ The migration tool provides detailed logging:
 
 The cross-database migration system ensures you can switch between database providers without losing any data or functionality, making your application truly database-agnostic.
 
+## Production Database Recommendations
+
+### For Production Deployments:
+
+**✅ Recommended: PostgreSQL**
+- ✅ **Persistent storage** on cloud platforms
+- ✅ **Better performance** for concurrent users
+- ✅ **Automatic backups** available
+- ✅ **SSL support** for secure connections
+- ✅ **Scalable** for growing applications
+
+**❌ Not Recommended: SQLite in Production**
+- ❌ **Ephemeral storage** - data lost on container restart
+- ❌ **Single-user limitations** for web applications
+- ❌ **No built-in backup** solutions
+- ❌ **File system dependencies**
+
+### Environment-Specific Behavior:
+
+| Environment | Database | Universal Auth | Data Persistence |
+|-------------|----------|----------------|------------------|
+| **Development** (`npm run dev`) | SQLite or PostgreSQL | ✅ Enabled | ✅ Cross-database |
+| **Production** (Render/Docker) | PostgreSQL only | ❌ Disabled | ✅ PostgreSQL only |
+
+### Migration Strategy:
+
+1. **Development**: Use SQLite for quick setup, PostgreSQL for production testing
+2. **Staging**: Always use PostgreSQL to match production
+3. **Production**: PostgreSQL exclusively with proper backups
+4. **Data Migration**: Use the migration tools when moving between environments
 
 
-.

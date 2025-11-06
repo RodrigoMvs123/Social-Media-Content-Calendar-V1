@@ -75,33 +75,27 @@ async function getDb() {
   });
 }
 
-if (dbType === 'sqlite') {
-  const sqlite3 = require('sqlite3');
-  const { open } = require('sqlite');
-  
-  // Initialize SQLite database
-  (async () => {
-    try {
+// Initialize database connection based on detected type
+(async () => {
+  try {
+    if (dbType === 'sqlite') {
+      const sqlite3 = require('sqlite3');
+      const { open } = require('sqlite');
+      
       db = await open({
         filename: process.env.DB_PATH || './data.sqlite',
         driver: sqlite3.Database
       });
       console.log('✅ SQLite connected for posts');
-    } catch (error) {
-      console.error('❌ SQLite connection failed:', error);
-    }
-  })();
-} else {
-  const { Pool } = require('pg');
-  db = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-  console.log('✅ PostgreSQL connected for posts');
-  
-  // Create posts table if it doesn't exist
-  (async () => {
-    try {
+    } else {
+      const { Pool } = require('pg');
+      db = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+      console.log('✅ PostgreSQL connected for posts');
+      
+      // Create posts table if it doesn't exist
       await db.query(`
         CREATE TABLE IF NOT EXISTS posts (
           id SERIAL PRIMARY KEY,
@@ -118,11 +112,11 @@ if (dbType === 'sqlite') {
         )
       `);
       console.log('✅ Posts table ready');
-    } catch (error) {
-      console.error('❌ Error creating posts table:', error);
     }
-  })();
-}
+  } catch (error) {
+    console.error('❌ Database connection failed for posts:', error);
+  }
+})();
 
 // Table initialization handled by init-database.js or index.js
 

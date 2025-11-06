@@ -62,9 +62,29 @@ export const debugProduction = async () => {
   }
 };
 
-// Make it globally available with proper async handling
-(window as any).debugProduction = async () => {
-  const result = await debugProduction();
-  console.log('🔍 PRODUCTION DEBUG - FINAL RESULT:', result);
-  return result;
+// Make it globally available with immediate logging
+(window as any).debugProduction = () => {
+  console.log('🔍 STARTING DEBUG...');
+  debugProduction().then(result => {
+    console.log('🔍 DEBUG COMPLETE:', result);
+  }).catch(err => {
+    console.log('🔍 DEBUG ERROR:', err);
+  });
+};
+
+// Also add a simple API test
+(window as any).testAPI = async () => {
+  console.log('🔍 Testing /api/posts...');
+  try {
+    const response = await fetch('/api/posts', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+      }
+    });
+    console.log('🔍 Posts response status:', response.status);
+    const data = await response.json();
+    console.log('🔍 Posts data:', data);
+  } catch (error) {
+    console.log('🔍 Posts error:', error);
+  }
 };

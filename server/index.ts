@@ -75,22 +75,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Serve static files from the uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Serve static files from client build in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
-  
-  // Handle React Router (return `index.html` for non-API routes)
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-    }
-  });
-}
-
-// Use hybrid routes that auto-detect database type
+// Use hybrid routes that auto-detect database type (BEFORE static files)
 const authRoutesHybrid = require('./auth-routes-hybrid');
 const postsRoutes = require('./posts-routes');
 
@@ -101,6 +86,21 @@ app.use('/api/slack', slackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/media', mediaRoutes);
+
+// Serve static files from the uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve static files from client build in production (AFTER API routes)
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')));
+  
+  // Handle React Router (return `index.html` for non-API routes)
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    }
+  });
+}
 
 // AI content generation endpoints
 app.post('/api/ai/generate', async (req, res) => {

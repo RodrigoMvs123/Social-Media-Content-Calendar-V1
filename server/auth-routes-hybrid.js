@@ -152,11 +152,14 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Import Universal Authentication Service
-const { CrossDatabaseAuthService } = require('./services/CrossDatabaseAuthService');
-const universalAuth = new CrossDatabaseAuthService();
+// Import Universal Authentication Service (disabled in production)
+let universalAuth = null;
+if (process.env.NODE_ENV !== 'production') {
+  const { CrossDatabaseAuthService } = require('./services/CrossDatabaseAuthService');
+  universalAuth = new CrossDatabaseAuthService();
+}
 
-// Login endpoint with Universal Authentication
+// Login endpoint with Universal Authentication (production uses direct PostgreSQL)
 router.post('/login', async (req, res) => {
   try {
     if (!JWT_SECRET) {
@@ -165,31 +168,60 @@ router.post('/login', async (req, res) => {
     }
     
     const { email, password } = req.body;
-    console.log('🔍 Universal login request:', { email });
+    console.log('🔍 Login request:', { email, dbType });
     
-    // Use Universal Authentication
-    const authResult = await universalAuth.authenticateUser(email, password);
-    
-    if (authResult.success) {
-      // Generate token
-      const token = generateToken(authResult.user);
+    if (universalAuth && process.env.NODE_ENV !== 'production') {
+      // Use Universal Authentication in development
+      const authResult = await universalAuth.authenticateUser(email, password);
       
-      console.log(`✅ Universal login successful: ${email} (${authResult.source}${authResult.migrated ? ' - migrated' : ''})`);
+      if (authResult.success) {
+        const token = generateToken(authResult.user);
+        console.log(`✅ Universal login successful: ${email} (${authResult.source})`);
+        
+        res.json({
+          success: true,
+          user: authResult.user,
+          token,
+          source: authResult.source,
+          migrated: authResult.migrated
+        });
+      } else {
+        console.log(`❌ Universal login failed: ${email} - ${authResult.error}`);
+        res.status(401).json({ error: authResult.error });
+      }
+    } else {
+      // Direct database authentication (production)
+      let user;
+      if (dbType === 'sqlite') {
+        user = await db.get('SELECT * FROM users WHERE email = ?', email);
+      } else {
+        const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        user = result.rows[0];
+      }
+      
+      if (!user) {
+        console.log(`❌ User not found: ${email}`);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        console.log(`❌ Invalid password: ${email}`);
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+      
+      const token = generateToken(user);
+      console.log(`✅ Direct login successful: ${email} (${dbType})`);
       
       res.json({
         success: true,
-        user: authResult.user,
+        user: { id: user.id, email: user.email, name: user.name },
         token,
-        source: authResult.source,
-        migrated: authResult.migrated,
-        message: authResult.message
+        source: dbType
       });
-    } else {
-      console.log(`❌ Universal login failed: ${email} - ${authResult.error}`);
-      res.status(401).json({ error: authResult.error });
     }
   } catch (error) {
-    console.error('❌ Universal login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ error: 'Authentication error' });
   }
 });

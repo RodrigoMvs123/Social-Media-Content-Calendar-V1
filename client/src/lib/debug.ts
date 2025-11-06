@@ -62,5 +62,9 @@ export const debugProduction = async () => {
   }
 };
 
-// Make it globally available
-(window as any).debugProduction = debugProduction;
+// Make it globally available with proper async handling
+(window as any).debugProduction = async () => {
+  const result = await debugProduction();
+  console.log('🔍 PRODUCTION DEBUG - FINAL RESULT:', result);
+  return result;
+};

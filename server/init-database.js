@@ -3,7 +3,15 @@ const dotenv = require('dotenv');
 dotenv.config();
 const fs = require('fs');
 
-const dbType = process.env.DB_TYPE || 'sqlite';
+// Use same database detection logic as main server
+let dbType = process.env.DB_TYPE;
+if (!dbType) {
+  dbType = process.env.DATABASE_URL ? 'postgres' : 'sqlite';
+}
+if (process.env.NODE_ENV === 'production' && !dbType.includes('postgres')) {
+  console.log('🔧 INIT: FORCING PostgreSQL in production');
+  dbType = 'postgres';
+}
 
 async function initializeDatabase() {
   console.log(`🚀 Initializing ${dbType.toUpperCase()} database...`);
